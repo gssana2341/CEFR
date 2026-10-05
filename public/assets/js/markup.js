@@ -521,11 +521,15 @@
     const ann = annotation(opts.bank, opts.key);
     if (!ann) return null;
     const pass = window.CEFR.pass;
+    let trial = null;                       // free look for non-members: { left }
     if (pass && !pass.allows('markup')) {
-      return h('div', { class: 'clue-box' },
-        h('p', { class: 'clue-title', text: 'ดูตรงนี้' }),
-        h('p', { class: 'notice' }, 'เส้นโยงบนประโยคและสูตร tense สำหรับสมาชิก · ',
-          h('a', { class: 'link-btn', href: 'pricing.html?need=markup', text: 'ดูแพ็กเกจ →' })));
+      trial = pass.trial(opts.bank + ':' + opts.key);
+      if (!trial.ok) {
+        return h('div', { class: 'clue-box' },
+          h('p', { class: 'clue-title', text: 'ดูตรงนี้' }),
+          h('p', { class: 'notice' }, 'วันนี้ดูเส้นโยงฟรีครบแล้ว — สมาชิกดูได้ไม่จำกัด · ',
+            h('a', { class: 'link-btn', href: 'pricing.html?need=markup', text: 'ดูแพ็กเกจ →' })));
+      }
     }
     const box = h('div', { class: 'clue-box' }, h('p', { class: 'clue-title', text: 'ดูตรงนี้' }));
     if ((ann.links && ann.links.length) || (ann.tags && ann.tags.length)) box.append(diagram(opts.q, opts.answer, ann));
@@ -537,6 +541,10 @@
     }
     if (ann.tense) box.append(tenseCard(ann.tense));
     if (ann.lesson) box.append(h('p', { class: 'clue-more' }, h('a', { class: 'link-btn', href: 'learn.html#' + ann.lesson, text: 'บทเรียนเรื่องนี้ →' })));
+    if (trial) {
+      box.append(h('p', { class: 'fine-print' }, 'ตัวอย่างฟรี วันนี้เหลืออีก ' + trial.left + ' ข้อ · สมาชิกดูได้ไม่จำกัด ',
+        h('a', { class: 'link-btn', href: 'pricing.html?need=markup', text: 'ดูแพ็กเกจ →' })));
+    }
     return box;
   }
 

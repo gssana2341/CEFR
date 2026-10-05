@@ -378,5 +378,14 @@
     render();
   }
 
-  mount(document.getElementById('app'));
+  const root = document.getElementById('app');
+  const pass = window.CEFR.pass;
+  const feature = 'practice:' + root.dataset.quiz;
+  (pass ? pass.ready : Promise.resolve()).then(() => {
+    if (pass && !pass.allows(feature)) {
+      root.replaceChildren(pass.lockPanel(feature, { freeHref: 'grammar.html', freeText: 'ไปทำ Grammar (ฟรี)' }));
+    } else {
+      mount(root);
+    }
+  });
 })();

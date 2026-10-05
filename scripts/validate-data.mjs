@@ -14,7 +14,7 @@ const dataDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'a
 const sandbox = { window: {} };
 vm.createContext(sandbox);
 for (const file of ['grammar', 'conversations', 'cloze', 'extra', 'placement', 'lessons', 'exam', 'glossary',
-  'cat-bank', 'tenses', 'clues-grammar', 'clues-conversations', 'clues-extra', 'clues-placement', 'clues-lessons']) {
+  'cat-bank', 'billing', 'tenses', 'clues-grammar', 'clues-conversations', 'clues-extra', 'clues-placement', 'clues-lessons']) {
   vm.runInContext(readFileSync(join(dataDir, file + '.js'), 'utf8'), sandbox, { filename: file + '.js' });
 }
 // markup.js is a browser script; only its pure helpers (plan) are used here
@@ -105,6 +105,18 @@ let catInfo = '';
       for (const lv of LEVELS) if (per[lv] < 20) err('cat', `level ${lv} has only ${per[lv]} questions in the adaptive pool; at least 20 are needed`);
       catInfo = `${pool.length} questions (${LEVELS.map((lv) => lv + ' ' + per[lv]).join(' · ')})`;
     }
+  }
+}
+
+// --- Membership settings (billing.js) ---
+{
+  const b = D.billing;
+  if (!b || typeof b.enabled !== 'boolean' || typeof b.premium !== 'object') err('billing', 'billing.js needs enabled (true/false) and premium {…}');
+  else {
+    const sets = ['grammar', 'conversations', 'cloze', 'extra'];
+    for (const id of b.premium.practice ?? []) if (!sets.includes(id)) err('billing.premium.practice', `"${id}" is not a practice set (${sets.join(', ')})`);
+    for (const lv of b.premium.lessonLevels ?? []) if (!LEVELS.includes(lv)) err('billing.premium.lessonLevels', `"${lv}" is not a level`);
+    if (b.premium.markupFreePerDay !== undefined && !(Number.isInteger(b.premium.markupFreePerDay) && b.premium.markupFreePerDay >= 0)) err('billing.premium.markupFreePerDay', 'must be a whole number (0 = no free looks)');
   }
 }
 

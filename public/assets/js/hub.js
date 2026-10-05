@@ -18,6 +18,11 @@
   const clock = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
   const levelName = (l) => (l === 'pre-A1' ? 'ต่ำกว่า A1' : l === 'B2+' ? 'B2 ขึ้นไป' : l);
   const btn = (text, href, primary) => h('a', { class: 'btn' + (primary ? '' : ' btn-outline'), href, text });
+  const accBtn = (text, href) => h('a', { class: 'btn btn-acc', href, text });   // button in the colour of its exam set
+  // members-only feature that this visitor has not unlocked → show the "สมาชิก" tag
+  const billingOn = () => !!((window.CEFR_DATA.billing || {}).enabled);
+  const freeTag = (feature) => billingOn() && !(window.CEFR.pass && window.CEFR.pass.members(feature)) && h('span', { class: 'free-tag', text: 'ฟรี' });
+  const lockedFor = (feature) => { const p = window.CEFR.pass; return !!(p && p.members(feature) && !p.active()); };
 
   // ---------- Progress readers ----------
   const lessonProgress = () => store.get('learn:progress', {});
@@ -179,7 +184,7 @@
           return h('li', {}, h('a', { class: 'lesson-link', href: 'learn.html#' + l.id },
             h('span', { class: 'lesson-no', text: String(no).padStart(2, '0') }),
             h('span', { class: 'lesson-name' }, l.title + ' ', h('span', { class: 'light', text: l.en })),
-            h('span', { class: 'lesson-state' + (done ? ' done' : ''), text: done ? '✓ ' + p.score + '/' + p.total : l.level === focus ? 'แนะนำ' : '' }),
+            h('span', { class: 'lesson-state' + (done ? ' done' : ''), text: done ? '✓ ' + p.score + '/' + p.total : lockedFor('lesson:' + l.level) ? 'สมาชิก' : l.level === focus ? 'แนะนำ' : '' }),
             h('span', { class: 'lesson-sub', text: l.minutes + ' นาที · แบบฝึกหัด ' + l.exercises.length + ' ข้อ' })));
         })),
       ]),
@@ -199,12 +204,15 @@
       h('p', { class: 'tab-intro', text: 'เลือกชุดข้อสอบที่ต้องการ ตอบแล้วเห็นเฉลยพร้อมคำอธิบายทันที ข้อที่ตอบผิดจะถูกเก็บไว้ให้ทบทวนภายหลัง' }),
       h('div', { class: 'cards' }, PRACTICE.map((p) => {
         const info = practiceInfo(p.id);
-        return h('article', { class: 'card' },
-          h('h2', { class: 'card-title' }, p.title + ' ', h('span', { class: 'light', text: p.thai })),
+        const locked = lockedFor('practice:' + p.id);
+        return h('article', { class: 'card acc acc-' + p.id },
+          h('div', { class: 'card-head' },
+            h('h2', { class: 'card-title' }, p.title + ' ', h('span', { class: 'light', text: p.thai })),
+            locked ? h('span', { class: 'rec-tag', text: 'สมาชิก' }) : freeTag('practice:' + p.id)),
           h('p', { class: 'card-desc', text: p.desc }),
           h('p', { class: 'card-meta', text: info.meta.join(' · ') }),
           info.resume && h('p', { class: 'card-meta', text: 'ค้างอยู่: ' + info.resume }),
-          h('div', { class: 'card-actions' }, btn(info.cta, p.href, true)));
+          h('div', { class: 'card-actions' }, locked ? accBtn('ปลดล็อกด้วยสมาชิก', 'pricing.html?need=practice:' + p.id) : accBtn(info.cta, p.href)));
       })));
   }
 
@@ -216,16 +224,16 @@
       h('h1', { class: 'page-title', text: 'ทดสอบ' }),
       h('p', { class: 'tab-intro', text: 'ไม่แน่ใจว่าจะเริ่มตรงไหน ให้ทดสอบระดับก่อน แล้วค่อยซ้อมสอบจริงเมื่อฝึกมาพอสมควร' }),
       h('div', { class: 'stack' },
-        h('article', { class: 'card' },
-          h('h2', { class: 'card-title' }, 'ทดสอบระดับ ', h('span', { class: 'light', text: 'Placement test' })),
+        h('article', { class: 'card acc acc-placement' },
+          h('div', { class: 'card-head' }, h('h2', { class: 'card-title' }, 'ทดสอบระดับ ', h('span', { class: 'light', text: 'Placement test' })), freeTag('placement')),
           h('p', { class: 'card-desc', text: 'รู้ว่าตอนนี้ภาษาอังกฤษของคุณอยู่ระดับ A1, A2, B1 หรือ B2 ใช้เวลาประมาณ 15 นาที ได้ผลพร้อมคำแนะนำบทเรียนที่ควรเรียนต่อ' }),
           h('p', { class: 'card-meta', text: ['ปรับความยากอัตโนมัติ · ประมาณ 20–25 ข้อ', last && 'ผลล่าสุด: ' + levelName(last.level) + ' (' + dateTh(last.at) + ')'].filter(Boolean).join(' · ') }),
-          h('div', { class: 'card-actions' }, btn(placementRunning() ? 'ทำต่อ' : last ? 'ทำอีกครั้ง' : 'เริ่มทดสอบ', 'placement.html', true))),
-        h('article', { class: 'card' },
-          h('h2', { class: 'card-title' }, 'สอบจำลอง ', h('span', { class: 'light', text: 'Mock exam' })),
-          h('p', { class: 'card-desc', text: 'ซ้อมสอบตามกติกาของ EF SET: จับเวลาแยกส่วน ย้อนกลับไม่ได้ ไม่มีเฉลยและไม่มีระบบแปลช่วยระหว่างทำ หรือเลือกแบบยืดหยุ่นที่ข้ามไปมาได้ ส่งแล้วจึงเห็นคะแนนและเฉลยทุกข้อ' }),
+          h('div', { class: 'card-actions' }, accBtn(placementRunning() ? 'ทำต่อ' : last ? 'ทำอีกครั้ง' : 'เริ่มทดสอบ', 'placement.html'))),
+        h('article', { class: 'card acc acc-exam' },
+          h('div', { class: 'card-head' }, h('h2', { class: 'card-title' }, 'สอบจำลอง ', h('span', { class: 'light', text: 'Mock exam' })), lockedFor('exam') && h('span', { class: 'rec-tag', text: 'สมาชิก' })),
+          h('p', { class: 'card-desc', text: 'ซ้อมสอบตามกติกาของ EF SET: จับเวลาแยกส่วน ย้อนกลับไม่ได้ ไม่มีเฉลยระหว่างทำ และปิดระบบแปลไว้เหมือนข้อสอบจริง หรือเลือกแบบยืดหยุ่นที่ข้ามไปมาได้ ส่งแล้วจึงเห็นคะแนนและเฉลยทุกข้อ' }),
           h('p', { class: 'card-meta', text: ['แบบ EF SET ' + examMinutes() + ' นาที · แบบยืดหยุ่น ' + D.exam.profiles[1].sections[0].minutes + ' นาที', hist.length && 'ผลล่าสุด ' + pct(hist[0].score, hist[0].total) + '% (' + dateTh(hist[0].at) + ')', running && 'กำลังสอบอยู่ · ' + examLeft(running)].filter(Boolean).join(' · ') }),
-          h('div', { class: 'card-actions' }, btn(running ? 'กลับไปสอบ' : 'เลือกรูปแบบและเริ่มสอบ', 'exam.html', true)))
+          h('div', { class: 'card-actions' }, accBtn(running ? 'กลับไปสอบ' : lockedFor('exam') ? 'ปลดล็อกด้วยสมาชิก' : 'เลือกรูปแบบและเริ่มสอบ', lockedFor('exam') && !running ? 'pricing.html?need=exam' : 'exam.html')))
       ));
   }
 
@@ -253,6 +261,11 @@
     window.scrollTo(0, 0);
   }
 
+  document.addEventListener('cefr:pass', () => {
+    const tab = currentTab();
+    build();
+    TABS.forEach((t) => { panels[t].hidden = t !== tab; });
+  });
   window.addEventListener('hashchange', show);
   window.addEventListener('pageshow', (e) => { if (e.persisted) show(); });   // back button → refresh progress
   show();

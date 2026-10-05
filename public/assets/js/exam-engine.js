@@ -11,6 +11,7 @@
   const cfg = D.exam;
   const root = document.getElementById('app');
   const trToggle = document.querySelector('[data-translate-toggle]');
+  const helpOn = () => store.get('translate:test', false) === true;   // click-to-translate on the question while testing (off by default)
 
   const K = { state: 'exam:state', history: 'exam:history' };
   const KEYS = '12345';
@@ -347,7 +348,7 @@
           h('button', { class: 'btn', type: 'button', text: 'กลับไปสอบต่อ', onclick: () => { if (!state.between && remaining() <= 0) endSection(true); else enterExam(); } }),
           h('button', { class: 'btn btn-outline', type: 'button', text: 'ละทิ้ง', onclick: discard }))
       ),
-      h('p', { class: 'lead', text: 'ซ้อมสอบแบบจับเวลา ไม่มีเฉลยและไม่มีระบบแปลช่วยระหว่างทำ ส่งแล้วจึงเห็นคะแนนและเฉลยทุกข้อ เลือกรูปแบบที่ต้องการ' }),
+      h('p', { class: 'lead', text: 'ซ้อมสอบแบบจับเวลา ไม่มีเฉลยระหว่างทำ และปิดระบบแปลไว้เหมือนข้อสอบจริง (เปิด "ช่วยแปลโจทย์" เองได้ใต้ข้อ) ส่งแล้วจึงเห็นคะแนนและเฉลยทุกข้อ เลือกรูปแบบที่ต้องการ' }),
       h('div', { class: 'stack' }, profiles.map(profileCard)),
       rulesBox(),
       history.length > 0 && h('div', { class: 'review' },
@@ -415,7 +416,7 @@
     if (it.kind === 'mcq') {
       const q = questionOf(it);
       body = [
-        h('p', { class: 'question', text: q.q }),
+        h('p', { class: 'question', 'data-tr': helpOn() ? true : null, text: q.q }),
         h('div', { class: 'choices', role: 'group', 'aria-label': 'ตัวเลือก' },
           it.order.map((orig, i) => h('button', {
             class: 'choice' + (it.pick === orig ? ' selected' : ''),
@@ -488,7 +489,10 @@
         !oneWay && h('div', { class: 'btn-row exam-tools' },
           h('button', { class: 'btn btn-ghost btn-sm', type: 'button', 'aria-pressed': String(it.flag), text: it.flag ? 'ยกเลิกเครื่องหมาย' : 'ทำเครื่องหมายไว้ทบทวน', onclick: toggleFlag }),
           h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: 'ล้างคำตอบ', onclick: clearAnswer })),
-        oneWay && !canAdvance(it) && h('p', { class: 'fine-print', text: 'ต้องตอบให้ครบก่อนไปข้อถัดไป และย้อนกลับมาแก้ไม่ได้' })
+        oneWay && !canAdvance(it) && h('p', { class: 'fine-print', text: 'ต้องตอบให้ครบก่อนไปข้อถัดไป และย้อนกลับมาแก้ไม่ได้' }),
+        it.kind === 'mcq' && h('div', { class: 'quiz-footer' },
+          h('button', { class: 'btn btn-ghost btn-sm', type: 'button', 'aria-pressed': String(helpOn()), text: 'ช่วยแปลโจทย์: ' + (helpOn() ? 'เปิด' : 'ปิด'),
+            onclick: () => { store.set('translate:test', !helpOn()); renderExam(); } }))
       ),
       !oneWay && h('details', { class: 'nav-details', open: true },
         h('summary', { text: 'รายการข้อทั้งหมด' }),

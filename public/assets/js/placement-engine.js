@@ -15,6 +15,7 @@
   const trToggle = document.querySelector('[data-translate-toggle]');
 
   const KEYS = '1234';
+  const helpOn = () => store.get('translate:test', false) === true;   // click-to-translate on the question while testing (off by default)
   const K = { state: 'placement:state', last: 'placement:last', history: 'placement:history' };
 
   const LEVEL_TEXT = {
@@ -173,7 +174,7 @@
       last && h('p', { class: 'meta stat-line', text: 'ผลล่าสุด: ระดับ ' + lastName(last) + (last.score !== undefined ? ' (' + last.score + '/100)' : '') + ' · ' + fmtDate(last.at) }),
       h('ul', { class: 'rules' },
         h('li', { text: 'ประมาณ 20–25 ข้อ ใช้เวลา 10–15 นาที (แต่ละคนไม่เท่ากัน)' }),
-        h('li', { text: 'ไม่มีเฉลยระหว่างทำ ย้อนกลับไม่ได้ และปิดระบบแปลไว้ ดูเฉลยได้หลังจบ' }),
+        h('li', { text: 'ไม่มีเฉลยระหว่างทำ และย้อนกลับไม่ได้ · ระบบแปลปิดไว้เหมือนข้อสอบจริง (เปิด "ช่วยแปลโจทย์" ได้ที่ใต้ข้อ ถ้าต้องการ)' }),
         h('li', { text: 'พักแล้วกลับมาทำต่อได้ ระบบบันทึกให้อัตโนมัติ' })),
       h('div', { class: 'btn-row' }, h('button', { class: 'btn', type: 'button', text: 'เริ่มทำแบบทดสอบ', onclick: start })),
       howItWorks(),
@@ -193,7 +194,7 @@
       h('section', { class: 'panel' },
         bar,
         h('div', { class: 'top-bar' }, h('span', { text: 'ข้อ ' + n })),
-        h('p', { class: 'question', text: it.q.q }),
+        h('p', { class: 'question', 'data-tr': helpOn() ? true : null, text: it.q.q }),
         h('div', { class: 'choices', role: 'group', 'aria-label': 'ตัวเลือก' },
           e.order.map((orig, i) => h('button', {
             class: 'choice' + (e.pick === orig ? ' selected' : ''),
@@ -206,7 +207,9 @@
         h('div', { class: 'exam-actions' },
           h('button', { class: 'btn btn-block', type: 'button', disabled: e.pick === null, text: 'ถัดไป', onclick: next })),
         h('div', { class: 'quiz-footer' },
-          h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: '← พักไว้ก่อน (บันทึกอัตโนมัติ)', onclick: goHome }))));
+          h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: '← พักไว้ก่อน (บันทึกอัตโนมัติ)', onclick: goHome }),
+          h('button', { class: 'btn btn-ghost btn-sm', type: 'button', 'aria-pressed': String(helpOn()), text: 'ช่วยแปลโจทย์: ' + (helpOn() ? 'เปิด' : 'ปิด'),
+            onclick: () => { store.set('translate:test', !helpOn()); renderQuiz(); } }))));
   }
 
   function renderResult() {
@@ -261,7 +264,7 @@
         h('p', { class: 'fine-print', style: { marginTop: '-16px' }, text: 'ระบบเลือกข้อที่ใกล้ระดับคุณ จึงไม่ได้ถามครบทุกระดับ' }),
         recommended.length > 0 && h('div', { class: 'recommend' },
           h('h3', { text: 'แนะนำให้เรียนต่อ (ระดับ ' + target + ')' }),
-          h('ul', {}, recommended.slice(0, 5).map((l) => h('li', {}, h('a', { href: 'learn.html#' + l.id, text: l.title + ' — ' + l.en })))),
+          h('ul', {}, recommended.slice(0, 5).map((l) => h('li', {}, h('a', { href: 'learn.html#' + l.id, text: l.title + ' — ' + l.en }), window.CEFR.pass && window.CEFR.pass.members('lesson:' + l.level) && !window.CEFR.pass.active() && h('span', { class: 'free-tag', text: ' สมาชิก' })))),
           recommended.length > 5 && h('p', { class: 'meta' }, h('a', { href: 'index.html#learn', text: 'ดูบทเรียนทั้งหมด (' + recommended.length + ' บทในระดับนี้) →' }))),
         h('div', { class: 'btn-row' },
           h('button', { class: 'btn', type: 'button', text: 'ทำแบบทดสอบใหม่', onclick: start }),

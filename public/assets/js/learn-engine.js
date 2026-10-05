@@ -101,6 +101,21 @@
     const prev = lessons[idx - 1];
     const next = lessons[idx + 1];
 
+    const pass = window.CEFR.pass;
+    if (pass && !pass.allows('lesson:' + lesson.level)) {
+      setView(
+        h('a', { class: 'back-link', href: 'index.html#learn', text: '← บทเรียนทั้งหมด' }),
+        h('p', { class: 'eyebrow lesson-eyebrow', text: 'บทเรียน · ' + lesson.level + ' · ' + lesson.minutes + ' นาที' }),
+        h('h1', { class: 'page-title' }, lesson.title + ' ', h('span', { class: 'light', text: lesson.en })),
+        h('p', { class: 'lead', 'data-tr': true }, rich(lesson.intro)),
+        pass.lockPanel('lesson:' + lesson.level, {
+          title: 'บทเรียนระดับ ' + lesson.level + ' สำหรับสมาชิก',
+          text: 'บทเรียนระดับ A1 อ่านได้ฟรี ตั้งแต่ A2 ขึ้นไปเป็นของสมาชิก เลือกแพ็กเกจตั้งแต่ 1 วัน (20 บาท)',
+          freeHref: 'index.html#learn', freeText: 'กลับไปบทเรียนฟรี',
+        }));
+      return;
+    }
+
     setView(
       h('a', { class: 'back-link', href: 'index.html#learn', text: '← บทเรียนทั้งหมด' }),
       h('p', { class: 'eyebrow lesson-eyebrow', text: 'บทเรียน · ' + lesson.level + ' · ' + lesson.minutes + ' นาที' }),
@@ -126,5 +141,5 @@
   }
 
   window.addEventListener('hashchange', route);
-  route();
+  (window.CEFR.pass ? window.CEFR.pass.ready : Promise.resolve()).then(route);
 })();

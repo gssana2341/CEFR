@@ -7,7 +7,37 @@
   const root = document.getElementById('app');
   const params = new URLSearchParams(location.search);
 
-  const FEATURES = { exam: 'สอบจำลอง', markup: 'เส้นโยงบนประโยคและสูตร tense' };
+  const D = window.CEFR_DATA;
+  const premium = (D.billing || {}).premium || {};
+  const SETS = { grammar: 'Grammar', conversations: 'Conversations', cloze: 'Cloze Test', extra: 'ฝึกเพิ่มเติม' };
+  const lessonCount = (levels) => (D.lessons || []).filter((l) => levels.includes(l.level)).length;
+  const freeLevels = ['A1', 'A2', 'B1', 'B2'].filter((lv) => !(premium.lessonLevels || []).includes(lv));
+
+  // what the visitor gets for free / with a membership (built from assets/data/billing.js so it never goes stale)
+  function lists() {
+    const member = [];
+    const free = [];
+    const sets = (premium.practice || []).map((id) => SETS[id] || id);
+    const freeSets = Object.keys(SETS).filter((id) => !(premium.practice || []).includes(id)).map((id) => SETS[id]);
+    if (sets.length) member.push('ฝึกทำข้อสอบเพิ่ม: ' + sets.join(' · '));
+    if ((premium.lessonLevels || []).length) member.push('บทเรียนระดับ ' + premium.lessonLevels.join(' · ') + ' (' + lessonCount(premium.lessonLevels) + ' บท)');
+    if (premium.exam) member.push('สอบจำลองแบบจับเวลา (EF SET / ยืดหยุ่น)');
+    if (premium.markup) member.push('เส้นโยงบนประโยคและสูตร tense ไม่จำกัด');
+    if (freeSets.length) free.push('ฝึกทำข้อสอบ: ' + freeSets.join(' · '));
+    if (freeLevels.length) free.push('บทเรียนระดับ ' + freeLevels.join(' · ') + ' (' + lessonCount(freeLevels) + ' บท)');
+    free.push('ทดสอบระดับ CEFR (ปรับความยากอัตโนมัติ)', 'สรุป 12 tenses', 'คลิกคำเพื่อแปล');
+    if (premium.markup && premium.markupFreePerDay) free.push('ดูเส้นโยงบนประโยคฟรีวันละ ' + premium.markupFreePerDay + ' ข้อ');
+    return { member, free };
+  }
+
+  function needText(n) {
+    if (!n) return '';
+    if (n === 'exam') return 'สอบจำลอง';
+    if (n === 'markup') return 'เส้นโยงบนประโยคและสูตร tense';
+    if (n.startsWith('practice:')) return 'ชุดฝึก ' + (SETS[n.slice(9)] || n.slice(9));
+    if (n.startsWith('lesson:')) return 'บทเรียนระดับ ' + n.slice(7);
+    return '';
+  }
   const fmtDate = (ms) => new Date(ms).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
   const setView = (...nodes) => root.replaceChildren(...nodes.flat(Infinity).filter(Boolean));
   const getJson = (url) => fetch(url, { cache: 'no-store' }).then((r) => r.json().then((d) => ({ ok: r.ok, status: r.status, d })));
@@ -92,17 +122,19 @@
     let info = null;
     try { info = (await getJson('/api/plans')).d; } catch { /* static preview without the API */ }
     const ready = Boolean(info && info.ready);
-    const need = FEATURES[params.get('need')];
+    const need = needText(params.get('need'));
+    const { member, free } = lists();
     const active = pass.active();
 
     setView(
       need && h('p', { class: 'notice', text: need + ' สำหรับสมาชิก — เลือกแพ็กเกจด้านล่าง' }),
       active
         ? h('p', { class: 'lead', text: 'คุณเป็นสมาชิกถึง ' + fmtDate(pass.exp()) + ' (เหลือ ' + pass.daysLeft() + ' วัน) · ซื้อเพิ่มได้ วันจะต่อท้ายให้' })
-        : h('p', { class: 'lead', text: 'เลือกแพ็กเกจ ใช้ได้ครบทุกอย่างตามจำนวนวัน' }),
+        : h('p', { class: 'lead', text: 'เลือกแพ็กเกจ ใช้ได้ครบทุกอย่างตามจำนวนวัน ซื้อเพิ่มตอนไหนก็ได้' }),
       h('div', { class: 'stack' }, info ? info.plans.map((p) => planCard(p, ready)) : h('p', { class: 'card-meta', text: 'โหลดแพ็กเกจไม่ได้ในตอนนี้' })),
-      h('p', { class: 'card-meta', style: { marginTop: '24px' }, text: 'ทุกแพ็กเกจปลดล็อก' }),
-      h('ul', { class: 'rules' }, Object.values(FEATURES).map((f) => h('li', { text: f }))),
+      h('div', { class: 'plan-lists' },
+        h('div', {}, h('h3', { class: 'plan-h', text: 'สมาชิกได้เพิ่ม' }), h('ul', { class: 'rules' }, member.map((f) => h('li', { text: f })))),
+        h('div', {}, h('h3', { class: 'plan-h', text: 'ใช้ฟรีได้เสมอ' }), h('ul', { class: 'rules' }, free.map((f) => h('li', { text: f }))))),
       h('p', { class: 'fine-print', text: 'ชำระผ่าน PromptPay หรือบัตร (หน้าชำระเงินของ Stripe) เว็บนี้ไม่เก็บข้อมูลบัตรของคุณ' }),
       codeBox());
   }

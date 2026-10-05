@@ -356,5 +356,9 @@
     if (cur.submitted) next(); else cur.submit();
   });
 
-  render();
+  const pass = window.CEFR.pass;
+  (pass ? pass.ready : Promise.resolve()).then(() => {
+    if (pass && !pass.allows('practice:cloze')) root.replaceChildren(pass.lockPanel('practice:cloze', { freeHref: 'grammar.html', freeText: 'ไปทำ Grammar (ฟรี)' }));
+    else render();
+  });
 })();
