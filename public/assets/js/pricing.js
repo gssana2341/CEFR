@@ -135,7 +135,7 @@
       h('div', { class: 'plan-lists' },
         h('div', {}, h('h3', { class: 'plan-h', text: 'สมาชิกได้เพิ่ม' }), h('ul', { class: 'rules' }, member.map((f) => h('li', { text: f })))),
         h('div', {}, h('h3', { class: 'plan-h', text: 'ใช้ฟรีได้เสมอ' }), h('ul', { class: 'rules' }, free.map((f) => h('li', { text: f }))))),
-      h('p', { class: 'fine-print', text: 'ชำระผ่าน PromptPay หรือบัตร (หน้าชำระเงินของ Stripe) เว็บนี้ไม่เก็บข้อมูลบัตรของคุณ' }),
+      h('p', { class: 'fine-print', text: 'ชำระผ่าน PromptPay หรือบัตร (วิธีที่เปิดไว้ใน Stripe จะขึ้นที่หน้าชำระเงิน) เว็บนี้ไม่เก็บข้อมูลบัตรของคุณ' }),
       codeBox());
   }
 

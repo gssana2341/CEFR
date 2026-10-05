@@ -21,8 +21,8 @@ module.exports = async function handler(req, res) {
   try {
     const session = await stripe('checkout/sessions', {
       mode: 'payment',
-      'payment_method_types[0]': 'promptpay',
-      'payment_method_types[1]': 'card',
+      // no payment_method_types on purpose: Checkout then offers every method switched on in the Stripe dashboard
+      // (Settings → Payments → Payment methods). Card always works; PromptPay appears as soon as it is enabled there.
       'line_items[0][quantity]': '1',
       'line_items[0][price_data][currency]': 'thb',
       'line_items[0][price_data][unit_amount]': String(plan.baht * 100),
