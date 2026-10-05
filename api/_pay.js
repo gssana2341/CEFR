@@ -1,17 +1,25 @@
 // Shared helpers for the membership endpoints (files starting with "_" are not deployed as endpoints).
 //
-// How it works - no database, no accounts:
-//   1. /api/checkout   creates a Stripe Checkout page (PromptPay + card) for one plan
-//   2. Stripe sends the customer back to /pricing?session_id=...
-//   3. /api/claim      asks Stripe "is this session paid?" and, if so, returns a signed pass (token)
-//   4. the browser keeps the token; /api/pass tells the pages whether it is still valid
-// A pass is "<payload>.<hmac>" signed with PASS_SECRET. Buying again while a pass is active stacks the days.
+// === NEW FLOW (Firebase Auth + Firestore) ===
+//   1. User signs in via Firebase Auth (Google or Email/Password) on the client
+//   2. /api/checkout   creates a Stripe Checkout page; user's Firebase UID is stored in Stripe metadata
+//   3. Stripe sends the customer back to /pricing?session_id=...
+//   4. /api/claim      asks Stripe "is this session paid?" → saves the pass to Firestore under users/{uid}
+//   5. /api/pass        verifies Firebase ID token → reads pass from Firestore
+//
+// === LEGACY FLOW (signed token, kept for backward compatibility) ===
+//   Same as before: sign/verify HMAC tokens stored in localStorage.
+//   Users with old tokens can still use them; the pricing page offers migration to Firebase.
 //
 // Env (Vercel → Settings → Environment Variables):
-//   STRIPE_SECRET_KEY   sk_test_... while testing, sk_live_... when selling
-//   PASS_SECRET         any long random string (keep it secret; changing it invalidates every pass)
-//   SITE_URL            optional, e.g. https://your-site.vercel.app  (default: taken from the request)
-//   PAY_MODE=mock       local testing only: fake checkout, no Stripe (ignored on Vercel production)
+//   STRIPE_SECRET_KEY       sk_test_... while testing, sk_live_... when selling
+//   PASS_SECRET             any long random string (legacy tokens; still needed for migration)
+//   FIREBASE_PROJECT_ID     from Firebase Console
+//   FIREBASE_CLIENT_EMAIL   from Firebase service account
+//   FIREBASE_PRIVATE_KEY    from Firebase service account (keep the \n)
+//   SITE_URL                optional, e.g. https://your-site.vercel.app  (default: taken from the request)
+//   PAY_MODE=mock           local testing only: fake checkout, no Stripe (ignored on Vercel production)
+
 
 'use strict';
 
@@ -29,6 +37,21 @@ const PLANS = [
 
 const isMock = () => process.env.PAY_MODE === 'mock' && process.env.VERCEL_ENV !== 'production';
 const secret = () => process.env.PASS_SECRET || (isMock() ? 'dev-only-secret' : '');
+
+// best-effort limit per IP and endpoint (memory of one server instance - enough to stop careless hammering)
+const hits = new Map();
+function rateLimited(req, bucket, max, windowMs = 60_000) {
+  const ip = String(req.headers['x-forwarded-for'] || (req.socket && req.socket.remoteAddress) || 'unknown').split(',')[0].trim();
+  const key = bucket + ':' + ip;
+  const now = Date.now();
+  const rec = hits.get(key);
+  if (!rec || now - rec.start > windowMs) {
+    hits.set(key, { start: now, count: 1 });
+    if (hits.size > 5000) hits.clear();
+    return false;
+  }
+  return ++rec.count > max;
+}
 
 function send(res, status, body) {
   res.setHeader('Cache-Control', 'no-store');
@@ -95,4 +118,4 @@ function siteUrl(req) {
   return proto + '://' + req.headers.host;
 }
 
-module.exports = { DAY, PLANS, isMock, secret, send, readJson, sign, verify, stripe, siteUrl };
+module.exports = { DAY, PLANS, isMock, secret, send, readJson, sign, verify, stripe, siteUrl, rateLimited };

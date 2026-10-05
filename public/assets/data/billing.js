@@ -8,7 +8,7 @@
 // (it lasts for that browser tab; ?paywall=off turns it off again).
 window.CEFR_DATA = window.CEFR_DATA || {};
 window.CEFR_DATA.billing = {
-  enabled: false,
+  enabled: true,
   premium: {
     exam: true,                                          // สอบจำลอง
     markup: true,                                        // เส้นโยงบนประโยค + การ์ด tense

@@ -57,26 +57,31 @@
       return;
     }
     await pass.setToken(out.d.token);
+    pass.clearPending(sessionId);
     history.replaceState(null, '', 'pricing.html');
     setView(
       h('div', { class: 'resume' },
         h('p', { text: 'ชำระเงินเรียบร้อย — เป็นสมาชิกถึง ' + fmtDate(out.d.exp) + ' (เหลือ ' + pass.daysLeft() + ' วัน)' }),
         h('div', { class: 'btn-row' }, h('a', { class: 'btn', href: 'index.html#home', text: 'เริ่มใช้งาน' }))),
-      codeBox());
+      h('p', { class: 'notice', text: 'สมาชิกจำอยู่ในเบราว์เซอร์นี้ ถ้าเปลี่ยนเครื่องหรือล้างข้อมูลเบราว์เซอร์ ให้ใช้ลิงก์เปิดสิทธิ์ด้านล่าง (เก็บไว้ใน LINE หรืออีเมลของตัวเองได้)' }),
+      codeBox(true));
   }
 
   // ---------- the member code (to move to another device) ----------
-  function codeBox() {
+  function codeBox(open) {
     const input = h('input', { class: 'input', type: 'text', placeholder: 'วางรหัสสมาชิกที่นี่', autocomplete: 'off', spellcheck: 'false' });
     const msg = h('p', { class: 'card-meta', 'aria-live': 'polite' });
     const mine = pass.token();
-    return h('details', { class: 'band-details' },
+    const copy = (text, label) => async (e) => {
+      try { await navigator.clipboard.writeText(text); e.target.textContent = 'คัดลอกแล้ว'; setTimeout(() => { e.target.textContent = label; }, 1800); }
+      catch { msg.textContent = 'คัดลอกไม่ได้ — ลองกดค้างที่ข้อความด้านล่าง'; msg.append(h('code', { text })); }
+    };
+    return h('details', { class: 'band-details', open: open ? true : null },
       h('summary', { text: 'ย้ายเครื่อง / ใช้รหัสสมาชิก' }),
-      h('p', { class: 'card-meta', text: 'สมาชิกเก็บอยู่ในเบราว์เซอร์นี้ ถ้าเปลี่ยนเครื่องให้คัดลอกรหัสไปใส่ในเครื่องใหม่' }),
+      h('p', { class: 'card-meta', text: 'ลิงก์เปิดสิทธิ์: เปิดในเครื่องไหนก็ได้ สมาชิกจะมาอยู่เครื่องนั้น (อย่าส่งให้คนอื่น เพราะใครเปิดก็ใช้สิทธิ์ของคุณได้)' }),
       mine && h('div', { class: 'btn-row' },
-        h('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'คัดลอกรหัสของฉัน', onclick: async (e) => {
-          try { await navigator.clipboard.writeText(mine); e.target.textContent = 'คัดลอกแล้ว'; } catch { msg.textContent = 'คัดลอกไม่ได้ — ลองกดค้างที่รหัสด้านล่าง'; msg.append(h('code', { text: mine })); }
-        } })),
+        h('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'คัดลอกลิงก์เปิดสิทธิ์', onclick: copy(location.origin + '/pricing?code=' + mine, 'คัดลอกลิงก์เปิดสิทธิ์') }),
+        h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: 'คัดลอกเป็นรหัส', onclick: copy(mine, 'คัดลอกเป็นรหัส') })),
       h('div', { class: 'btn-row', style: { marginTop: '12px' } }, input,
         h('button', { class: 'btn btn-sm btn-outline', type: 'button', text: 'ใช้รหัส', onclick: async () => {
           if (!input.value.trim()) return;
@@ -89,16 +94,31 @@
 
   // ---------- the plans ----------
   async function buy(plan, button) {
+    const authApi = window.CEFR && window.CEFR.auth;
+    const user = authApi && authApi.user();
+    
+    // Require login before buying to ensure the pass is saved to their account
+    if (!user) {
+      if (authApi) authApi.showLogin();
+      else window.alert('กรุณาเข้าสู่ระบบก่อนซื้อแพ็กเกจ');
+      return;
+    }
+
     button.disabled = true;
     button.textContent = 'กำลังไปหน้าชำระเงิน…';
     try {
+      const idToken = await authApi.getToken();
+      const headers = { 'Content-Type': 'application/json' };
+      if (idToken) headers.Authorization = 'Bearer ' + idToken;
+
       const r = await fetch('/api/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ plan: plan.id, token: pass.token() }),
       });
       const d = await r.json();
       if (!r.ok || !d.url) throw new Error(d.error || 'failed');
+      if (d.id) pass.addPending(d.id);        // so the payment can be found again if the page is closed before coming back
       location.href = d.url;
     } catch {
       button.disabled = false;
@@ -118,7 +138,7 @@
       btn);
   }
 
-  async function show() {
+  async function show(flash) {
     let info = null;
     try { info = (await getJson('/api/plans')).d; } catch { /* static preview without the API */ }
     const ready = Boolean(info && info.ready);
@@ -127,6 +147,7 @@
     const active = pass.active();
 
     setView(
+      flash && h('p', { class: 'notice', role: 'status', text: flash }),
       need && h('p', { class: 'notice', text: need + ' สำหรับสมาชิก — เลือกแพ็กเกจด้านล่าง' }),
       active
         ? h('p', { class: 'lead', text: 'คุณเป็นสมาชิกถึง ' + fmtDate(pass.exp()) + ' (เหลือ ' + pass.daysLeft() + ' วัน) · ซื้อเพิ่มได้ วันจะต่อท้ายให้' })
@@ -139,6 +160,18 @@
       codeBox());
   }
 
+  // a link made by "คัดลอกลิงก์เปิดสิทธิ์": /pricing?code=...
+  async function applyCode(code) {
+    setView(h('p', { class: 'lead', text: 'กำลังเปิดสิทธิ์สมาชิก…' }));
+    const ok = await pass.setToken(code);
+    history.replaceState(null, '', 'pricing.html');
+    show(ok ? 'เปิดสิทธิ์สำเร็จ — เป็นสมาชิกถึง ' + fmtDate(pass.exp()) + ' (เหลือ ' + pass.daysLeft() + ' วัน)' : 'ลิงก์นี้ใช้ไม่ได้หรือหมดอายุแล้ว');
+  }
+
+  // a payment found again after the page was closed (see pass.js)
+  document.addEventListener('cefr:recovered', () => show('พบการชำระเงินที่ค้างอยู่ — เป็นสมาชิกถึง ' + fmtDate(pass.exp()) + ' (เหลือ ' + pass.daysLeft() + ' วัน)'));
+
   const sid = params.get('session_id');
-  if (sid) claim(sid); else show();
+  const code = params.get('code');
+  if (sid) claim(sid); else if (code) applyCode(code); else show();
 })();
