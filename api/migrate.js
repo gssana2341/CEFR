@@ -3,7 +3,7 @@
 // If the legacy pass has a later expiry than the Firestore pass, it wins.
 'use strict';
 const { send, verify, readJson, rateLimited } = require('./_pay');
-const { verifyAuth, getUserPass, setUserPass } = require('./_firebase');
+const { verifyAuth, migrateLegacy } = require('./_firebase');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return send(res, 405, { error: 'method_not_allowed' });
@@ -17,20 +17,13 @@ module.exports = async function handler(req, res) {
   const legacy = verify(body.token);
   if (!legacy || !legacy.exp) return send(res, 400, { error: 'invalid_token' });
 
-  // Get current Firestore pass
-  const current = await getUserPass(authUser.uid);
-  const currentExp = (current && current.exp) || 0;
-
-  // Take the later expiry
-  const exp = Math.max(legacy.exp, currentExp);
-
+  // once, and only if no other account has already taken this pass
+  let exp;
   try {
-    await setUserPass(authUser.uid, {
-      exp,
-      plan: legacy.plan || (current && current.plan) || null,
-      sid: legacy.sid || (current && current.sid) || null,
-    });
+    ({ exp } = await migrateLegacy(authUser.uid, legacy));
   } catch (e) {
+    if (e.message === 'claimed_by_other') return send(res, 409, { error: 'already_claimed' });
+    if (e.message === 'invalid_token') return send(res, 400, { error: 'invalid_token' });
     console.error('Migration failed to write to Firestore:', e);
     return send(res, 502, { error: 'database_error' });
   }

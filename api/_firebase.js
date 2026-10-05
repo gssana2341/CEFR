@@ -13,6 +13,7 @@
 const { initializeApp, getApps, cert } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { redeemWith, migrateWith } = require('./_claims');
 
 // Initialise once per cold-start
 if (getApps().length === 0) {
@@ -72,4 +73,9 @@ async function setUserPass(uid, data) {
   );
 }
 
-module.exports = { db, verifyAuth, getUserPass, setUserPass };
+// Credit a paid session once (see _claims.js)
+const redeemSession = (uid, sid, opts) => redeemWith(db, FieldValue.serverTimestamp(), uid, sid, opts);
+// Move an old signed pass into an account once (see _claims.js)
+const migrateLegacy = (uid, legacy) => migrateWith(db, FieldValue.serverTimestamp(), uid, legacy);
+
+module.exports = { db, verifyAuth, getUserPass, setUserPass, redeemSession, migrateLegacy };

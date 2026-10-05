@@ -4,7 +4,7 @@
 // Same session → same answer, so reloading the success page never adds extra days.
 'use strict';
 const { DAY, PLANS, isMock, send, sign, stripe, secret, rateLimited } = require('./_pay');
-const { verifyAuth, getUserPass, setUserPass } = require('./_firebase');
+const { verifyAuth, redeemSession } = require('./_firebase');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') return send(res, 405, { error: 'method_not_allowed' });
@@ -39,26 +39,20 @@ module.exports = async function handler(req, res) {
   const plan = PLANS.find((p) => p.id === planId);
   if (!plan) return send(res, 400, { error: 'bad_plan' });
 
-  // --- Determine which user to credit ---
-  // Priority: Firebase Auth header > UID from Stripe metadata
+  // --- Which account gets the days? ---
+  // A session made while logged in belongs to that account whoever asks (so a leaked session id is useless to others);
+  // a session made without logging in goes to whoever claims it first while logged in.
   const authUser = await verifyAuth(req);
-  const uid = (authUser && authUser.uid) || stripeUid;
+  const uid = stripeUid || (authUser && authUser.uid) || null;
 
-  // For Firebase users: check current Firestore pass (may be newer than Stripe metadata)
-  if (uid) {
-    const existing = await getUserPass(uid);
-    if (existing && existing.exp > prevExp) prevExp = existing.exp;
-  }
-
-  const exp = Math.max(created, prevExp) + plan.days * DAY;
-
-  // Save to Firestore if we know who the user is
+  let exp = Math.max(created, prevExp) + plan.days * DAY;     // no account: the same answer every time
   if (uid) {
     try {
-      await setUserPass(uid, { exp, plan: plan.id, sid: id });
+      // once per payment: asking again returns the same expiry instead of adding days again
+      exp = (await redeemSession(uid, id, { created, prevExp, ms: plan.days * DAY, plan: plan.id })).exp;
     } catch (e) {
-      // Don't fail the claim if Firestore write fails; the token still works
-      console.error('[claim] Firestore write failed:', e.message);
+      if (e.message === 'claimed_by_other') return send(res, 409, { error: 'already_claimed' });
+      console.error('[claim] Firestore failed, answering without saving:', e.message);   // database down / not set up
     }
   }
 

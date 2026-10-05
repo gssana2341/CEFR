@@ -49,8 +49,9 @@
     try { out = await getJson('/api/claim?session_id=' + encodeURIComponent(sessionId)); } catch { out = null; }
     if (!out || !out.ok) {
       const unpaid = out && out.status === 402;
+      const taken = out && out.status === 409;
       setView(
-        h('p', { class: 'lead', text: unpaid ? 'ยังไม่เห็นการชำระเงิน — ถ้าเพิ่งโอน รอสักครู่แล้วลองใหม่' : 'ยืนยันไม่สำเร็จ ลองรีเฟรชหน้านี้อีกครั้ง' }),
+        h('p', { class: 'lead', text: unpaid ? 'ยังไม่เห็นการชำระเงิน — ถ้าเพิ่งโอน รอสักครู่แล้วลองใหม่' : taken ? 'การชำระเงินนี้ถูกใช้กับบัญชีอื่นไปแล้ว' : 'ยืนยันไม่สำเร็จ ลองรีเฟรชหน้านี้อีกครั้ง' }),
         h('div', { class: 'btn-row' },
           h('button', { class: 'btn', type: 'button', text: 'ลองอีกครั้ง', onclick: () => claim(sessionId) }),
           h('a', { class: 'btn btn-outline', href: 'pricing.html', text: 'กลับหน้าแพ็กเกจ' })));
