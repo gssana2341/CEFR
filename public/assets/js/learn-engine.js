@@ -104,6 +104,7 @@
       h('p', { class: 'eyebrow lesson-eyebrow', text: 'บทเรียน · ' + lesson.level + ' · ' + lesson.minutes + ' นาที' }),
       h('h1', { class: 'page-title' }, lesson.title + ' ', h('span', { class: 'light', text: lesson.en })),
       h('p', { class: 'lead', 'data-tr': true }, rich(lesson.intro)),
+      h('p', { class: 'fine-print', style: { marginTop: '-16px', marginBottom: '24px' }, text: 'คลิกที่คำภาษาอังกฤษ หรือลากคลุมข้อความ เพื่อดูคำแปล · ปุ่ม "แปล" มุมขวาบนใช้เปิด/ปิดระบบนี้' }),
       lesson.sections.map(renderSection),
       h('section', { class: 'lesson-section' },
         h('h2', { class: 'lesson-h', text: 'ลองทำดู' }),

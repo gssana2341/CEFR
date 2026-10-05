@@ -173,6 +173,14 @@
     if (pop) { pop.remove(); pop = null; }
   }
 
+  // User-initiated dismissal (× / Esc). The word must also be un-selected, otherwise the
+  // selection listeners see it still highlighted and immediately re-open the popup.
+  function dismiss() {
+    close();
+    const sel = window.getSelection();
+    if (sel) sel.removeAllRanges();
+  }
+
   function speak(text) {
     if (!('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
@@ -206,7 +214,7 @@
     const head = h('div', { class: 'tr-head' },
       h('strong', { class: 'tr-src', text: text.length > 60 ? text.slice(0, 57) + '…' : text }),
       speaker,
-      h('button', { class: 'tr-btn', type: 'button', 'aria-label': 'ปิด', title: 'ปิด', text: '×', onclick: close })
+      h('button', { class: 'tr-btn', type: 'button', 'aria-label': 'ปิด', title: 'ปิด', text: '×', onclick: dismiss })
     );
     pop = h('div', { class: 'tr-pop', role: 'dialog', 'aria-label': 'คำแปล' }, head, body);
     document.body.append(pop);
@@ -264,8 +272,9 @@
     if (pop && !pop.contains(e.target)) close();
   });
 
-  document.addEventListener('pointerup', () => {
+  document.addEventListener('pointerup', (e) => {
     pointerDown = false;
+    if (pop && pop.contains(e.target)) return;      // clicks on the popup's own buttons are not a new selection
     setTimeout(handleSelection, 10);
   });
 
@@ -291,13 +300,17 @@
     show(range, word);
   });
 
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && pop) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && pop) dismiss(); });
 
   // ---------- On/off toggle (header button) ----------
+  // Shows its state in words: "แปล: เปิด" / "แปล: ปิด".
   function syncToggles() {
     document.querySelectorAll('[data-translate-toggle]').forEach((btn) => {
       btn.setAttribute('aria-pressed', String(enabled));
-      btn.title = enabled ? 'ปิดการแปล (คลิกคำหรือลากคลุมข้อความ)' : 'เปิดการแปล (คลิกคำหรือลากคลุมข้อความ)';
+      btn.textContent = enabled ? 'แปล: เปิด' : 'แปล: ปิด';
+      btn.title = enabled
+        ? 'ระบบแปลเปิดอยู่ — คลิกคำหรือลากคลุมข้อความเพื่อดูคำแปล (กดเพื่อปิด)'
+        : 'ระบบแปลปิดอยู่ — กดเพื่อเปิด แล้วคลิกคำหรือลากคลุมข้อความเพื่อดูคำแปล';
     });
   }
 
@@ -305,7 +318,7 @@
     btn.addEventListener('click', () => {
       enabled = !enabled;
       store.set('translate', enabled);
-      if (!enabled) { close(); window.getSelection().removeAllRanges(); }
+      if (!enabled) dismiss();
       syncToggles();
     });
   });

@@ -212,7 +212,8 @@
               onclick: () => requestStart('wrong', shuffle(wrong)),
             })
           ),
-          h('p', { class: 'fine-print', text: 'กดปุ่ม ' + keyHint + ' เพื่อเลือกคำตอบ และ Enter เพื่อไปข้อถัดไป · ความคืบหน้าบันทึกไว้ในเครื่องนี้โดยอัตโนมัติ' })
+          h('p', { class: 'fine-print', text: 'กดปุ่ม ' + keyHint + ' เพื่อเลือกคำตอบ และ Enter เพื่อไปข้อถัดไป · ความคืบหน้าบันทึกไว้ในเครื่องนี้โดยอัตโนมัติ' }),
+          h('p', { class: 'fine-print', text: 'อยากรู้ความหมาย: คลิกที่คำภาษาอังกฤษ หรือลากคลุมข้อความ ในโจทย์ได้เลย (ปุ่ม "แปล" มุมขวาบนใช้เปิด/ปิดระบบนี้)' })
         ),
         hasData && h('div', { class: 'panel-foot' },
           h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: 'ล้างความคืบหน้าและสถิติ', onclick: resetProgress })
