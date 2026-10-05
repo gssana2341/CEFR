@@ -35,11 +35,12 @@
   let view = 'intro';      // 'intro' | 'quiz' | 'result'
 
   // ---------- State ----------
-  const validOrder = (it, o) => Array.isArray(o) && o.length === it.q.c.length && [...o].sort((a, b) => a - b).every((v, i) => v === i);
-  const validEntry = (e) => {
+  // (function declarations on purpose: loadRun() below runs before this point in the file)
+  function validOrder(it, o) { return Array.isArray(o) && o.length === it.q.c.length && [...o].sort((a, b) => a - b).every((v, i) => v === i); }
+  function validEntry(e) {
     const it = e && byKey.get(e.key);
     return !!it && validOrder(it, e.order) && (e.pick === null || (Number.isInteger(e.pick) && e.pick >= 0 && e.pick < it.q.c.length));
-  };
+  }
 
   function loadRun() {
     const r = store.get(K.state, null);

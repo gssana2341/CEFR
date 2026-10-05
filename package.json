@@ -5,7 +5,8 @@
   "description": "CEFR A1–B2 learning site: lessons, placement test, practice quizzes, mock exam, click-to-translate — static site + one Vercel function",
   "scripts": {
     "dev": "node scripts/dev-server.mjs",
-    "validate": "node scripts/validate-data.mjs"
+    "validate": "node scripts/validate-data.mjs",
+    "test": "node scripts/test.mjs"
   },
   "dependencies": {
     "firebase-admin": "^11.11.1",

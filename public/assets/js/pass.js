@@ -44,6 +44,9 @@
   async function check() {
     // If logged in with Firebase, use ID token; otherwise use legacy token
     const authApi = window.CEFR && window.CEFR.auth;
+    // Firebase restores the signed-in user a moment after the page loads. Ask only once it has answered, otherwise a
+    // signed-in member is treated as a visitor (locked pages flash, and the saved expiry is wiped to 0).
+    if (authApi && authApi.ready) await Promise.race([authApi.ready, new Promise((r) => setTimeout(r, 3000))]);
     const idToken = authApi ? await authApi.getToken() : '';
 
     if (idToken) {
@@ -104,6 +107,10 @@
           document.dispatchEvent(new CustomEvent('cefr:pass'));
         }
         // Clear legacy token after successful migration
+        token = '';
+        write(KEY, '');
+      } else if (r.status === 409) {
+        // this old pass already belongs to another account: stop trying
         token = '';
         write(KEY, '');
       }

@@ -14,9 +14,15 @@ const { initializeApp, getApps, cert } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { redeemWith, migrateWith } = require('./_claims');
+const { isMock } = require('./_pay');
+const { createMemDb } = require('./_memdb');
+
+// Local development with PAY_MODE=mock and no Firebase key: an in-memory database and tokens like "mock-<uid>".
+// (isMock() is always false on Vercel production, so this can never switch on there.)
+const useMem = isMock() && !process.env.FIREBASE_PRIVATE_KEY;
 
 // Initialise once per cold-start
-if (getApps().length === 0) {
+if (!useMem && getApps().length === 0) {
   const key = (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
   if (process.env.FIREBASE_PROJECT_ID && key) {
     initializeApp({
@@ -32,7 +38,8 @@ if (getApps().length === 0) {
   }
 }
 
-const db = getFirestore();
+const db = useMem ? createMemDb() : getFirestore();
+const serverStamp = () => (useMem ? Date.now() : FieldValue.serverTimestamp());
 
 // Verify the Firebase ID token sent as "Authorization: Bearer <token>"
 async function verifyAuth(req) {
@@ -40,9 +47,10 @@ async function verifyAuth(req) {
   if (!hdr.startsWith('Bearer ')) return null;
   const idToken = hdr.slice(7);
   if (!idToken || idToken.length > 4000) return null;
+  if (useMem) return idToken.startsWith('mock-') ? { uid: idToken.slice(5), email: null } : null;
   try {
     const decoded = await getAuth().verifyIdToken(idToken);
-    return { uid: decoded.uid, email: decoded.email || null };
+    return { uid: decoded.uid, email: decoded.email || null, name: decoded.name || null };
   } catch {
     return null;
   }
@@ -67,15 +75,15 @@ async function setUserPass(uid, data) {
       exp: data.exp,
       plan: data.plan || null,
       sid: data.sid || null,
-      updatedAt: FieldValue.serverTimestamp(),
+      updatedAt: serverStamp(),
     },
     { merge: true },
   );
 }
 
 // Credit a paid session once (see _claims.js)
-const redeemSession = (uid, sid, opts) => redeemWith(db, FieldValue.serverTimestamp(), uid, sid, opts);
+const redeemSession = (uid, sid, opts) => redeemWith(db, serverStamp(), uid, sid, opts);
 // Move an old signed pass into an account once (see _claims.js)
-const migrateLegacy = (uid, legacy) => migrateWith(db, FieldValue.serverTimestamp(), uid, legacy);
+const migrateLegacy = (uid, legacy) => migrateWith(db, serverStamp(), uid, legacy);
 
-module.exports = { db, verifyAuth, getUserPass, setUserPass, redeemSession, migrateLegacy };
+module.exports = { db, serverStamp, verifyAuth, getUserPass, setUserPass, redeemSession, migrateLegacy };
