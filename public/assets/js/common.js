@@ -21,6 +21,14 @@
       intro: 'แบบทดสอบความเข้าใจบริบทการสนทนา สุ่มลำดับข้อและตัวเลือกใหม่ทุกครั้ง',
       labels: 'letter',
     },
+    extra: {
+      id: 'extra',
+      kind: 'mcq',
+      dataKey: 'extra',
+      page: 'extra.html',
+      intro: 'ข้อสอบใหม่นอกหนังสือ แบ่งตามหัวข้อ: Phrasal verbs, Collocations, Prepositions, Word forms, ภาษาพูดในชีวิตประจำวัน และข้อผิดพลาดที่พบบ่อย',
+      labels: 'number',
+    },
     cloze: {
       id: 'cloze',
       kind: 'cloze',

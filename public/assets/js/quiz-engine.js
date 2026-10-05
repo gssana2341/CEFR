@@ -24,6 +24,12 @@
       ? KEYS[0] + '–' + KEYS[maxChoices - 1] + ' (หรือ 1–' + maxChoices + ')'
       : '1–' + maxChoices;
 
+    // Questions without a book number (extra practice) show "level · topic" instead.
+    const refLabel = (q) => (q.topic ? q.level + ' · ' + q.topic : 'หนังสือข้อ ' + q.n);
+
+    let trOpen = false;         // "translate the whole question" panel (kept while answering one question)
+    let trToken = 0;
+
     let view = 'home';          // 'home' | 'quiz' | 'summary'
     let round = loadRound();    // unfinished round restored from storage
     let finished = null;        // last finished round (summary screen)
@@ -100,6 +106,7 @@
       if (it.pick === null) return;
       if (round.index < round.items.length - 1) {
         round.index++;
+        trOpen = false;
         store.set(K.state, round);
         renderQuiz();
         window.scrollTo(0, 0);
@@ -252,18 +259,36 @@
 
       const feedback = answered && h('div', { class: 'feedback ' + (correct ? 'ok' : 'bad'), 'aria-live': 'polite' },
         h('strong', { class: 'feedback-title', text: correct ? 'ถูกต้อง' : 'ผิด' }),
-        h('p', { class: 'feedback-text' }, rich(q.e)),
+        h('p', { class: 'feedback-text', 'data-tr': true }, rich(q.e)),
         nextBtn
       );
+
+      // "Translate the whole question": question lines + every choice (needs translate.js)
+      const canTranslate = typeof window.CEFR.lookup === 'function' && window.CEFR.translateEnabled();
+      const trPanel = h('div', { class: 'tr-panel', hidden: !trOpen });
+      const trBtn = canTranslate && h('button', {
+        class: 'btn btn-ghost btn-sm tr-all',
+        type: 'button',
+        text: trOpen ? 'ซ่อนคำแปล' : 'แปลทั้งข้อ',
+        onclick: () => {
+          trOpen = !trOpen;
+          trBtn.textContent = trOpen ? 'ซ่อนคำแปล' : 'แปลทั้งข้อ';
+          trPanel.hidden = !trOpen;
+          if (trOpen) fillTranslation(trPanel, q);
+        },
+      });
+      if (trOpen && canTranslate) fillTranslation(trPanel, q);
 
       setView(
         h('section', { class: 'panel' },
           bar,
           h('div', { class: 'top-bar' },
             h('span', { text: (round.index + 1) + ' / ' + round.items.length }),
-            h('span', { text: (round.mode === 'wrong' ? 'ทบทวน · ' : '') + 'หนังสือข้อ ' + q.n })
+            h('span', { text: (round.mode === 'wrong' ? 'ทบทวน · ' : '') + refLabel(q) })
           ),
-          h('p', { class: 'question', text: q.q }),
+          h('p', { class: 'question', 'data-tr': true, text: q.q }),
+          trBtn,
+          trPanel,
           choices,
           feedback,
           h('div', { class: 'quiz-footer' },
@@ -273,6 +298,19 @@
       );
 
       if (opts && opts.focusNext) nextBtn.focus();
+    }
+
+    // Fills the panel with a Thai translation of each question line and each choice.
+    async function fillTranslation(panel, q) {
+      const my = ++trToken;
+      panel.replaceChildren(h('p', { class: 'meta', text: 'กำลังแปล…' }));
+      const lines = q.q.split('\n').map((s) => s.trim()).filter(Boolean);
+      const jobs = [...lines.map((t) => ({ t })), ...q.c.map((t, i) => ({ t, key: KEYS[i] }))];
+      const res = await Promise.allSettled(jobs.map((j) => window.CEFR.lookup(j.t)));
+      if (my !== trToken || !panel.isConnected) return;
+      panel.replaceChildren(...jobs.map((j, i) => h('p', { class: 'tr-line' },
+        j.key && h('span', { class: 'tr-key', text: j.key }),
+        h('span', { class: 'tr-th', text: res[i].status === 'fulfilled' ? res[i].value.translation : '(แปลไม่สำเร็จ)' }))));
     }
 
     function renderSummary() {
@@ -287,10 +325,10 @@
         wrongItems.map((it) => {
           const q = byN.get(it.n);
           return h('div', { class: 'review-item' },
-            h('p', { class: 'review-q', text: 'ข้อ ' + q.n + ': ' + q.q }),
+            h('p', { class: 'review-q', 'data-tr': true, text: 'ข้อ ' + q.n + ': ' + q.q }),
             h('p', { class: 'review-you', text: '✗ คุณตอบ: ' + q.c[it.pick] }),
             h('p', { class: 'review-right', text: '✓ เฉลย: ' + q.c[q.a] }),
-            h('p', { class: 'review-expl' }, rich(q.e))
+            h('p', { class: 'review-expl', 'data-tr': true }, rich(q.e))
           );
         })
       );

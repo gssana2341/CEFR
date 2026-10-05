@@ -1,0 +1,159 @@
+// Lessons: index of all lessons + a lesson page (explanation, examples, mini exercises).
+// Routing is hash-based: learn.html → index, learn.html#present-simple → that lesson.
+(function () {
+  'use strict';
+
+  const { store, shuffle, h, rich } = window.CEFR;
+  const lessons = window.CEFR_DATA.lessons;
+  const root = document.getElementById('app');
+
+  const LEVEL_NAMES = { A1: 'A1 · เริ่มต้น', A2: 'A2 · พื้นฐาน', B1: 'B1 · กลาง', B2: 'B2 · กลางค่อนสูง' };
+  const KEYS = '12345';
+
+  const getProgress = () => store.get('learn:progress', {});
+  const setView = (...nodes) => root.replaceChildren(...nodes.flat(Infinity).filter(Boolean));
+
+  // ---------- Index ----------
+  function renderIndex() {
+    document.title = 'บทเรียนไวยากรณ์ — CEFR Quiz';
+    const progress = getProgress();
+    const doneCount = lessons.filter((l) => progress[l.id] && progress[l.id].done).length;
+
+    const levels = [...new Set(lessons.map((l) => l.level))];
+    let no = 0;
+    const groups = levels.map((level) => h('section', { class: 'lesson-group' },
+      h('h2', { class: 'section-title', text: LEVEL_NAMES[level] || level }),
+      h('div', { class: 'hub-list' },
+        lessons.filter((l) => l.level === level).map((l) => {
+          no++;
+          const p = progress[l.id];
+          const meta = [l.minutes + ' นาที', l.exercises.length + ' ข้อฝึก'];
+          if (p && p.done) meta.push('ทำแล้ว ' + p.score + '/' + p.total);
+          return h('a', { class: 'hub-row', href: '#' + l.id },
+            h('span', { class: 'hub-no', text: String(no).padStart(2, '0') }),
+            h('span', {},
+              h('span', { class: 'hub-title' }, l.title + ' ', h('span', { class: 'light', text: l.en })),
+              h('span', { class: 'meta', text: meta.join(' · ') })),
+            h('span', { class: 'hub-cta', text: p && p.done ? 'ทบทวน' : 'เรียน' }));
+        }))));
+
+    setView(
+      h('p', { class: 'lead', text: 'อธิบายเป็นภาษาไทย มีตัวอย่างและแบบฝึกหัดท้ายบททุกบท · เรียนแล้ว ' + doneCount + '/' + lessons.length + ' บท' }),
+      h('p', { class: 'fine-print tip-line', text: 'คลิกที่คำภาษาอังกฤษหรือลากคลุมข้อความ เพื่อดูคำแปลได้ทุกหน้า' }),
+      groups
+    );
+  }
+
+  // ---------- Lesson page ----------
+  function renderTable(t) {
+    return h('div', { class: 'table-wrap' },
+      h('table', { class: 'table', 'data-tr': true },
+        h('thead', {}, h('tr', {}, t.head.map((c) => h('th', {}, rich(c))))),
+        h('tbody', {}, t.rows.map((r) => h('tr', {}, r.map((c) => h('td', {}, rich(c))))))));
+  }
+
+  function renderSection(s) {
+    return h('section', { class: 'lesson-section' },
+      h('h2', { class: 'lesson-h', text: s.title }),
+      (s.body || []).map((p) => h('p', { class: 'lesson-p', 'data-tr': true }, rich(p))),
+      s.table && renderTable(s.table),
+      s.examples && h('ul', { class: 'examples' },
+        s.examples.map(([en, th]) => h('li', {},
+          h('span', { class: 'ex-en', 'data-tr': true, text: en }),
+          h('span', { class: 'ex-th', text: th })))),
+      s.note && h('p', { class: 'note ' + s.note.kind, 'data-tr': true },
+        h('strong', { text: s.note.kind === 'warn' ? 'ระวัง · ' : 'จำไว้ · ' }), rich(s.note.text)));
+  }
+
+  function renderExercises(lesson) {
+    const box = h('div', { class: 'exercises' });
+    let correct = 0;
+    let answered = 0;
+
+    function finish() {
+      const progress = getProgress();
+      const prev = progress[lesson.id];
+      const score = correct;
+      progress[lesson.id] = { done: true, score: prev && prev.score > score ? prev.score : score, total: lesson.exercises.length, at: Date.now() };
+      store.set('learn:progress', progress);
+      const idx = lessons.indexOf(lesson);
+      const next = lessons[idx + 1];
+      box.append(h('div', { class: 'ex-done' },
+        h('strong', { text: 'ได้ ' + correct + ' / ' + lesson.exercises.length + ' ข้อ' }),
+        h('div', { class: 'btn-row' },
+          next && h('a', { class: 'btn', href: '#' + next.id, text: 'บทถัดไป: ' + next.title }),
+          h('button', { class: 'btn btn-outline', type: 'button', text: 'ทำแบบฝึกหัดใหม่', onclick: build }),
+          h('a', { class: 'btn btn-outline', href: '#', text: 'สารบัญ' }))));
+    }
+
+    function build() {
+      correct = 0;
+      answered = 0;
+      box.replaceChildren(...lesson.exercises.map((ex, i) => {
+        const order = shuffle(ex.c.map((_, j) => j));
+        const fb = h('div', { class: 'feedback', 'aria-live': 'polite', hidden: true });
+        const btns = order.map((orig, k) => h('button', {
+          class: 'choice',
+          type: 'button',
+          onclick: () => {
+            if (btns[0].disabled) return;
+            btns.forEach((b) => { b.disabled = true; });
+            const ok = orig === ex.a;
+            answered++;
+            if (ok) correct++;
+            btns[k].classList.add(ok ? 'correct' : 'wrong');
+            if (!ok) btns[order.indexOf(ex.a)].classList.add('correct');
+            fb.className = 'feedback ' + (ok ? 'ok' : 'bad');
+            fb.replaceChildren(
+              h('strong', { class: 'feedback-title', text: ok ? 'ถูกต้อง' : 'ผิด' }),
+              h('p', { class: 'feedback-text', 'data-tr': true }, rich(ex.e)));
+            fb.hidden = false;
+            if (answered === lesson.exercises.length) finish();
+          },
+        },
+        h('span', { class: 'choice-key', 'aria-hidden': 'true', text: KEYS[k] }),
+        h('span', { text: ex.c[orig] })));
+        return h('div', { class: 'exercise' },
+          h('p', { class: 'ex-no', text: 'ข้อ ' + (i + 1) }),
+          h('p', { class: 'question', 'data-tr': true, text: ex.q }),
+          h('div', { class: 'choices' }, btns),
+          fb);
+      }));
+    }
+
+    build();
+    return box;
+  }
+
+  function renderLesson(lesson) {
+    document.title = lesson.title + ' (' + lesson.en + ') — บทเรียน — CEFR Quiz';
+    const idx = lessons.indexOf(lesson);
+    const prev = lessons[idx - 1];
+    const next = lessons[idx + 1];
+
+    setView(
+      h('a', { class: 'back-link', href: '#', text: '← บทเรียนทั้งหมด' }),
+      h('p', { class: 'eyebrow lesson-eyebrow', text: 'บทเรียน · ' + lesson.level + ' · ' + lesson.minutes + ' นาที' }),
+      h('h1', { class: 'page-title' }, lesson.title + ' ', h('span', { class: 'light', text: lesson.en })),
+      h('p', { class: 'lead', 'data-tr': true }, rich(lesson.intro)),
+      lesson.sections.map(renderSection),
+      h('section', { class: 'lesson-section' },
+        h('h2', { class: 'lesson-h', text: 'ลองทำดู' }),
+        renderExercises(lesson)),
+      h('nav', { class: 'lesson-nav' },
+        prev ? h('a', { href: '#' + prev.id, text: '← ' + prev.title }) : h('span'),
+        next ? h('a', { href: '#' + next.id, text: next.title + ' →' }) : h('span'))
+    );
+  }
+
+  // ---------- Router ----------
+  function route() {
+    const id = decodeURIComponent(location.hash.slice(1));
+    const lesson = lessons.find((l) => l.id === id);
+    if (lesson) renderLesson(lesson); else renderIndex();
+    window.scrollTo(0, 0);
+  }
+
+  window.addEventListener('hashchange', route);
+  route();
+})();

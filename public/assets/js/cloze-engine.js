@@ -254,7 +254,7 @@
       });
       feedback.append(
         h('strong', { class: 'feedback-title', text: 'ตอบถูก ' + score + ' / ' + result.total + ' ข้อในบทความนี้' }),
-        h('ul', {}, items),
+        h('ul', { 'data-tr': true }, items),
         nextBtn
       );
       feedback.className = 'feedback ' + (score === result.total ? 'ok' : 'bad');
@@ -281,7 +281,7 @@
           n === 1 && h('span', { text: 'ฝึกทีละบทความ' })
         ),
         h('span', { class: 'topic', text: p.topic }),
-        h('div', { class: 'passage' }, body),
+        h('div', { class: 'passage', 'data-tr': true }, body),
         msg,
         submitBtn,
         feedback,
@@ -326,7 +326,7 @@
       return h('li', {},
         h('details', {},
           h('summary', {}, h('span', { text: pass.topic }), h('span', { text: r.score + '/' + r.total })),
-          h('div', { class: 'detail' }, detail)));
+          h('div', { class: 'detail', 'data-tr': true }, detail)));
     });
 
     setView(

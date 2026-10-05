@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CEFR Quiz — ฝึกข้อสอบภาษาอังกฤษ A1–B1</title>
-  <meta name="description" content="ฝึกข้อสอบภาษาอังกฤษระดับ CEFR A1–B1 ฟรี: ไวยากรณ์ 150 ข้อ, บทสนทนา 100 ข้อ และ Cloze Test 26 บทความ ตอบแล้วเห็นเฉลยพร้อมคำอธิบายภาษาไทยทันที">
+  <title>CEFR Quiz — เรียน ฝึก และวัดระดับภาษาอังกฤษ A1–B2</title>
+  <meta name="description" content="เรียนไวยากรณ์ A1–B1 เป็นภาษาไทย ทดสอบระดับ CEFR ฝึกทำข้อสอบกว่า 450 ข้อ และสอบจำลองแบบจับเวลา พร้อมระบบแปลคลิกคำ ฟรี">
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="th_TH">
-  <meta property="og:title" content="CEFR Quiz — ฝึกข้อสอบภาษาอังกฤษ A1–B1">
-  <meta property="og:description" content="ไวยากรณ์ · บทสนทนา · Cloze Test ตอบแล้วเห็นเฉลยพร้อมคำอธิบายภาษาไทยทันที">
+  <meta property="og:title" content="CEFR Quiz — เรียน ฝึก และวัดระดับภาษาอังกฤษ">
+  <meta property="og:description" content="บทเรียนภาษาไทย · ทดสอบระดับ CEFR · แบบฝึกหัด · สอบจำลองจับเวลา · แปลคลิกคำ">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,51 +22,114 @@
   <div class="container">
     <header class="site-header">
       <a class="brand" href="index.html">CEFR Quiz</a>
-      <button class="icon-btn" type="button" data-theme-toggle aria-label="สลับโหมดสว่าง/มืด"></button>
+      <div class="header-actions">
+        <button class="icon-btn" type="button" data-theme-toggle aria-label="สลับโหมดสว่าง/มืด"></button>
+      </div>
     </header>
 
-    <h1 class="page-title">ฝึกข้อสอบ CEFR</h1>
-    <p class="lead">คลังข้อสอบภาษาอังกฤษระดับ A1–B1 ตอบแล้วเห็นเฉลยพร้อมคำอธิบายทันที ความคืบหน้าบันทึกไว้ในเครื่องของคุณ</p>
+    <h1 class="page-title">เรียน ฝึก และวัดระดับ CEFR</h1>
+    <p class="lead">คลังภาษาอังกฤษระดับ A1–B2 อธิบายเป็นภาษาไทย ตอบแล้วเห็นเฉลยทันที และคลิกคำหรือลากคลุมข้อความเพื่อดูคำแปลได้ทุกหน้า ความคืบหน้าบันทึกไว้ในเครื่องของคุณ</p>
 
-    <main id="app" class="hub-list">
-      <a class="hub-row" href="grammar.html" data-quiz="grammar">
-        <span class="hub-no">01</span>
-        <span>
-          <span class="hub-title">Grammar <span class="light">ไวยากรณ์ A1–B1</span></span>
-          <span class="hub-desc">เลือกคำตอบที่ถูกต้องจากบทสนทนาสั้นๆ พร้อมคำอธิบายทุกข้อ</span>
-          <span class="meta" data-stats></span>
-        </span>
-        <span class="hub-cta" data-cta>เริ่มทำ</span>
-      </a>
+    <main id="app">
+      <section class="hub-group">
+        <h2 class="section-title">เริ่มต้น</h2>
+        <div class="hub-list">
+          <a class="hub-row" href="placement.html" data-quiz="placement">
+            <span class="hub-no">01</span>
+            <span>
+              <span class="hub-title">ทดสอบระดับ <span class="light">Placement test</span></span>
+              <span class="hub-desc">วัดว่าคุณอยู่ระดับ A1–B2 พร้อมแนะนำบทเรียนที่ควรเรียนต่อ</span>
+              <span class="meta" data-stats></span>
+            </span>
+            <span class="hub-cta" data-cta>เริ่มทำ</span>
+          </a>
+        </div>
+      </section>
 
-      <a class="hub-row" href="conversations.html" data-quiz="conversations">
-        <span class="hub-no">02</span>
-        <span>
-          <span class="hub-title">Conversations <span class="light">บทสนทนา</span></span>
-          <span class="hub-desc">อ่านบทสนทนาแล้วเลือกว่าผู้พูดหมายความว่าอะไร</span>
-          <span class="meta" data-stats></span>
-        </span>
-        <span class="hub-cta" data-cta>เริ่มทำ</span>
-      </a>
+      <section class="hub-group">
+        <h2 class="section-title">เรียนรู้</h2>
+        <div class="hub-list">
+          <a class="hub-row" href="learn.html" data-quiz="learn">
+            <span class="hub-no">02</span>
+            <span>
+              <span class="hub-title">บทเรียนไวยากรณ์ <span class="light">Lessons</span></span>
+              <span class="hub-desc">อธิบายเป็นภาษาไทย พร้อมตัวอย่างและแบบฝึกหัดท้ายบททุกบท</span>
+              <span class="meta" data-stats></span>
+            </span>
+            <span class="hub-cta" data-cta>เรียน</span>
+          </a>
+        </div>
+      </section>
 
-      <a class="hub-row" href="cloze.html" data-quiz="cloze">
-        <span class="hub-no">03</span>
-        <span>
-          <span class="hub-title">Cloze Test <span class="light">เติมคำในบทความ</span></span>
-          <span class="hub-desc">เลือกคำที่ถูกต้องใส่ในช่องว่าง เลือกฝึกทีละบทความได้</span>
-          <span class="meta" data-stats></span>
-        </span>
-        <span class="hub-cta" data-cta>เริ่มทำ</span>
-      </a>
+      <section class="hub-group">
+        <h2 class="section-title">ฝึกทำข้อสอบ</h2>
+        <div class="hub-list">
+          <a class="hub-row" href="grammar.html" data-quiz="grammar">
+            <span class="hub-no">03</span>
+            <span>
+              <span class="hub-title">Grammar <span class="light">ไวยากรณ์ A1–B1</span></span>
+              <span class="hub-desc">เลือกคำตอบที่ถูกต้องจากบทสนทนาสั้นๆ พร้อมคำอธิบายทุกข้อ</span>
+              <span class="meta" data-stats></span>
+            </span>
+            <span class="hub-cta" data-cta>เริ่มทำ</span>
+          </a>
+          <a class="hub-row" href="conversations.html" data-quiz="conversations">
+            <span class="hub-no">04</span>
+            <span>
+              <span class="hub-title">Conversations <span class="light">บทสนทนา</span></span>
+              <span class="hub-desc">อ่านบทสนทนาแล้วเลือกว่าผู้พูดหมายความว่าอะไร</span>
+              <span class="meta" data-stats></span>
+            </span>
+            <span class="hub-cta" data-cta>เริ่มทำ</span>
+          </a>
+          <a class="hub-row" href="cloze.html" data-quiz="cloze">
+            <span class="hub-no">05</span>
+            <span>
+              <span class="hub-title">Cloze Test <span class="light">เติมคำในบทความ</span></span>
+              <span class="hub-desc">เลือกคำที่ถูกต้องใส่ในช่องว่าง เลือกฝึกทีละบทความได้</span>
+              <span class="meta" data-stats></span>
+            </span>
+            <span class="hub-cta" data-cta>เริ่มทำ</span>
+          </a>
+          <a class="hub-row" href="extra.html" data-quiz="extra">
+            <span class="hub-no">06</span>
+            <span>
+              <span class="hub-title">Extra <span class="light">ฝึกเพิ่มเติม ข้อสอบใหม่</span></span>
+              <span class="hub-desc">Phrasal verbs, collocations, prepositions, word forms และภาษาพูด</span>
+              <span class="meta" data-stats></span>
+            </span>
+            <span class="hub-cta" data-cta>เริ่มทำ</span>
+          </a>
+        </div>
+      </section>
+
+      <section class="hub-group">
+        <h2 class="section-title">สอบจำลอง</h2>
+        <div class="hub-list">
+          <a class="hub-row" href="exam.html" data-quiz="exam">
+            <span class="hub-no">07</span>
+            <span>
+              <span class="hub-title">สอบจำลอง <span class="light">Mock exam</span></span>
+              <span class="hub-desc">บรรยากาศสอบจริง จับเวลา ไม่มีเฉลยระหว่างทำ ส่งแล้วจึงเห็นผล</span>
+              <span class="meta" data-stats></span>
+            </span>
+            <span class="hub-cta" data-cta>เริ่มสอบ</span>
+          </a>
+        </div>
+      </section>
     </main>
 
-    <footer class="site-footer">ความคืบหน้าและสถิติเก็บไว้ในเบราว์เซอร์ของคุณเท่านั้น ไม่มีการส่งข้อมูลไปที่ใด</footer>
+    <footer class="site-footer">ความคืบหน้าและสถิติเก็บไว้ในเบราว์เซอร์ของคุณเท่านั้น คำแปลใช้บริการแปลภายนอกเฉพาะข้อความที่คุณเลือก</footer>
   </div>
 
   <script src="assets/js/common.js"></script>
   <script src="assets/data/grammar.js"></script>
   <script src="assets/data/conversations.js"></script>
   <script src="assets/data/cloze.js"></script>
+  <script src="assets/data/extra.js"></script>
+  <script src="assets/data/placement.js"></script>
+  <script src="assets/data/lessons.js"></script>
+  <script src="assets/data/exam.js"></script>
   <script src="assets/js/hub.js"></script>
 </body>
 </html>

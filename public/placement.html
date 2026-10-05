@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ควิซไวยากรณ์ A1 A2 B1 — CEFR Quiz</title>
-  <meta name="description" content="ฝึกไวยากรณ์ภาษาอังกฤษระดับ A1–B1 150 ข้อ สุ่มลำดับข้อและตัวเลือก ตอบแล้วเห็นเฉลยพร้อมคำอธิบายภาษาไทยทันที">
+  <title>ทดสอบระดับ CEFR — CEFR Quiz</title>
+  <meta name="description" content="แบบทดสอบวัดระดับภาษาอังกฤษตามมาตรฐาน CEFR ตั้งแต่ A1 ถึง B2 ใช้เวลาประมาณ 15–20 นาที พร้อมคำแนะนำบทเรียนที่ควรเรียนต่อ">
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -19,15 +19,16 @@
     <header class="site-header">
       <a class="back-link" href="index.html">← หน้าหลัก</a>
       <div class="header-actions">
-        <button class="tr-toggle" type="button" data-translate-toggle aria-pressed="true">แปล</button>
+        <!-- shown only on the result screen: translation is off while testing -->
+        <button class="tr-toggle" type="button" data-translate-toggle aria-pressed="true" hidden>แปล</button>
         <button class="icon-btn" type="button" data-theme-toggle aria-label="สลับโหมดสว่าง/มืด"></button>
       </div>
     </header>
 
-    <p class="eyebrow">Part 1</p>
-    <h1 class="page-title">ไวยากรณ์ <span class="light">A1 · A2 · B1</span></h1>
+    <p class="eyebrow">Placement test</p>
+    <h1 class="page-title">ทดสอบระดับ <span class="light">CEFR</span></h1>
 
-    <main id="app" data-quiz="grammar">
+    <main id="app">
       <noscript><p class="lead">ต้องเปิด JavaScript เพื่อทำแบบทดสอบ</p></noscript>
     </main>
 
@@ -36,7 +37,8 @@
 
   <script src="assets/js/common.js"></script>
   <script src="assets/js/translate.js"></script>
-  <script src="assets/data/grammar.js"></script>
-  <script src="assets/js/quiz-engine.js"></script>
+  <script src="assets/data/placement.js"></script>
+  <script src="assets/data/lessons.js"></script>
+  <script src="assets/js/placement-engine.js"></script>
 </body>
 </html>
