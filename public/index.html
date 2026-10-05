@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CEFR Quiz — เรียน ฝึก และวัดระดับภาษาอังกฤษ A1–B2</title>
+  <title>CEFR Quiz — เรียน ฝึก และวัดระดับภาษาอังกฤษ</title>
   <meta name="description" content="เรียนไวยากรณ์ A1–B1 เป็นภาษาไทย ทดสอบระดับ CEFR ฝึกทำข้อสอบกว่า 450 ข้อ และสอบจำลองแบบจับเวลา พร้อมระบบแปลคลิกคำ ฟรี">
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
@@ -21,102 +21,24 @@
 <body>
   <div class="container">
     <header class="site-header">
-      <a class="brand" href="index.html">CEFR Quiz</a>
+      <a class="brand" href="index.html#home">CEFR Quiz</a>
       <div class="header-actions">
         <button class="icon-btn" type="button" data-theme-toggle aria-label="สลับโหมดสว่าง/มืด"></button>
       </div>
     </header>
-
-    <h1 class="page-title">เรียน ฝึก และวัดระดับ CEFR</h1>
-    <p class="lead">คลังภาษาอังกฤษระดับ A1–B2 อธิบายเป็นภาษาไทย ตอบแล้วเห็นเฉลยทันที และคลิกคำหรือลากคลุมข้อความเพื่อดูคำแปลได้ทุกหน้า ความคืบหน้าบันทึกไว้ในเครื่องของคุณ</p>
+    <nav class="tabs" data-section="home" aria-label="เมนูหลัก"></nav>
 
     <main id="app">
-      <section class="hub-group">
-        <h2 class="section-title">เริ่มต้น</h2>
-        <div class="hub-list">
-          <a class="hub-row" href="placement.html" data-quiz="placement">
-            <span class="hub-no">01</span>
-            <span>
-              <span class="hub-title">ทดสอบระดับ <span class="light">Placement test</span></span>
-              <span class="hub-desc">วัดว่าคุณอยู่ระดับ A1–B2 พร้อมแนะนำบทเรียนที่ควรเรียนต่อ</span>
-              <span class="meta" data-stats></span>
-            </span>
-            <span class="hub-cta" data-cta>เริ่มทำ</span>
-          </a>
-        </div>
-      </section>
-
-      <section class="hub-group">
-        <h2 class="section-title">เรียนรู้</h2>
-        <div class="hub-list">
-          <a class="hub-row" href="learn.html" data-quiz="learn">
-            <span class="hub-no">02</span>
-            <span>
-              <span class="hub-title">บทเรียนไวยากรณ์ <span class="light">Lessons</span></span>
-              <span class="hub-desc">อธิบายเป็นภาษาไทย พร้อมตัวอย่างและแบบฝึกหัดท้ายบททุกบท</span>
-              <span class="meta" data-stats></span>
-            </span>
-            <span class="hub-cta" data-cta>เรียน</span>
-          </a>
-        </div>
-      </section>
-
-      <section class="hub-group">
-        <h2 class="section-title">ฝึกทำข้อสอบ</h2>
-        <div class="hub-list">
-          <a class="hub-row" href="grammar.html" data-quiz="grammar">
-            <span class="hub-no">03</span>
-            <span>
-              <span class="hub-title">Grammar <span class="light">ไวยากรณ์ A1–B1</span></span>
-              <span class="hub-desc">เลือกคำตอบที่ถูกต้องจากบทสนทนาสั้นๆ พร้อมคำอธิบายทุกข้อ</span>
-              <span class="meta" data-stats></span>
-            </span>
-            <span class="hub-cta" data-cta>เริ่มทำ</span>
-          </a>
-          <a class="hub-row" href="conversations.html" data-quiz="conversations">
-            <span class="hub-no">04</span>
-            <span>
-              <span class="hub-title">Conversations <span class="light">บทสนทนา</span></span>
-              <span class="hub-desc">อ่านบทสนทนาแล้วเลือกว่าผู้พูดหมายความว่าอะไร</span>
-              <span class="meta" data-stats></span>
-            </span>
-            <span class="hub-cta" data-cta>เริ่มทำ</span>
-          </a>
-          <a class="hub-row" href="cloze.html" data-quiz="cloze">
-            <span class="hub-no">05</span>
-            <span>
-              <span class="hub-title">Cloze Test <span class="light">เติมคำในบทความ</span></span>
-              <span class="hub-desc">เลือกคำที่ถูกต้องใส่ในช่องว่าง เลือกฝึกทีละบทความได้</span>
-              <span class="meta" data-stats></span>
-            </span>
-            <span class="hub-cta" data-cta>เริ่มทำ</span>
-          </a>
-          <a class="hub-row" href="extra.html" data-quiz="extra">
-            <span class="hub-no">06</span>
-            <span>
-              <span class="hub-title">Extra <span class="light">ฝึกเพิ่มเติม ข้อสอบใหม่</span></span>
-              <span class="hub-desc">Phrasal verbs, collocations, prepositions, word forms และภาษาพูด</span>
-              <span class="meta" data-stats></span>
-            </span>
-            <span class="hub-cta" data-cta>เริ่มทำ</span>
-          </a>
-        </div>
-      </section>
-
-      <section class="hub-group">
-        <h2 class="section-title">สอบจำลอง</h2>
-        <div class="hub-list">
-          <a class="hub-row" href="exam.html" data-quiz="exam">
-            <span class="hub-no">07</span>
-            <span>
-              <span class="hub-title">สอบจำลอง <span class="light">Mock exam</span></span>
-              <span class="hub-desc">บรรยากาศสอบจริง จับเวลา ไม่มีเฉลยระหว่างทำ ส่งแล้วจึงเห็นผล</span>
-              <span class="meta" data-stats></span>
-            </span>
-            <span class="hub-cta" data-cta>เริ่มสอบ</span>
-          </a>
-        </div>
-      </section>
+      <noscript>
+        <h1 class="page-title">CEFR Quiz</h1>
+        <p class="lead">ต้องเปิด JavaScript เพื่อใช้งาน หรือเปิดแต่ละหน้าโดยตรง:</p>
+        <ul>
+          <li><a href="placement.html">ทดสอบระดับ</a></li>
+          <li><a href="learn.html">บทเรียน</a></li>
+          <li><a href="grammar.html">Grammar</a> · <a href="conversations.html">Conversations</a> · <a href="cloze.html">Cloze</a> · <a href="extra.html">Extra</a></li>
+          <li><a href="exam.html">สอบจำลอง</a></li>
+        </ul>
+      </noscript>
     </main>
 
     <footer class="site-footer">ความคืบหน้าและสถิติเก็บไว้ในเบราว์เซอร์ของคุณเท่านั้น คำแปลใช้บริการแปลภายนอกเฉพาะข้อความที่คุณเลือก</footer>

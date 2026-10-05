@@ -1,5 +1,5 @@
-// Lessons: index of all lessons + a lesson page (explanation, examples, mini exercises).
-// Routing is hash-based: learn.html → index, learn.html#present-simple → that lesson.
+// Lesson page (explanation, examples, mini exercises). The list of lessons is the hub's เรียน tab.
+// Routing is hash-based: learn.html#present-simple → that lesson; no hash → redirect to index.html#learn.
 (function () {
   'use strict';
 
@@ -7,42 +7,10 @@
   const lessons = window.CEFR_DATA.lessons;
   const root = document.getElementById('app');
 
-  const LEVEL_NAMES = { A1: 'A1 · เริ่มต้น', A2: 'A2 · พื้นฐาน', B1: 'B1 · กลาง', B2: 'B2 · กลางค่อนสูง' };
   const KEYS = '12345';
 
   const getProgress = () => store.get('learn:progress', {});
   const setView = (...nodes) => root.replaceChildren(...nodes.flat(Infinity).filter(Boolean));
-
-  // ---------- Index ----------
-  function renderIndex() {
-    document.title = 'บทเรียนไวยากรณ์ — CEFR Quiz';
-    const progress = getProgress();
-    const doneCount = lessons.filter((l) => progress[l.id] && progress[l.id].done).length;
-
-    const levels = [...new Set(lessons.map((l) => l.level))];
-    let no = 0;
-    const groups = levels.map((level) => h('section', { class: 'lesson-group' },
-      h('h2', { class: 'section-title', text: LEVEL_NAMES[level] || level }),
-      h('div', { class: 'hub-list' },
-        lessons.filter((l) => l.level === level).map((l) => {
-          no++;
-          const p = progress[l.id];
-          const meta = [l.minutes + ' นาที', l.exercises.length + ' ข้อฝึก'];
-          if (p && p.done) meta.push('ทำแล้ว ' + p.score + '/' + p.total);
-          return h('a', { class: 'hub-row', href: '#' + l.id },
-            h('span', { class: 'hub-no', text: String(no).padStart(2, '0') }),
-            h('span', {},
-              h('span', { class: 'hub-title' }, l.title + ' ', h('span', { class: 'light', text: l.en })),
-              h('span', { class: 'meta', text: meta.join(' · ') })),
-            h('span', { class: 'hub-cta', text: p && p.done ? 'ทบทวน' : 'เรียน' }));
-        }))));
-
-    setView(
-      h('p', { class: 'lead', text: 'อธิบายเป็นภาษาไทย มีตัวอย่างและแบบฝึกหัดท้ายบททุกบท · เรียนแล้ว ' + doneCount + '/' + lessons.length + ' บท' }),
-      h('p', { class: 'fine-print tip-line', text: 'คลิกที่คำภาษาอังกฤษหรือลากคลุมข้อความ เพื่อดูคำแปลได้ทุกหน้า' }),
-      groups
-    );
-  }
 
   // ---------- Lesson page ----------
   function renderTable(t) {
@@ -83,7 +51,7 @@
         h('div', { class: 'btn-row' },
           next && h('a', { class: 'btn', href: '#' + next.id, text: 'บทถัดไป: ' + next.title }),
           h('button', { class: 'btn btn-outline', type: 'button', text: 'ทำแบบฝึกหัดใหม่', onclick: build }),
-          h('a', { class: 'btn btn-outline', href: '#', text: 'สารบัญ' }))));
+          h('a', { class: 'btn btn-outline', href: 'index.html#learn', text: 'บทเรียนทั้งหมด' }))));
     }
 
     function build() {
@@ -132,7 +100,7 @@
     const next = lessons[idx + 1];
 
     setView(
-      h('a', { class: 'back-link', href: '#', text: '← บทเรียนทั้งหมด' }),
+      h('a', { class: 'back-link', href: 'index.html#learn', text: '← บทเรียนทั้งหมด' }),
       h('p', { class: 'eyebrow lesson-eyebrow', text: 'บทเรียน · ' + lesson.level + ' · ' + lesson.minutes + ' นาที' }),
       h('h1', { class: 'page-title' }, lesson.title + ' ', h('span', { class: 'light', text: lesson.en })),
       h('p', { class: 'lead', 'data-tr': true }, rich(lesson.intro)),
@@ -150,7 +118,7 @@
   function route() {
     const id = decodeURIComponent(location.hash.slice(1));
     const lesson = lessons.find((l) => l.id === id);
-    if (lesson) renderLesson(lesson); else renderIndex();
+    if (lesson) renderLesson(lesson); else location.replace('index.html#learn');   // the lesson list lives in the hub's เรียน tab
     window.scrollTo(0, 0);
   }
 

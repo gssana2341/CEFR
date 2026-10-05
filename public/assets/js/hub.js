@@ -1,92 +1,243 @@
-// Home page: progressive enhancement. The rows and links are already in index.html;
-// this fills in live counts and the learner's saved progress from localStorage.
+// Home page with four tabs (หน้าหลัก · เรียน · ฝึก · ทดสอบ), switched by the URL hash:
+//   index.html#home | #learn | #practice | #test
+// Everything here is built from CEFR_DATA and the learner's progress in localStorage.
 (function () {
   'use strict';
 
-  const { QUIZZES, store, pct } = window.CEFR;
+  const { store, pct, h, renderNav } = window.CEFR;
   const D = window.CEFR_DATA;
+  const root = document.getElementById('app');
+  const nav = document.querySelector('nav.tabs');
+
+  const TABS = ['home', 'learn', 'practice', 'test'];
+  const TITLES = { home: 'CEFR Quiz — เรียน ฝึก และวัดระดับภาษาอังกฤษ', learn: 'เรียน — CEFR Quiz', practice: 'ฝึก — CEFR Quiz', test: 'ทดสอบ — CEFR Quiz' };
+  const LEVEL_NAMES = { A1: ['A1', 'เริ่มต้น'], A2: ['A2', 'พื้นฐาน'], B1: ['B1', 'กลาง'], B2: ['B2', 'กลางค่อนสูง'] };
+  const PASS_RATIO = 0.7;
 
   const dateTh = (ms) => new Date(ms).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+  const clock = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  const levelName = (l) => (l === 'pre-A1' ? 'ต่ำกว่า A1' : l);
+  const btn = (text, href, primary) => h('a', { class: 'btn' + (primary ? '' : ' btn-outline'), href, text });
 
-  function mcqInfo(meta) {
-    const parts = [D[meta.dataKey].length + ' ข้อ'];
-    let cta = 'เริ่มทำ';
+  // ---------- Progress readers ----------
+  const lessonProgress = () => store.get('learn:progress', {});
+  const lessonsDone = () => D.lessons.filter((l) => (lessonProgress()[l.id] || {}).done).length;
+  const placementLast = () => store.get('placement:last', null);
+  const examHistory = () => store.get('exam:history', []);
 
-    const state = store.get(meta.id + ':state', null);
-    if (state && Array.isArray(state.items) && state.items.length) {
-      const answered = state.items.filter((it) => it && it.pick !== null).length;
-      parts.push('ทำค้างอยู่ ' + answered + '/' + state.items.length);
-      cta = 'ทำต่อ';
+  function examRunning() {
+    const s = store.get('exam:state', null);
+    return s && s.startedAt && s.startedAt + s.durationMs > Date.now() ? s : null;
+  }
+
+  // The level where the learner failed their placement stage → the lessons worth doing first.
+  function focusLevel() {
+    const last = placementLast();
+    if (!last || !Array.isArray(last.results)) return null;
+    const failed = last.results.find((r) => r.score / r.total < PASS_RATIO);
+    return failed ? failed.level : null;
+  }
+
+  function nextLesson() {
+    const prog = lessonProgress();
+    const todo = D.lessons.filter((l) => !(prog[l.id] || {}).done);
+    const focus = focusLevel();
+    return todo.find((l) => l.level === focus) || todo[0] || null;
+  }
+
+  // Per practice set: { meta[], cta, resume: 'ตอบแล้ว 3/25' | null }
+  function practiceInfo(id) {
+    if (id === 'cloze') {
+      const passages = D.cloze;
+      const blanks = passages.reduce((s, p) => s + p.blanks.length, 0);
+      const meta = [passages.length + ' บทความ', blanks + ' ช่องว่าง'];
+      let resume = null;
+      const st = store.get('cloze:state', null);
+      if (st && Array.isArray(st.order) && st.order.length) resume = 'ส่งแล้ว ' + st.index + '/' + st.order.length + ' บทความ';
+      const done = Object.keys(store.get('cloze:best', {}) || {}).filter((i) => passages[i]).length;
+      if (done) meta.push('เคยทำแล้ว ' + done + '/' + passages.length + ' บท');
+      return { meta, cta: resume ? 'ทำต่อ' : 'เริ่มทำ', resume };
     }
-    const stats = store.get(meta.id + ':stats', null);
-    if (stats && stats.best) parts.push('ดีที่สุด ' + pct(stats.best.score, stats.best.total) + '%');
-    const wrong = store.get(meta.id + ':wrong', []);
-    if (Array.isArray(wrong) && wrong.length) parts.push('ยังไม่แม่น ' + wrong.length);
-    return { parts, cta };
-  }
-
-  function clozeInfo() {
-    const passages = D.cloze;
-    const blanks = passages.reduce((sum, p) => sum + p.blanks.length, 0);
-    const parts = [passages.length + ' บทความ', blanks + ' ช่องว่าง'];
-    let cta = 'เริ่มทำ';
-
-    const state = store.get('cloze:state', null);
-    if (state && Array.isArray(state.order) && state.order.length) {
-      parts.push('ทำค้างอยู่ ' + state.index + '/' + state.order.length);
-      cta = 'ทำต่อ';
+    const meta = [D[id].length + ' ข้อ'];
+    let resume = null;
+    const st = store.get(id + ':state', null);
+    if (st && Array.isArray(st.items) && st.items.length) {
+      resume = 'ตอบแล้ว ' + st.items.filter((it) => it && it.pick !== null).length + '/' + st.items.length + ' ข้อ';
     }
-    const best = store.get('cloze:best', {});
-    const done = Object.keys(best || {}).filter((i) => passages[i]).length;
-    if (done) parts.push('เคยทำแล้ว ' + done + '/' + passages.length + ' บท');
-    return { parts, cta };
+    const stats = store.get(id + ':stats', null);
+    if (stats && stats.best) meta.push('คะแนนดีที่สุด ' + pct(stats.best.score, stats.best.total) + '%');
+    const wrong = store.get(id + ':wrong', []);
+    if (Array.isArray(wrong) && wrong.length) meta.push('ยังไม่แม่น ' + wrong.length + ' ข้อ');
+    return { meta, cta: resume ? 'ทำต่อ' : 'เริ่มทำ', resume };
   }
 
-  function placementInfo() {
-    const parts = [D.placement.length + ' ข้อ', '4 ระดับ', '~15 นาที'];
-    let cta = 'เริ่มทำ';
-    if (store.get('placement:state', null)) { parts.push('ทำค้างอยู่'); cta = 'ทำต่อ'; }
-    const last = store.get('placement:last', null);
-    if (last && last.level) {
-      parts.push('ผลล่าสุด ' + (last.level === 'pre-A1' ? 'ต่ำกว่า A1' : last.level) + ' (' + dateTh(last.at) + ')');
-      if (cta === 'เริ่มทำ') cta = 'ทำอีกครั้ง';
-    }
-    return { parts, cta };
-  }
+  const PRACTICE = [
+    { id: 'grammar', title: 'Grammar', thai: 'ไวยากรณ์ A1–B1', desc: 'เลือกคำตอบที่ถูกต้องจากบทสนทนาสั้นๆ ครอบคลุมไวยากรณ์ A1–B1', href: 'grammar.html' },
+    { id: 'conversations', title: 'Conversations', thai: 'บทสนทนา', desc: 'อ่านบทสนทนาแล้วเลือกว่าผู้พูดหมายความว่าอะไร', href: 'conversations.html' },
+    { id: 'cloze', title: 'Cloze Test', thai: 'เติมคำ', desc: 'เลือกคำใส่ช่องว่างในบทความ ทำทั้งชุดหรือเลือกทีละบทก็ได้', href: 'cloze.html' },
+    { id: 'extra', title: 'Extra', thai: 'ข้อสอบใหม่', desc: 'Phrasal verbs, collocations, prepositions, word forms และภาษาพูด', href: 'extra.html' },
+  ];
 
-  function learnInfo() {
-    const progress = store.get('learn:progress', {});
-    const done = D.lessons.filter((l) => progress[l.id] && progress[l.id].done).length;
-    const parts = [D.lessons.length + ' บทเรียน', 'เรียนแล้ว ' + done + '/' + D.lessons.length];
-    return { parts, cta: done ? 'เรียนต่อ' : 'เรียน' };
-  }
-
-  function examInfo() {
-    const cfg = D.exam;
-    const items = cfg.parts.reduce((s, p) => s + p.count, 0);
-    const parts = [cfg.durationMin + ' นาที'];
-    let cta = 'เริ่มสอบ';
-    const state = store.get('exam:state', null);
-    if (state && state.startedAt && state.startedAt + state.durationMs > Date.now()) { parts.push('กำลังสอบอยู่'); cta = 'กลับไปสอบ'; }
-    const history = store.get('exam:history', []);
-    if (history.length) parts.push('ล่าสุด ' + pct(history[0].score, history[0].total) + '%');
-    else parts.push(cfg.parts.length + ' ส่วน');
-    return { parts, cta, items };
-  }
-
-  const INFO = {
-    placement: placementInfo,
-    learn: learnInfo,
-    exam: examInfo,
-    cloze: clozeInfo,
-  };
-
-  document.querySelectorAll('.hub-row[data-quiz]').forEach((row) => {
-    const id = row.dataset.quiz;
-    const meta = QUIZZES[id];
-    const info = INFO[id] ? INFO[id]() : meta && D[meta.dataKey] ? mcqInfo(meta) : null;
-    if (!info) return;
-    row.querySelector('[data-stats]').textContent = info.parts.join(' · ');
-    row.querySelector('[data-cta]').textContent = info.cta;
+  const practiceStarted = () => PRACTICE.some((p) => {
+    const st = store.get(p.id + ':stats', null);
+    return (st && st.attempts) || store.get(p.id + ':state', null) || Object.keys(store.get(p.id + ':best', {}) || {}).length;
   });
+
+  // ---------- Panels ----------
+  function continueCard() {
+    const items = [];
+    const ps = store.get('placement:state', null);
+    if (ps && Array.isArray(ps.items)) {
+      const stage = ['A1', 'A2', 'B1', 'B2'][ps.stage] || '';
+      items.push({ title: 'ทดสอบระดับ CEFR', meta: ps.between ? 'ผ่านระดับก่อนหน้า รอเริ่มระดับ ' + stage : 'ระดับ ' + stage + ' · ข้อ ' + (ps.index + 1) + '/' + ps.items.length, href: 'placement.html' });
+    }
+    const ex = examRunning();
+    if (ex) items.push({ title: 'สอบจำลอง', meta: 'เหลือเวลา ' + clock(ex.startedAt + ex.durationMs - Date.now()), href: 'exam.html' });
+    PRACTICE.forEach((p) => {
+      const info = practiceInfo(p.id);
+      if (info.resume) items.push({ title: p.title + ' ' + p.thai, meta: info.resume, href: p.href });
+    });
+    if (!items.length) return null;
+    return h('section', { class: 'continue' },
+      h('h2', { text: 'ทำต่อจากที่ค้างไว้' }),
+      items.slice(0, 3).map((it) => h('div', { class: 'continue-item' },
+        h('div', {}, h('p', { class: 'continue-title', text: it.title }), h('p', { class: 'continue-meta', text: it.meta })),
+        btn('ทำต่อ', it.href, true))));
+  }
+
+  function step(no, title, desc, meta, actions, opts) {
+    return h('li', { class: 'step' + (opts.recommended ? ' recommended' : '') },
+      h('span', { class: 'step-no', 'aria-hidden': 'true', text: String(no) }),
+      h('div', { class: 'step-body' },
+        h('p', { class: 'step-title' }, title + ' ', opts.recommended && h('span', { class: 'rec-tag', text: 'แนะนำถัดไป' }), opts.done && h('span', { class: 'done-tag', text: '✓ ทำแล้ว' })),
+        h('p', { class: 'step-desc', text: desc }),
+        meta && h('p', { class: 'step-meta', text: meta })),
+      h('div', { class: 'step-actions' }, actions));
+  }
+
+  function homePanel() {
+    const last = placementLast();
+    const hist = examHistory();
+    const done = lessonsDone();
+    const nl = nextLesson();
+    const wrongTotal = PRACTICE.reduce((s, p) => s + ((store.get(p.id + ':wrong', []) || []).length || 0), 0);
+    const questions = PRACTICE.reduce((s, p) => s + (p.id === 'cloze' ? D.cloze.reduce((a, c) => a + c.blanks.length, 0) : D[p.id].length), 0);
+
+    // Which step is next? The first one not yet finished: placement → all lessons → some practice → a mock exam.
+    const finishedSteps = [!!last, done === D.lessons.length, practiceStarted(), hist.length > 0];
+    const rec = finishedSteps.indexOf(false) + 1;  // 1-based, 0 = everything done
+
+    const placeRunning = !!store.get('placement:state', null);
+    return h('div', {},
+      h('h1', { class: 'page-title', text: 'เรียน ฝึก และวัดระดับ CEFR' }),
+      h('p', { class: 'lead', text: 'ภาษาอังกฤษระดับ A1–B2 อธิบายเป็นภาษาไทย ตอบแล้วเห็นเฉลยทันที และคลิกคำหรือลากคลุมข้อความเพื่อดูคำแปลได้ทุกหน้า' }),
+      continueCard(),
+      h('h2', { class: 'section-title', text: 'เริ่มอย่างไรดี — 4 ขั้นตอนที่แนะนำ' }),
+      h('ol', { class: 'path' },
+        step(1, 'วัดระดับของคุณ', 'ทำแบบทดสอบ 15 นาที เพื่อรู้ว่าอยู่ระดับ A1–B2 และควรเริ่มเรียนจากบทไหน',
+          last ? 'ผลล่าสุด: ระดับ ' + levelName(last.level) + ' (' + dateTh(last.at) + ')' : D.placement.length + ' ข้อ · 4 ระดับ',
+          btn(placeRunning ? 'ทำต่อ' : last ? 'ทำอีกครั้ง' : 'เริ่มทดสอบ', 'placement.html', rec === 1), { recommended: rec === 1, done: !!last }),
+        step(2, 'เรียนไวยากรณ์', 'บทเรียนภาษาไทย 15 บท มีตัวอย่างและแบบฝึกหัดท้ายบท',
+          'เรียนแล้ว ' + done + '/' + D.lessons.length + ' บท' + (nl ? ' · บทถัดไป: ' + nl.title : ''),
+          [nl && btn(done ? 'เรียนต่อ' : 'เริ่มเรียน', 'learn.html#' + nl.id, rec === 2), h('a', { class: 'link-btn', href: 'index.html#learn', text: 'ดูบทเรียนทั้งหมด' })],
+          { recommended: rec === 2, done: done === D.lessons.length }),
+        step(3, 'ฝึกทำข้อสอบ', 'แบบฝึกหัด ' + questions + ' ข้อ ใน 4 ชุด ตอบแล้วเห็นเฉลยพร้อมคำอธิบายทันที',
+          wrongTotal ? 'มีข้อที่ยังไม่แม่น ' + wrongTotal + ' ข้อ รอทบทวน' : null,
+          btn('เลือกชุดฝึก', 'index.html#practice', rec === 3), { recommended: rec === 3, done: false }),
+        step(4, 'ซ้อมสอบจริง', 'สอบจำลอง ' + D.exam.durationMin + ' นาที จับเวลา ไม่มีเฉลยระหว่างทำ ได้คะแนนแยกตามส่วน',
+          hist.length ? 'ผลล่าสุด ' + pct(hist[0].score, hist[0].total) + '% (' + dateTh(hist[0].at) + ')' : null,
+          btn(examRunning() ? 'กลับไปสอบ' : 'เริ่มสอบจำลอง', 'exam.html', rec === 4), { recommended: rec === 4, done: hist.length > 0 })
+      )
+    );
+  }
+
+  function learnPanel() {
+    const prog = lessonProgress();
+    const last = placementLast();
+    const focus = focusLevel();
+    const levels = [...new Set(D.lessons.map((l) => l.level))];
+    let no = 0;
+    return h('div', {},
+      h('h1', { class: 'page-title', text: 'บทเรียนไวยากรณ์' }),
+      h('p', { class: 'tab-intro', text: 'เลือกบทที่ต้องการ อ่านคำอธิบาย ดูตัวอย่าง แล้วทำแบบฝึกหัดท้ายบท · เรียนแล้ว ' + lessonsDone() + '/' + D.lessons.length + ' บท' }),
+      last && h('p', { class: 'card-meta', style: { marginTop: '-12px', marginBottom: '20px' }, text: focus ? 'จากผลวัดระดับ (' + levelName(last.level) + ') แนะนำให้เริ่มที่บทระดับ ' + focus : 'คุณผ่านทุกระดับในการวัดระดับแล้ว เรียนทบทวนบทไหนก็ได้' }),
+      levels.map((lv) => [
+        h('h2', { class: 'level-title' }, (LEVEL_NAMES[lv] || [lv])[0], h('span', { class: 'meta', text: (LEVEL_NAMES[lv] || ['', ''])[1] })),
+        h('ul', { class: 'lesson-list' }, D.lessons.filter((l) => l.level === lv).map((l) => {
+          no++;
+          const p = prog[l.id];
+          const done = p && p.done;
+          return h('li', {}, h('a', { class: 'lesson-link', href: 'learn.html#' + l.id },
+            h('span', { class: 'lesson-no', text: String(no).padStart(2, '0') }),
+            h('span', { class: 'lesson-name' }, l.title + ' ', h('span', { class: 'light', text: l.en })),
+            h('span', { class: 'lesson-state' + (done ? ' done' : ''), text: done ? '✓ ' + p.score + '/' + p.total : l.level === focus ? 'แนะนำ' : '' }),
+            h('span', { class: 'lesson-sub', text: l.minutes + ' นาที · แบบฝึกหัด ' + l.exercises.length + ' ข้อ' })));
+        })),
+      ])
+    );
+  }
+
+  function practicePanel() {
+    return h('div', {},
+      h('h1', { class: 'page-title', text: 'ฝึกทำข้อสอบ' }),
+      h('p', { class: 'tab-intro', text: 'เลือกชุดข้อสอบที่ต้องการ ตอบแล้วเห็นเฉลยพร้อมคำอธิบายทันที ข้อที่ตอบผิดจะถูกเก็บไว้ให้ทบทวนภายหลัง' }),
+      h('div', { class: 'cards' }, PRACTICE.map((p) => {
+        const info = practiceInfo(p.id);
+        return h('article', { class: 'card' },
+          h('h2', { class: 'card-title' }, p.title + ' ', h('span', { class: 'light', text: p.thai })),
+          h('p', { class: 'card-desc', text: p.desc }),
+          h('p', { class: 'card-meta', text: info.meta.join(' · ') }),
+          info.resume && h('p', { class: 'card-meta', text: 'ค้างอยู่: ' + info.resume }),
+          h('div', { class: 'card-actions' }, btn(info.cta, p.href, true)));
+      })));
+  }
+
+  function testPanel() {
+    const last = placementLast();
+    const hist = examHistory();
+    const running = examRunning();
+    return h('div', {},
+      h('h1', { class: 'page-title', text: 'ทดสอบ' }),
+      h('p', { class: 'tab-intro', text: 'ไม่แน่ใจว่าจะเริ่มตรงไหน ให้ทดสอบระดับก่อน แล้วค่อยซ้อมสอบจริงเมื่อฝึกมาพอสมควร' }),
+      h('div', { class: 'stack' },
+        h('article', { class: 'card' },
+          h('h2', { class: 'card-title' }, 'ทดสอบระดับ ', h('span', { class: 'light', text: 'Placement test' })),
+          h('p', { class: 'card-desc', text: 'รู้ว่าตอนนี้ภาษาอังกฤษของคุณอยู่ระดับ A1, A2, B1 หรือ B2 ใช้เวลาประมาณ 15 นาที ได้ผลพร้อมคำแนะนำบทเรียนที่ควรเรียนต่อ' }),
+          h('p', { class: 'card-meta', text: [D.placement.length + ' ข้อ · 4 ระดับ', last && 'ผลล่าสุด: ' + levelName(last.level) + ' (' + dateTh(last.at) + ')'].filter(Boolean).join(' · ') }),
+          h('div', { class: 'card-actions' }, btn(store.get('placement:state', null) ? 'ทำต่อ' : last ? 'ทำอีกครั้ง' : 'เริ่มทดสอบ', 'placement.html', true))),
+        h('article', { class: 'card' },
+          h('h2', { class: 'card-title' }, 'สอบจำลอง ', h('span', { class: 'light', text: 'Mock exam' })),
+          h('p', { class: 'card-desc', text: 'ซ้อมสอบแบบสอบจริง จับเวลา ไม่มีเฉลยและไม่มีระบบแปลช่วยระหว่างทำ ส่งแล้วจึงเห็นคะแนนแยกตามส่วนและเฉลยทุกข้อ' }),
+          h('p', { class: 'card-meta', text: [D.exam.durationMin + ' นาที · ' + D.exam.parts.length + ' ส่วน', hist.length && 'ผลล่าสุด ' + pct(hist[0].score, hist[0].total) + '% (' + dateTh(hist[0].at) + ')', running && 'กำลังสอบอยู่ เหลือ ' + clock(running.startedAt + running.durationMs - Date.now())].filter(Boolean).join(' · ') }),
+          h('div', { class: 'card-actions' }, btn(running ? 'กลับไปสอบ' : 'เริ่มสอบจำลอง', 'exam.html', true)))
+      ));
+  }
+
+  // ---------- Tabs ----------
+  const panels = {};
+  function build() {
+    panels.home = h('section', { class: 'tab-panel', id: 'tab-home' }, homePanel());
+    panels.learn = h('section', { class: 'tab-panel', id: 'tab-learn' }, learnPanel());
+    panels.practice = h('section', { class: 'tab-panel', id: 'tab-practice' }, practicePanel());
+    panels.test = h('section', { class: 'tab-panel', id: 'tab-test' }, testPanel());
+    root.replaceChildren(...TABS.map((t) => panels[t]));
+  }
+
+  function currentTab() {
+    const name = location.hash.slice(1);
+    return TABS.includes(name) ? name : 'home';
+  }
+
+  function show() {
+    const tab = currentTab();
+    build();                                   // rebuild so progress is always fresh
+    TABS.forEach((t) => { panels[t].hidden = t !== tab; });
+    renderNav(nav, tab);
+    document.title = TITLES[tab];
+    window.scrollTo(0, 0);
+  }
+
+  window.addEventListener('hashchange', show);
+  window.addEventListener('pageshow', (e) => { if (e.persisted) show(); });   // back button → refresh progress
+  show();
 })();

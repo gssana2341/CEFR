@@ -166,5 +166,20 @@
 
   initTheme();
 
-  window.CEFR = { QUIZZES, store, shuffle, pct, h, rich, confirmDialog, dialogOpen };
+  // ---------- Section tabs (shown on every page) ----------
+  // <nav class="tabs" data-section="practice"> is filled in here; the hub re-renders it when you switch tab.
+  const NAV = [
+    ['home', 'หน้าหลัก', 'index.html#home'],
+    ['learn', 'เรียน', 'index.html#learn'],
+    ['practice', 'ฝึก', 'index.html#practice'],
+    ['test', 'ทดสอบ', 'index.html#test'],
+  ];
+
+  function renderNav(el, active) {
+    el.replaceChildren(...NAV.map(([id, label, href]) => h('a', { href, text: label, 'aria-current': id === active ? 'page' : null })));
+  }
+
+  document.querySelectorAll('nav.tabs[data-section]').forEach((el) => renderNav(el, el.dataset.section));
+
+  window.CEFR = { QUIZZES, store, shuffle, pct, h, rich, confirmDialog, dialogOpen, renderNav };
 })();

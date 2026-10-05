@@ -295,7 +295,7 @@
         !failed && h('p', { class: 'meta', text: 'คุณผ่านครบทุกระดับในแบบทดสอบนี้ ลองฝึกทำข้อสอบจำลองสอบจริงเพื่อทดสอบความพร้อม' }),
         h('div', { class: 'btn-row' },
           h('button', { class: 'btn', type: 'button', text: 'ทำแบบทดสอบใหม่', onclick: start }),
-          h('a', { class: 'btn btn-outline', href: 'learn.html', text: 'ไปที่บทเรียน' }),
+          h('a', { class: 'btn btn-outline', href: 'index.html#learn', text: 'ไปที่บทเรียน' }),
           h('button', { class: 'btn btn-outline', type: 'button', text: 'กลับหน้าแรก', onclick: goHome })
         ),
         h('p', { class: 'fine-print', text: 'ผลนี้ประมาณจากข้อสอบสั้นๆ เฉพาะไวยากรณ์และคำศัพท์ ไม่ใช่ใบรับรองระดับอย่างเป็นทางการ' }),
