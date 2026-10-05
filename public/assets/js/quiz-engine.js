@@ -164,7 +164,7 @@
       const options = [...counts.map((n) => [n, n + ' ข้อ']), ['all', 'ทั้งหมด ' + total + ' ข้อ']];
       options.forEach(([value, label]) => {
         chips.append(h('button', {
-          class: 'btn btn-outline chip',
+          class: 'chip',
           type: 'button',
           text: label,
           'aria-pressed': String(count === value),
@@ -176,26 +176,25 @@
         }));
       });
 
-      const statPills = [];
+      const statParts = [];
       if (stats && stats.attempts) {
-        statPills.push(h('span', { class: 'pill', text: 'ทำไปแล้ว ' + stats.attempts + ' รอบ' }));
-        statPills.push(h('span', { class: 'pill', text: 'รอบล่าสุด ' + pct(stats.last.score, stats.last.total) + '%' }));
-        statPills.push(h('span', { class: 'pill good', text: 'ดีที่สุด ' + pct(stats.best.score, stats.best.total) + '%' }));
+        statParts.push('ทำแล้ว ' + stats.attempts + ' รอบ');
+        statParts.push('ล่าสุด ' + pct(stats.last.score, stats.last.total) + '%');
+        statParts.push('ดีที่สุด ' + pct(stats.best.score, stats.best.total) + '%');
       }
-      if (wrong.length) statPills.push(h('span', { class: 'pill warn', text: 'ข้อที่ยังไม่แม่น ' + wrong.length + ' ข้อ' }));
+      if (wrong.length) statParts.push('ยังไม่แม่น ' + wrong.length + ' ข้อ');
 
-      const hasData = statPills.length > 0 || round;
+      const hasData = statParts.length > 0 || round;
 
       setView(
         round && h('div', { class: 'resume' },
           h('p', { text: 'มีรอบที่ทำค้างไว้ — ตอบแล้ว ' + answeredOf(round) + '/' + round.items.length + ' ข้อ' }),
           h('button', { class: 'btn', type: 'button', text: 'ทำต่อจากเดิม', onclick: () => { view = 'quiz'; render(); } })
         ),
-        h('section', { class: 'card notebook' },
-          h('h2', { class: 'lined', text: 'พร้อมแล้วเริ่มได้เลย' }),
-          h('p', { class: 'lined', text: meta.intro }),
-          statPills.length > 0 && h('div', { class: 'stats' }, statPills),
-          h('p', { style: { fontWeight: '700', margin: '0 0 10px' }, text: 'จำนวนข้อในรอบนี้' }),
+        h('section', { class: 'panel' },
+          h('p', { class: 'lead', text: meta.intro }),
+          statParts.length > 0 && h('p', { class: 'meta stat-line', text: statParts.join(' · ') }),
+          h('span', { class: 'label', text: 'จำนวนข้อในรอบนี้' }),
           chips,
           h('div', { class: 'btn-row' },
             h('button', { class: 'btn', type: 'button', text: 'เริ่มทำข้อสอบ', onclick: startNormal }),
@@ -208,7 +207,7 @@
           ),
           h('p', { class: 'fine-print', text: 'กดปุ่ม ' + keyHint + ' เพื่อเลือกคำตอบ และ Enter เพื่อไปข้อถัดไป · ความคืบหน้าบันทึกไว้ในเครื่องนี้โดยอัตโนมัติ' })
         ),
-        hasData && h('div', { class: 'center' },
+        hasData && h('div', { class: 'panel-foot' },
           h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: 'ล้างความคืบหน้าและสถิติ', onclick: resetProgress })
         )
       );
@@ -247,28 +246,28 @@
       const nextBtn = h('button', {
         class: 'btn btn-block',
         type: 'button',
-        text: last ? 'ดูผลคะแนน (Enter)' : 'ถัดไป (Enter)',
+        text: last ? 'ดูผลคะแนน' : 'ถัดไป',
         onclick: next,
       });
 
       const feedback = answered && h('div', { class: 'feedback ' + (correct ? 'ok' : 'bad'), 'aria-live': 'polite' },
-        h('strong', { class: 'feedback-title', text: correct ? '✅ ถูกต้อง!' : '❌ ผิดครับ' }),
+        h('strong', { class: 'feedback-title', text: correct ? 'ถูกต้อง' : 'ผิด' }),
         h('p', { class: 'feedback-text' }, rich(q.e)),
         nextBtn
       );
 
       setView(
-        h('section', { class: 'card notebook' },
+        h('section', { class: 'panel' },
           bar,
           h('div', { class: 'top-bar' },
-            h('span', { text: 'ข้อ ' + (round.index + 1) + '/' + round.items.length }),
-            h('span', { class: 'badge' + (round.mode === 'wrong' ? ' review' : ''), text: (round.mode === 'wrong' ? 'ทบทวน · ' : '') + 'อ้างอิงหนังสือข้อ: ' + q.n })
+            h('span', { text: (round.index + 1) + ' / ' + round.items.length }),
+            h('span', { text: (round.mode === 'wrong' ? 'ทบทวน · ' : '') + 'หนังสือข้อ ' + q.n })
           ),
           h('p', { class: 'question', text: q.q }),
           choices,
           feedback,
           h('div', { class: 'quiz-footer' },
-            h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: '🏠 พักไว้ก่อน (บันทึกให้อัตโนมัติ)', onclick: goHome })
+            h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: '← พักไว้ก่อน (บันทึกอัตโนมัติ)', onclick: goHome })
           )
         )
       );
@@ -281,27 +280,27 @@
       const t = finished.items.length;
       const p = pct(score, t);
       const wrongItems = finished.items.filter((it) => !isRight(it));
-      const msg = p >= 90 ? 'ยอดเยี่ยมมาก! 🎉' : p >= 70 ? 'ดีมาก เก่งขึ้นเรื่อยๆ 👍' : p >= 50 ? 'พอใช้ ทบทวนอีกนิดจะดีขึ้น 💪' : 'ไม่เป็นไร ลองทบทวนข้อที่ผิดแล้วทำใหม่ 📚';
+      const msg = p >= 90 ? 'ยอดเยี่ยม' : p >= 70 ? 'ดีมาก' : p >= 50 ? 'พอใช้ ทบทวนอีกนิดจะดีขึ้น' : 'ลองทบทวนข้อที่ผิดแล้วทำใหม่';
 
       const review = wrongItems.length > 0 && h('div', { class: 'review' },
-        h('h3', { text: 'ทบทวนข้อที่ตอบผิด (' + wrongItems.length + ')' }),
+        h('h3', { text: 'ข้อที่ตอบผิด (' + wrongItems.length + ')' }),
         wrongItems.map((it) => {
           const q = byN.get(it.n);
           return h('div', { class: 'review-item' },
             h('p', { class: 'review-q', text: 'ข้อ ' + q.n + ': ' + q.q }),
-            h('p', { class: 'review-ans review-you', text: '✗ คุณตอบ: ' + q.c[it.pick] }),
-            h('p', { class: 'review-ans review-right', text: '✔ เฉลย: ' + q.c[q.a] }),
+            h('p', { class: 'review-you', text: '✗ คุณตอบ: ' + q.c[it.pick] }),
+            h('p', { class: 'review-right', text: '✓ เฉลย: ' + q.c[q.a] }),
             h('p', { class: 'review-expl' }, rich(q.e))
           );
         })
       );
 
       setView(
-        h('section', { class: 'card summary' },
-          h('h2', { text: 'สรุปผลคะแนน' }),
+        h('section', { class: 'panel summary' },
+          h('h2', { text: 'ผลคะแนน' }),
           h('div', { class: 'score', text: score + ' / ' + t }),
           h('p', { class: 'score-sub', text: p + '% · ' + msg }),
-          h('div', { class: 'btn-row center' },
+          h('div', { class: 'btn-row' },
             wrongItems.length > 0 && h('button', {
               class: 'btn',
               type: 'button',

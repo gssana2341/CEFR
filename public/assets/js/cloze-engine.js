@@ -123,7 +123,7 @@
     const modes = [['random', 'สุ่มลำดับบทความ'], ['sequential', 'เรียงตามบท 1 → ' + data.length]];
     const chips = h('div', { class: 'chips', role: 'group', 'aria-label': 'ลำดับบทความ' },
       modes.map(([value, label]) => h('button', {
-        class: 'btn btn-outline chip',
+        class: 'chip',
         type: 'button',
         text: label,
         'aria-pressed': String(orderMode === value),
@@ -135,19 +135,18 @@
       }))
     );
 
-    const pills = [];
-    if (doneCount) pills.push(h('span', { class: 'pill', text: 'เคยทำแล้ว ' + doneCount + '/' + data.length + ' บทความ' }));
+    const statParts = [];
+    if (doneCount) statParts.push('เคยทำแล้ว ' + doneCount + '/' + data.length + ' บทความ');
     if (stats && stats.attempts) {
-      pills.push(h('span', { class: 'pill', text: 'ทำครบชุด ' + stats.attempts + ' รอบ' }));
-      pills.push(h('span', { class: 'pill good', text: 'ดีที่สุด ' + pct(stats.best.score, stats.best.total) + '%' }));
+      statParts.push('ทำครบชุด ' + stats.attempts + ' รอบ');
+      statParts.push('ดีที่สุด ' + pct(stats.best.score, stats.best.total) + '%');
     }
 
     const chapterGrid = h('div', { class: 'chapters' },
       data.map((p, idx) => {
         const b = best[idx];
-        const cls = !b ? '' : b.score === b.total ? ' perfect' : ' partial';
         return h('button', {
-          class: 'chapter' + cls,
+          class: 'chapter' + (b && b.score === b.total ? ' perfect' : ''),
           type: 'button',
           onclick: () => requestStart('single', [idx]),
         },
@@ -161,21 +160,19 @@
         h('p', { text: 'มีรอบที่ทำค้างไว้ — ส่งแล้ว ' + session.index + '/' + session.order.length + ' บทความ' }),
         h('button', { class: 'btn', type: 'button', text: 'ทำต่อจากเดิม', onclick: () => openPassage(session.index) })
       ),
-      h('section', { class: 'card notebook' },
-        h('h2', { class: 'lined', text: 'พร้อมแล้วเริ่มได้เลย' }),
-        h('p', { class: 'lined', text: data.length + ' บทความ รวม ' + totalBlanks + ' ช่องว่าง — ' + meta.intro }),
-        pills.length > 0 && h('div', { class: 'stats' }, pills),
-        h('p', { style: { fontWeight: '700', margin: '0 0 10px' }, text: 'ลำดับบทความ' }),
+      h('section', { class: 'panel' },
+        h('p', { class: 'lead', text: data.length + ' บทความ รวม ' + totalBlanks + ' ช่องว่าง — ' + meta.intro }),
+        statParts.length > 0 && h('p', { class: 'meta stat-line', text: statParts.join(' · ') }),
+        h('span', { class: 'label', text: 'ลำดับบทความ' }),
         chips,
-        h('button', { class: 'btn btn-block', type: 'button', text: 'เริ่มทำทั้ง ' + data.length + ' บทความ', onclick: startAll }),
+        h('button', { class: 'btn', type: 'button', text: 'เริ่มทำทั้ง ' + data.length + ' บทความ', onclick: startAll }),
         h('p', { class: 'fine-print', text: 'กด Enter เพื่อส่งคำตอบและไปบทความถัดไป · ความคืบหน้าบันทึกไว้ในเครื่องนี้โดยอัตโนมัติ' })
       ),
-      h('section', { class: 'card', style: { padding: '20px' } },
-        h('h2', { style: { margin: '0 0 4px', fontSize: '1.15rem' }, text: 'หรือเลือกฝึกทีละบทความ' }),
-        h('p', { class: 'fine-print', style: { margin: '0 0 14px' }, text: 'เหมาะสำหรับทบทวนเฉพาะบทที่ยังไม่แม่น' }),
+      h('section', { class: 'panel' },
+        h('h2', { class: 'section-title', text: 'หรือเลือกฝึกทีละบทความ' }),
         chapterGrid
       ),
-      (session || doneCount > 0 || (stats && stats.attempts)) && h('div', { class: 'center' },
+      (session || doneCount > 0 || (stats && stats.attempts)) && h('div', { class: 'panel-foot' },
         h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: 'ล้างความคืบหน้าและสถิติ', onclick: resetProgress })
       )
     );
@@ -195,15 +192,15 @@
         'aria-label': 'ช่องว่างที่ ' + num,
         onchange: (e) => e.target.classList.remove('is-missing'),
       },
-      h('option', { value: '', disabled: true, selected: true, text: '-- เลือก --' }),
+      h('option', { value: '', disabled: true, selected: true, text: '— เลือก —' }),
       cur.opts[num - 1].map((o, j) => h('option', { value: String(j), text: o.text })));
       selects[num - 1] = select;
-      body.push(h('span', { class: 'blank' }, h('strong', { class: 'blank-no', text: '(' + num + ')' }), ' ', select));
+      body.push(h('span', { class: 'blank' }, h('span', { class: 'blank-no', text: '(' + num + ')' }), ' ', select));
     });
 
     const msg = h('p', { class: 'form-msg', role: 'alert', hidden: true });
     const feedback = h('div', { class: 'feedback', 'aria-live': 'polite', hidden: true });
-    const submitBtn = h('button', { class: 'btn btn-block', type: 'button', text: 'ส่งคำตอบ (Enter)', onclick: submit });
+    const submitBtn = h('button', { class: 'btn btn-block', type: 'button', text: 'ส่งคำตอบ', onclick: submit });
 
     function submit() {
       if (cur.submitted) return;
@@ -229,12 +226,12 @@
         if (picked.isCorrect) {
           score++;
           select.classList.add('is-correct');
-          items.push(h('li', {}, h('strong', { class: 'ok', text: '✔ ข้อ ' + (i + 1) + ': ' }), rich(b.e)));
+          items.push(h('li', {}, h('strong', { class: 'ok', text: '✓ ข้อ ' + (i + 1) + ': ' }), rich(b.e)));
         } else {
           select.classList.add('is-wrong');
-          select.after(h('span', { class: 'fix', text: '✔ ' + right.text }));
+          select.after(h('span', { class: 'fix', text: '✓ ' + right.text }));
           wrong.push({ i, pick: picked.text });
-          items.push(h('li', {}, h('strong', { class: 'bad', text: '❌ ข้อ ' + (i + 1) + ': ' }), '(ผิด ที่ถูกคือ ', h('strong', { text: right.text }), ') — ', rich(b.e)));
+          items.push(h('li', {}, h('strong', { class: 'bad', text: '✗ ข้อ ' + (i + 1) + ': ' }), '(ผิด ที่ถูกคือ ', h('strong', { text: right.text }), ') — ', rich(b.e)));
         }
       });
 
@@ -252,11 +249,11 @@
       const nextBtn = h('button', {
         class: 'btn btn-block',
         type: 'button',
-        text: cur.last ? 'ดูผลคะแนน (Enter)' : 'บทความถัดไป (Enter)',
+        text: cur.last ? 'ดูผลคะแนน' : 'บทความถัดไป',
         onclick: next,
       });
       feedback.append(
-        h('strong', { class: 'feedback-title', text: 'คุณตอบถูก ' + score + ' / ' + result.total + ' ข้อในบทความนี้' }),
+        h('strong', { class: 'feedback-title', text: 'ตอบถูก ' + score + ' / ' + result.total + ' ข้อในบทความนี้' }),
         h('ul', {}, items),
         nextBtn
       );
@@ -265,7 +262,6 @@
       submitBtn.remove();
       nextBtn.focus();
     }
-
     cur.submit = submit;
 
     const bar = h('div', {
@@ -275,22 +271,22 @@
       'aria-valuemin': '0',
       'aria-valuemax': String(n),
       'aria-valuenow': String(cur.pos),
-    },h('div', { class: 'progress-fill', style: { width: pct(cur.pos, n) + '%' } }));
+    }, h('div', { class: 'progress-fill', style: { width: pct(cur.pos, n) + '%' } }));
 
     setView(
-      h('section', { class: 'card notebook' },
+      h('section', { class: 'panel' },
         bar,
         h('div', { class: 'top-bar' },
-          h('span', { text: 'บทความที่ ' + (cur.pos + 1) + '/' + n }),
-          n === 1 && h('span', { class: 'badge review', text: 'ฝึกทีละบทความ' })
+          h('span', { text: 'บทความที่ ' + (cur.pos + 1) + ' / ' + n }),
+          n === 1 && h('span', { text: 'ฝึกทีละบทความ' })
         ),
-        h('div', { class: 'topic', text: p.topic }),
+        h('span', { class: 'topic', text: p.topic }),
         h('div', { class: 'passage' }, body),
         msg,
         submitBtn,
         feedback,
         h('div', { class: 'quiz-footer' },
-          h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: '🏠 พักไว้ก่อน (บันทึกถึงบทความที่ส่งแล้ว)', onclick: goHome })
+          h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: '← พักไว้ก่อน (บันทึกถึงบทความที่ส่งแล้ว)', onclick: goHome })
         )
       )
     );
@@ -310,20 +306,20 @@
   function renderSummary() {
     const { score, total } = totals(finished);
     const p = pct(score, total);
-    const msg = p >= 90 ? 'ยอดเยี่ยมมาก! 🎉' : p >= 70 ? 'ดีมาก เก่งขึ้นเรื่อยๆ 👍' : p >= 50 ? 'พอใช้ ทบทวนอีกนิดจะดีขึ้น 💪' : 'ไม่เป็นไร ลองทบทวนบทที่ผิดแล้วทำใหม่ 📚';
+    const msg = p >= 90 ? 'ยอดเยี่ยม' : p >= 70 ? 'ดีมาก' : p >= 50 ? 'พอใช้ ทบทวนอีกนิดจะดีขึ้น' : 'ลองทบทวนบทที่ผิดแล้วทำใหม่';
 
     const rows = finished.order.map((idx) => {
       const pass = data[idx];
       const r = finished.results[idx];
       const detail = r.wrong.length === 0
-        ? h('p', { text: 'ถูกทุกช่อง 🎉' })
+        ? h('p', { text: 'ถูกทุกช่อง' })
         : r.wrong.map((w) => {
           const b = pass.blanks[w.i];
           return h('p', {},
             h('strong', { text: '(' + (w.i + 1) + ') ' }),
             h('span', { class: 'review-you', text: '✗ ' + w.pick }),
             ' → ',
-            h('span', { class: 'review-right', text: '✔ ' + b.c[b.a] }),
+            h('span', { class: 'review-right', text: '✓ ' + b.c[b.a] }),
             h('br'),
             rich(b.e));
         });
@@ -334,11 +330,11 @@
     });
 
     setView(
-      h('section', { class: 'card summary' },
-        h('h2', { text: 'สรุปผลคะแนน' }),
+      h('section', { class: 'panel summary' },
+        h('h2', { text: 'ผลคะแนน' }),
         h('div', { class: 'score', text: score + ' / ' + total }),
         h('p', { class: 'score-sub', text: p + '% · ' + msg }),
-        h('div', { class: 'btn-row center' },
+        h('div', { class: 'btn-row' },
           h('button', {
             class: 'btn',
             type: 'button',
