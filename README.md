@@ -4,6 +4,8 @@
 
 ## มีอะไรบ้าง
 
+เมนูหลักเป็นแท็บ 4 อัน (แสดงบนทุกหน้า): **หน้าหลัก** (ทำต่อจากที่ค้างไว้ + เส้นทางแนะนำ 4 ขั้น: วัดระดับ → เรียน → ฝึก → สอบจำลอง) · **เรียน** (รายการบทเรียน) · **ฝึก** (ชุดข้อสอบ 4 ชุด) · **ทดสอบ** (วัดระดับ + สอบจำลอง)
+
 | หน้า | URL | เนื้อหา |
 |---|---|---|
 | ทดสอบระดับ | `/placement` | 4 ระดับ A1→B2 ระดับละ 10 ข้อ (สุ่มจากคลัง 48 ข้อ) ผ่านระดับด้วย ≥ 70% ได้ผลระดับ + แนะนำบทเรียน |
@@ -24,7 +26,8 @@
 .
 ├── api/translate.js            Vercel Function: แปลวลี/ประโยค (EN→TH) + cache ที่ edge
 ├── public/                     ← โฟลเดอร์ที่ Vercel เสิร์ฟ
-│   ├── index.html · learn.html · placement.html · exam.html
+│   ├── index.html              หน้าหลัก 4 แท็บ (#home #learn #practice #test) สร้างด้วย hub.js
+│   ├── learn.html · placement.html · exam.html
 │   ├── grammar.html · conversations.html · cloze.html · extra.html · 404.html
 │   └── assets/
 │       ├── css/style.css       สไตล์ทั้งหมด (สี/ธีมอยู่ใน :root ต้นไฟล์)
@@ -34,10 +37,10 @@
 │       │   ├── dictionary.js       ตัวค้นคำ (ตัดท้ายคำ -s -ed -ing ... หาคำพื้นฐาน)
 │       │   ├── quiz-engine.js      ข้อสอบปรนัย (Grammar, Conversations, Extra)
 │       │   ├── cloze-engine.js     Cloze
-│       │   ├── learn-engine.js     บทเรียน
+│       │   ├── learn-engine.js     หน้าบทเรียน (รายการบทเรียนอยู่ในแท็บเรียนของ hub.js)
 │       │   ├── placement-engine.js ทดสอบระดับ
 │       │   ├── exam-engine.js      สอบจำลอง
-│       │   └── hub.js · theme.js
+│       │   └── hub.js · theme.js   hub.js = หน้าหลักและแท็บ
 │       └── data/               ← เนื้อหาทั้งหมดอยู่ที่นี่
 │           ├── grammar.js · conversations.js · cloze.js · extra.js
 │           ├── placement.js · lessons.js · exam.js
@@ -140,10 +143,10 @@ push เข้า `main` = deploy production อัตโนมัติ · bran
 
 1. **ไฟล์เสียง** — วางที่ `public/assets/audio/` (เช่น `l1.mp3`) CSP `default-src 'self'` อนุญาตไฟล์เสียงจากโดเมนตัวเองอยู่แล้ว
 2. **ข้อมูล** — สร้าง `public/assets/data/listening.js` รูปแบบเดียวกับ `extra.js` (`n, q, c, a, e`) เพิ่มฟิลด์ `audio: 'assets/audio/l1.mp3'` และ `transcript` (ถ้ามี) แล้วเพิ่มชื่อ `'listening'` ในรายการไฟล์ที่ `scripts/validate-data.mjs` (ฟังก์ชัน vm ด้านบนและลูป `grammar/conversations/extra`)
-3. **หน้าเว็บ** — คัดลอก `extra.html` เป็น `listening.html` เปลี่ยน `data-quiz="listening"` และ `<script src="assets/data/listening.js">`
+3. **หน้าเว็บ** — คัดลอก `extra.html` เป็น `listening.html` เปลี่ยน `data-quiz="listening"` และ `<script src="assets/data/listening.js">` (แท็บเมนู `<nav class="tabs" data-section="practice">` ติดมาด้วยแล้ว)
 4. **ทะเบียน** — เพิ่ม `listening: { id: 'listening', kind: 'mcq', dataKey: 'listening', page: 'listening.html', intro: '…', labels: 'number' }` ใน `QUIZZES` ที่ `common.js`
 5. **ตัวเล่นเสียง** — ใน `quiz-engine.js` (ฟังก์ชัน `renderQuiz`) และ `exam-engine.js` (`renderExam`) เพิ่มก่อนโจทย์: `q.audio && h('audio', { controls: true, preload: 'none', src: q.audio })`
-6. **หน้าหลัก** — เพิ่มแถวใน `index.html` (คัดลอกแถว Extra) และถ้าต้องการให้อยู่ในสอบจำลอง เพิ่ม `{ id: 'listening', title: 'Part 4 · Listening', type: 'mcq', source: 'listening', count: 10 }` ใน `exam.js`
+6. **หน้าหลัก** — เพิ่มรายการใน `PRACTICE` ที่ต้น `hub.js` (คัดลอกรายการ Extra: `id`, `title`, `thai`, `desc`, `href`) จะได้การ์ดในแท็บฝึกและการ์ด "ทำต่อ" ให้เอง และถ้าต้องการให้อยู่ในสอบจำลอง เพิ่ม `{ id: 'listening', title: 'Part 4 · Listening', type: 'mcq', source: 'listening', count: 10 }` ใน `exam.js`
 
 ## หมายเหตุ
 
