@@ -7,13 +7,14 @@ import vm from 'node:vm';
 import { createRequire } from 'node:module';
 
 const { createDictionary } = createRequire(import.meta.url)('../public/assets/js/dictionary.js');
+const { create: createCat } = createRequire(import.meta.url)('../public/assets/js/cat.js');
 const dataDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'assets', 'data');
 
 // The data files are plain browser scripts: they assign to window.CEFR_DATA.
 const sandbox = { window: {} };
 vm.createContext(sandbox);
 for (const file of ['grammar', 'conversations', 'cloze', 'extra', 'placement', 'lessons', 'exam', 'glossary',
-  'tenses', 'clues-grammar', 'clues-conversations', 'clues-extra', 'clues-placement', 'clues-lessons']) {
+  'cat-bank', 'tenses', 'clues-grammar', 'clues-conversations', 'clues-extra', 'clues-placement', 'clues-lessons']) {
   vm.runInContext(readFileSync(join(dataDir, file + '.js'), 'utf8'), sandbox, { filename: file + '.js' });
 }
 // markup.js is a browser script; only its pure helpers (plan) are used here
@@ -74,6 +75,37 @@ else {
     checkQuestion(where, q);
   });
   for (const l of LEVELS) if (perLevel[l] < 10) err('placement', `level ${l} has ${perLevel[l]} questions; at least 10 are needed`);
+}
+
+// --- Adaptive placement test: settings + difficulty labels (cat-bank.js) ---
+let catInfo = '';
+{
+  const c = D.cat;
+  if (!c) err('cat', 'cat-bank.js is missing');
+  else {
+    const TOKEN = /^(A1|A2|B1|B2)[+-]?$/;
+    for (const lv of LEVELS) if (typeof c.anchors?.[lv] !== 'number') err('cat', `anchors.${lv} must be a number`);
+    if (typeof c.start !== 'number') err('cat', 'start must be a number');
+    for (const f of ['step', 'priorSd', 'minItems', 'minItemsConfident', 'maxItems', 'stopSe', 'confidence', 'randomesque']) {
+      if (typeof c[f] !== 'number' || !(c[f] > 0)) err('cat', `${f} must be a positive number`);
+    }
+    if (c.minItems > c.maxItems || c.minItemsConfident > c.maxItems) err('cat', 'minItems / minItemsConfident cannot exceed maxItems');
+    if (c.confidence >= 1) err('cat', 'confidence must be below 1');
+    const has = { grammar: new Set((D.grammar ?? []).map((q) => q.n)), extra: new Set((D.extra ?? []).map((q) => q.n)), placement: new Set((D.placement ?? []).map((q) => q.id)) };
+    for (const [bank, map] of [['grammar', c.grammar], ['extra', c.extra], ['placement', c.placement]]) {
+      for (const [key, token] of Object.entries(map ?? {})) {
+        if (!TOKEN.test(token)) err(`cat.${bank}[${key}]`, `"${token}" is not a level (A1 A2 B1 B2, optional + or -)`);
+        const k = bank === 'placement' ? key : Number(key);
+        if (!has[bank].has(k)) err(`cat.${bank}[${key}]`, 'no question with this id');
+      }
+    }
+    if (!errors.length) {
+      const pool = createCat(D).buildPool();
+      const per = Object.fromEntries(LEVELS.map((lv) => [lv, pool.filter((p) => p.level === lv).length]));
+      for (const lv of LEVELS) if (per[lv] < 20) err('cat', `level ${lv} has only ${per[lv]} questions in the adaptive pool; at least 20 are needed`);
+      catInfo = `${pool.length} questions (${LEVELS.map((lv) => lv + ' ' + per[lv]).join(' · ')})`;
+    }
+  }
 }
 
 // --- Lessons ---
@@ -307,6 +339,8 @@ console.log(
   `✓ Data OK\n` +
   `  practice : grammar ${counts.grammar} · conversations ${counts.conversations} · cloze ${counts.cloze} passages / ${counts.clozeBlanks} blanks · extra ${counts.extra}\n` +
   `  mark-up  : ${Object.entries(clueStats).map(([k, [a, b]]) => `${k} ${a}/${b}`).join(' · ')} annotated (cloze is not annotated)\n` +
+  `  adaptive : ${catInfo}
+` +
   `  learning : placement ${counts.placement} · lessons ${counts.lessons} (${counts.exercises} exercises) · glossary ${Object.keys(G).length} entries`
 );
 if (warnings.length) console.warn(`\n! ${warnings.length} mark-up warning(s):\n  ` + warnings.join('\n  '));

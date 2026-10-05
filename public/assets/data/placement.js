@@ -1,6 +1,6 @@
-// คลังข้อสอบวัดระดับ CEFR (ใช้ที่ /placement) — ระดับละ 12 ข้อ ระบบสุ่มมาใช้ระดับละ 10 ข้อ
+// คลังข้อสอบวัดระดับ CEFR (ใช้ที่ /placement แบบปรับความยากอัตโนมัติ — ดู cat-bank.js และ assets/js/cat.js)
 // รูปแบบ: { id, level: 'A1'|'A2'|'B1'|'B2', skill, q, c, a, e }
-// แก้ไข/เพิ่มข้อแล้วรัน: npm run validate  (ต้องมีอย่างน้อย 10 ข้อต่อระดับ)
+// แก้ไข/เพิ่มข้อแล้วรัน: npm run validate  (ต้องมีอย่างน้อย 10 ข้อต่อระดับ · ระดับของข้อใช้เป็นความยากของข้อในการทดสอบ ปรับเฉพาะข้อได้ที่ cat-bank.js)
 window.CEFR_DATA = window.CEFR_DATA || {};
 window.CEFR_DATA.placement = [
   // ───── A1 ─────
@@ -58,4 +58,29 @@ window.CEFR_DATA.placement = [
   { id: 'B2-10', level: 'B2', skill: 'grammar', q: "She is said ___ the richest woman in the country.", c: ["being", "to be", "be", "to being"], a: 1, e: "is said + to-infinitive (โครงสร้าง passive ของ say)" },
   { id: 'B2-11', level: 'B2', skill: 'grammar', q: "Despite ___ hard, he failed the test.", c: ["of working", "working", "he worked", "to work"], a: 1, e: "despite + V-ing / noun" },
   { id: 'B2-12', level: 'B2', skill: 'grammar', q: "The more you practise, ___ you become.", c: ["the better", "better", "the best", "best"], a: 0, e: "the + comparative … the + comparative" },
+  // ───── B2 (เพิ่มสำหรับการทดสอบแบบปรับความยาก) ─────
+  { id: 'B2-13', level: 'B2', skill: 'grammar', q: "If I ___ about the traffic, I would have left earlier.", c: ["knew", "had known", "would know", "have known"], a: 1, e: "third conditional: if + had + V3, would have + V3" },
+  { id: 'B2-14', level: 'B2', skill: 'grammar', q: "She suggested that he ___ a doctor.", c: ["sees", "see", "saw", "seeing"], a: 1, e: "suggest that + ประธาน + V1 (ไม่ผันตามประธาน)" },
+  { id: 'B2-15', level: 'B2', skill: 'grammar', q: "The new policy, ___ was announced yesterday, will affect everyone.", c: ["that", "which", "who", "what"], a: 1, e: "อนุประโยคเสริมที่มีเครื่องหมายจุลภาค ใช้ which (ใช้ that ไม่ได้)" },
+  { id: 'B2-16', level: 'B2', skill: 'grammar', q: "No sooner had we sat down ___ the waiter brought the menu.", c: ["when", "than", "that", "as"], a: 1, e: "no sooner ... than" },
+  { id: 'B2-17', level: 'B2', skill: 'vocabulary', q: "The company is liable ___ any damage caused by its products.", c: ["for", "to", "of", "with"], a: 0, e: "liable for = ต้องรับผิดชอบต่อ" },
+  { id: 'B2-18', level: 'B2', skill: 'grammar', q: "The manager's plans were met with strong ___ from the staff.", c: ["resistance", "resist", "resistant", "resisting"], a: 0, e: "หลัง strong ต้องเป็นนาม → resistance (met with resistance = ถูกต่อต้าน)" },
+  { id: 'B2-19', level: 'B2', skill: 'grammar', q: "The manager insisted ___ the meeting being postponed.", c: ["on", "for", "to", "at"], a: 0, e: "insist on + V-ing / นาม" },
+  { id: 'B2-20', level: 'B2', skill: 'grammar', q: "Hardly ___ the house when it started to rain.", c: ["I left", "had I left", "did I leave", "I had left"], a: 1, e: "Hardly ขึ้นต้นประโยค ต้องสลับที่: had + ประธาน + V3 (… when)" },
+  { id: 'B2-21', level: 'B2', skill: 'vocabulary', q: "The negotiations ___ down after both sides refused to compromise.", c: ["broke", "fell", "turned", "cut"], a: 0, e: "break down = ล้มเหลว / ล่ม" },
+  { id: 'B2-22', level: 'B2', skill: 'vocabulary', q: "Despite the heavy rain, the match went ___ as planned.", c: ["ahead", "back", "through", "over"], a: 0, e: "go ahead = ดำเนินต่อไปตามแผน" },
+  { id: 'B2-23', level: 'B2', skill: 'grammar', q: "By the time the ambulance arrived, the patient ___ unconscious for ten minutes.", c: ["was", "had been", "has been", "would be"], a: 1, e: "สภาพที่เป็นต่อเนื่องก่อนจุดหนึ่งในอดีต → past perfect (had been)" },
+  { id: 'B2-24', level: 'B2', skill: 'grammar', q: "Had I known about the problem, I ___ it earlier.", c: ["would fix", "would have fixed", "will fix", "fixed"], a: 1, e: "Had + ประธาน + V3 = if ... had + V3 → would have + V3" },
+  { id: 'B2-25', level: 'B2', skill: 'grammar', q: "The more carefully you read, ___ mistakes you will make.", c: ["the fewer", "fewer", "the less", "less"], a: 0, e: "the + comparative ... the + comparative · mistakes นับได้ → fewer" },
+  { id: 'B2-26', level: 'B2', skill: 'grammar', q: "It's high time we ___ a decision.", c: ["make", "made", "will make", "are making"], a: 1, e: "It's (high) time + ประธาน + past simple = ถึงเวลาที่ควรทำแล้ว" },
+  { id: 'B2-27', level: 'B2', skill: 'grammar', q: "He apologised for the ___ caused by the delay.", c: ["inconvenience", "inconvenient", "inconveniently", "inconvenienced"], a: 0, e: "หลัง the ต้องเป็นนาม → inconvenience" },
+  { id: 'B2-28', level: 'B2', skill: 'grammar', q: "Not until she got home ___ she had lost her keys.", c: ["she realized", "did she realize", "she did realize", "realized she"], a: 1, e: "Not until ขึ้นต้นประโยค → สลับที่: did + ประธาน + V1" },
+  { id: 'B2-29', level: 'B2', skill: 'grammar', q: "The building is believed ___ in 1850.", c: ["to build", "to be built", "to have been built", "being built"], a: 2, e: "is believed + to have been + V3 = เชื่อกันว่าถูกสร้าง (เหตุการณ์ในอดีต)" },
+  { id: 'B2-30', level: 'B2', skill: 'grammar', q: "The company is reluctant ___ any more money in the project.", c: ["to invest", "investing", "invest", "of investing"], a: 0, e: "reluctant + to + V1" },
+  { id: 'B2-31', level: 'B2', skill: 'grammar', q: "It's no use ___ over spilt milk.", c: ["to cry", "crying", "cry", "to crying"], a: 1, e: "It's no use + V-ing" },
+  { id: 'B2-32', level: 'B2', skill: 'grammar', q: "Rarely ___ such a talented young player.", c: ["we have seen", "have we seen", "we saw", "saw we"], a: 1, e: "Rarely ขึ้นต้นประโยค → สลับที่: have + ประธาน + V3" },
+  { id: 'B2-33', level: 'B2', skill: 'grammar', q: "She is not only intelligent ___ also very hardworking.", c: ["and", "but", "so", "or"], a: 1, e: "not only ... but also" },
+  { id: 'B2-34', level: 'B2', skill: 'grammar', q: "If it ___ for the rain, we would have had a picnic.", c: ["wasn't", "hadn't been", "weren't", "isn't"], a: 1, e: "If it hadn't been for = ถ้าไม่ใช่เพราะ... (third conditional)" },
+  { id: 'B2-35', level: 'B2', skill: 'grammar', q: "He ___ have left already; his car isn't here.", c: ["must", "can", "should", "would"], a: 0, e: "เดาจากหลักฐานว่าคงเกิดแล้ว → must have + V3" },
+  { id: 'B2-36', level: 'B2', skill: 'grammar', q: "Neither the manager nor the employees ___ aware of the change.", c: ["was", "were", "is", "has been"], a: 1, e: "neither ... nor ใช้กริยาตามประธานตัวที่อยู่ใกล้ที่สุด (employees → were)" },
 ];

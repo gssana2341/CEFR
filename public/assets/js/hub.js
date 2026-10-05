@@ -16,13 +16,14 @@
 
   const dateTh = (ms) => new Date(ms).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
   const clock = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
-  const levelName = (l) => (l === 'pre-A1' ? 'ต่ำกว่า A1' : l);
+  const levelName = (l) => (l === 'pre-A1' ? 'ต่ำกว่า A1' : l === 'B2+' ? 'B2 ขึ้นไป' : l);
   const btn = (text, href, primary) => h('a', { class: 'btn' + (primary ? '' : ' btn-outline'), href, text });
 
   // ---------- Progress readers ----------
   const lessonProgress = () => store.get('learn:progress', {});
   const lessonsDone = () => D.lessons.filter((l) => (lessonProgress()[l.id] || {}).done).length;
   const placementLast = () => store.get('placement:last', null);
+  const placementRunning = () => { const s = store.get('placement:state', null); return !!(s && s.v === 2); };   // older test versions are discarded
   const examHistory = () => store.get('exam:history', []);
 
   // An exam still in progress (current section's clock not yet run out, or waiting between sections).
@@ -40,7 +41,9 @@
   // The level where the learner failed their placement stage → the lessons worth doing first.
   function focusLevel() {
     const last = placementLast();
-    if (!last || !Array.isArray(last.results)) return null;
+    if (!last) return null;
+    if (last.target) return last.target;                       // adaptive test: the level above the one reached
+    if (!Array.isArray(last.results)) return null;             // older result from the stage-by-stage test
     const failed = last.results.find((r) => r.score / r.total < PASS_RATIO);
     return failed ? failed.level : null;
   }
@@ -93,10 +96,9 @@
   // ---------- Panels ----------
   function continueCard() {
     const items = [];
-    const ps = store.get('placement:state', null);
-    if (ps && Array.isArray(ps.items)) {
-      const stage = ['A1', 'A2', 'B1', 'B2'][ps.stage] || '';
-      items.push({ title: 'ทดสอบระดับ CEFR', meta: ps.between ? 'ผ่านระดับก่อนหน้า รอเริ่มระดับ ' + stage : 'ระดับ ' + stage + ' · ข้อ ' + (ps.index + 1) + '/' + ps.items.length, href: 'placement.html' });
+    const ps = placementRunning() ? store.get('placement:state', null) : null;
+    if (ps && ps.v === 2 && Array.isArray(ps.answers)) {
+      items.push({ title: 'ทดสอบระดับ CEFR', meta: 'ทำไปแล้ว ' + ps.answers.length + ' ข้อ', href: 'placement.html' });
     }
     const ex = examRunning();
     if (ex) items.push({ title: 'สอบจำลอง', meta: examLeft(ex), href: 'exam.html' });
@@ -134,7 +136,7 @@
     const finishedSteps = [!!last, done === D.lessons.length, practiceStarted(), hist.length > 0];
     const rec = finishedSteps.indexOf(false) + 1;  // 1-based, 0 = everything done
 
-    const placeRunning = !!store.get('placement:state', null);
+    const placeRunning = placementRunning();
     return h('div', {},
       h('h1', { class: 'page-title', text: 'เรียน ฝึก และวัดระดับ CEFR' }),
       h('p', { class: 'lead', text: 'ภาษาอังกฤษระดับ A1–B2 อธิบายเป็นภาษาไทย ตอบแล้วเห็นเฉลยทันที และคลิกคำหรือลากคลุมข้อความเพื่อดูคำแปลได้ทุกหน้า' }),
@@ -142,7 +144,7 @@
       h('h2', { class: 'section-title', text: 'เริ่มอย่างไรดี — 4 ขั้นตอนที่แนะนำ' }),
       h('ol', { class: 'path' },
         step(1, 'วัดระดับของคุณ', 'ทำแบบทดสอบ 15 นาที เพื่อรู้ว่าอยู่ระดับ A1–B2 และควรเริ่มเรียนจากบทไหน',
-          last ? 'ผลล่าสุด: ระดับ ' + levelName(last.level) + ' (' + dateTh(last.at) + ')' : D.placement.length + ' ข้อ · 4 ระดับ',
+          last ? 'ผลล่าสุด: ระดับ ' + levelName(last.level) + ' (' + dateTh(last.at) + ')' : 'ปรับความยากอัตโนมัติ · ประมาณ 20–25 ข้อ',
           btn(placeRunning ? 'ทำต่อ' : last ? 'ทำอีกครั้ง' : 'เริ่มทดสอบ', 'placement.html', rec === 1), { recommended: rec === 1, done: !!last }),
         step(2, 'เรียนไวยากรณ์', 'บทเรียนภาษาไทย ' + D.lessons.length + ' บท ครบทั้ง 12 tenses มีตัวอย่างและแบบฝึกหัดท้ายบท',
           'เรียนแล้ว ' + done + '/' + D.lessons.length + ' บท' + (nl ? ' · บทถัดไป: ' + nl.title : ''),
@@ -217,8 +219,8 @@
         h('article', { class: 'card' },
           h('h2', { class: 'card-title' }, 'ทดสอบระดับ ', h('span', { class: 'light', text: 'Placement test' })),
           h('p', { class: 'card-desc', text: 'รู้ว่าตอนนี้ภาษาอังกฤษของคุณอยู่ระดับ A1, A2, B1 หรือ B2 ใช้เวลาประมาณ 15 นาที ได้ผลพร้อมคำแนะนำบทเรียนที่ควรเรียนต่อ' }),
-          h('p', { class: 'card-meta', text: [D.placement.length + ' ข้อ · 4 ระดับ', last && 'ผลล่าสุด: ' + levelName(last.level) + ' (' + dateTh(last.at) + ')'].filter(Boolean).join(' · ') }),
-          h('div', { class: 'card-actions' }, btn(store.get('placement:state', null) ? 'ทำต่อ' : last ? 'ทำอีกครั้ง' : 'เริ่มทดสอบ', 'placement.html', true))),
+          h('p', { class: 'card-meta', text: ['ปรับความยากอัตโนมัติ · ประมาณ 20–25 ข้อ', last && 'ผลล่าสุด: ' + levelName(last.level) + ' (' + dateTh(last.at) + ')'].filter(Boolean).join(' · ') }),
+          h('div', { class: 'card-actions' }, btn(placementRunning() ? 'ทำต่อ' : last ? 'ทำอีกครั้ง' : 'เริ่มทดสอบ', 'placement.html', true))),
         h('article', { class: 'card' },
           h('h2', { class: 'card-title' }, 'สอบจำลอง ', h('span', { class: 'light', text: 'Mock exam' })),
           h('p', { class: 'card-desc', text: 'ซ้อมสอบตามกติกาของ EF SET: จับเวลาแยกส่วน ย้อนกลับไม่ได้ ไม่มีเฉลยและไม่มีระบบแปลช่วยระหว่างทำ หรือเลือกแบบยืดหยุ่นที่ข้ามไปมาได้ ส่งแล้วจึงเห็นคะแนนและเฉลยทุกข้อ' }),
