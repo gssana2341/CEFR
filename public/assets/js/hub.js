@@ -145,6 +145,10 @@
     return h('div', {},
       h('h1', { class: 'page-title', text: 'เรียน ฝึก และวัดระดับ CEFR' }),
       h('p', { class: 'lead', text: 'ภาษาอังกฤษระดับ A1–B2 อธิบายเป็นภาษาไทย ตอบแล้วเห็นเฉลยทันที และคลิกคำหรือลากคลุมข้อความเพื่อดูคำแปลได้ทุกหน้า' }),
+      h('div', { style: { padding: '14px 16px', background: 'var(--subtle)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: '24px', fontSize: '15px' } },
+        h('strong', { text: '📢 ประกาศ: ' }),
+        h('span', { text: 'ระบบจะทยอยอัปเดตข้อสอบไปจนถึงระดับ C2 และขณะนี้กำลังอยู่ในระหว่างการจัดทำพาร์ทการฟัง (Listening) รอติดตามได้เลยครับ' })
+      ),
       continueCard(),
       h('h2', { class: 'section-title', text: 'เริ่มอย่างไรดี — 4 ขั้นตอนที่แนะนำ' }),
       h('ol', { class: 'path' },
