@@ -141,5 +141,8 @@
   }
 
   window.addEventListener('hashchange', route);
-  (window.CEFR.pass ? window.CEFR.pass.ready : Promise.resolve()).then(route);
+  (window.CEFR.pass ? window.CEFR.pass.ready : Promise.resolve()).then(() => {
+    route();
+    if (window.CEFR.pass) document.addEventListener('cefr:pass', route);
+  });
 })();

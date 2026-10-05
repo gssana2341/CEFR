@@ -590,4 +590,10 @@
   // ---------- Init ----------
   if (state && !state.between && remaining() <= 0) { view = 'exam'; endSection(true); }   // time ran out while the tab was closed
   else render();
+
+  if (window.CEFR.pass) {
+    document.addEventListener('cefr:pass', () => {
+      if (view === 'intro') render();
+    });
+  }
 })();

@@ -357,8 +357,21 @@
   });
 
   const pass = window.CEFR.pass;
+  let isMounted = false;
+
+  function checkPass() {
+    if (pass && !pass.allows('practice:cloze')) {
+      root.replaceChildren(pass.lockPanel('practice:cloze', { freeHref: 'grammar.html', freeText: 'ไปทำ Grammar (ฟรี)' }));
+    } else {
+      if (!isMounted) {
+        isMounted = true;
+        render();
+      }
+    }
+  }
+
   (pass ? pass.ready : Promise.resolve()).then(() => {
-    if (pass && !pass.allows('practice:cloze')) root.replaceChildren(pass.lockPanel('practice:cloze', { freeHref: 'grammar.html', freeText: 'ไปทำ Grammar (ฟรี)' }));
-    else render();
+    checkPass();
+    if (pass) document.addEventListener('cefr:pass', checkPass);
   });
 })();

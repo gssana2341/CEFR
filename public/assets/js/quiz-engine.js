@@ -381,11 +381,21 @@
   const root = document.getElementById('app');
   const pass = window.CEFR.pass;
   const feature = 'practice:' + root.dataset.quiz;
-  (pass ? pass.ready : Promise.resolve()).then(() => {
+  let isMounted = false;
+
+  function checkPass() {
     if (pass && !pass.allows(feature)) {
       root.replaceChildren(pass.lockPanel(feature, { freeHref: 'grammar.html', freeText: 'ไปทำ Grammar (ฟรี)' }));
     } else {
-      mount(root);
+      if (!isMounted) {
+        isMounted = true;
+        mount(root);
+      }
     }
+  }
+
+  (pass ? pass.ready : Promise.resolve()).then(() => {
+    checkPass();
+    if (pass) document.addEventListener('cefr:pass', checkPass);
   });
 })();
