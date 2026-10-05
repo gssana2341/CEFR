@@ -144,7 +144,7 @@
         step(1, 'วัดระดับของคุณ', 'ทำแบบทดสอบ 15 นาที เพื่อรู้ว่าอยู่ระดับ A1–B2 และควรเริ่มเรียนจากบทไหน',
           last ? 'ผลล่าสุด: ระดับ ' + levelName(last.level) + ' (' + dateTh(last.at) + ')' : D.placement.length + ' ข้อ · 4 ระดับ',
           btn(placeRunning ? 'ทำต่อ' : last ? 'ทำอีกครั้ง' : 'เริ่มทดสอบ', 'placement.html', rec === 1), { recommended: rec === 1, done: !!last }),
-        step(2, 'เรียนไวยากรณ์', 'บทเรียนภาษาไทย 15 บท มีตัวอย่างและแบบฝึกหัดท้ายบท',
+        step(2, 'เรียนไวยากรณ์', 'บทเรียนภาษาไทย ' + D.lessons.length + ' บท ครบทั้ง 12 tenses มีตัวอย่างและแบบฝึกหัดท้ายบท',
           'เรียนแล้ว ' + done + '/' + D.lessons.length + ' บท' + (nl ? ' · บทถัดไป: ' + nl.title : ''),
           [nl && btn(done ? 'เรียนต่อ' : 'เริ่มเรียน', 'learn.html#' + nl.id, rec === 2), h('a', { class: 'link-btn', href: 'index.html#learn', text: 'ดูบทเรียนทั้งหมด' })],
           { recommended: rec === 2, done: done === D.lessons.length }),

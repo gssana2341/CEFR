@@ -861,3 +861,5 @@ a { color: inherit; }
 .input:focus { outline: 2px solid var(--fg); outline-offset: 1px; }
 .band-details { margin-top: 24px; }
 .tense-card .tform th { width: 2rem; text-align: center; }
+.tense-links { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 2px 0 12px; }
+.tense-links .link-btn { margin: 0; }

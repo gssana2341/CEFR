@@ -21,6 +21,7 @@ const DAY = 86_400_000;
 
 // One place for the price list. The browser only ever asks for a plan id; the amount is decided here.
 const PLANS = [
+  { id: 'd1', days: 1, baht: 20 },
   { id: 'd3', days: 3, baht: 60 },
   { id: 'd7', days: 7, baht: 120 },
   { id: 'd30', days: 30, baht: 550 },

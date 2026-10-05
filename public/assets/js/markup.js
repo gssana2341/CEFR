@@ -485,8 +485,14 @@
       h('p', { class: 'tense-signals', 'data-tr': true }, t.signals.map((s) => h('span', { class: 'sig', text: s }))),
       h('p', { class: 'tense-tip', 'data-tr': true }, h('strong', { text: 'จำไว้ · ' }), t.tip),
       h('ul', { class: 'examples' }, t.examples.map(([en, th]) => h('li', {},
-        h('span', { class: 'ex-en', 'data-tr': true, text: en }), h('span', { class: 'ex-th', text: th })))));
+        h('span', { class: 'ex-en', 'data-tr': true, text: en }), h('span', { class: 'ex-th', text: th })))),
+      lessonExists(lessonOf(t.id)) && h('p', { class: 'tense-links' }, h('a', { class: 'link-btn', href: 'learn.html#' + lessonOf(t.id), text: 'เรียนบทนี้พร้อมแบบฝึกหัด →' })));
   }
+
+  // the lesson that teaches a tense (most share the tense's id)
+  const TENSE_LESSON = { 'future-simple': 'future-forms', 'future-perfect-continuous': 'future-perfect' };
+  const lessonOf = (id) => TENSE_LESSON[id] || id;
+  const lessonExists = (lid) => ((D().lessons || []).some((l) => l.id === lid));
 
   // short version for the feedback: one line that opens to the formulas and the time words
   function tenseCard(id) {
@@ -502,7 +508,10 @@
           h('tr', {}, h('th', { text: '−' }), h('td', { text: t.form.neg })),
           h('tr', {}, h('th', { text: '?' }), h('td', { text: t.form.q })))),
       h('p', { class: 'tense-signals', 'data-tr': true }, t.signals.slice(0, 6).map((sg) => h('span', { class: 'sig', text: sg }))),
-      h('a', { class: 'link-btn', href: 'tenses.html#' + id, text: 'ดูครบทั้ง 12 tenses →' }));
+      h('p', { class: 'tense-links' },
+        // not shown when you are already reading that lesson
+        lessonExists(lessonOf(id)) && !(/learn/.test(location.pathname) && location.hash === '#' + lessonOf(id)) && h('a', { class: 'link-btn', href: 'learn.html#' + lessonOf(id), text: 'เรียนเรื่องนี้ →' }),
+        h('a', { class: 'link-btn', href: 'tenses.html#' + id, text: 'ดูครบทั้ง 12 tenses →' })));
   }
 
   // ---------- the block shown in the feedback ----------
