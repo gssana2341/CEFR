@@ -33,6 +33,7 @@ function configHeaders(path) {
 }
 
 async function runApi(name, req, res, url) {
+  if (name.startsWith('_')) return false; // helpers are not endpoints (same as Vercel)
   const file = join(ROOT, 'api', name + '.js');
   if (!existsSync(file)) return false;
   // Minimal Vercel-style helpers: req.query, res.status().send()/json()

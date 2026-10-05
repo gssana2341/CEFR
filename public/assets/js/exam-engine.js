@@ -107,8 +107,11 @@
   const fmtDate = (ms) => new Date(ms).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
   const setView = (...nodes) => root.replaceChildren(...nodes.flat(Infinity).filter(Boolean));
 
+  const locked = () => Boolean(window.CEFR.pass && !window.CEFR.pass.allows('exam'));
+
   // ---------- Flow ----------
   async function start(profileId) {
+    if (window.CEFR.pass && !window.CEFR.pass.allows('exam')) { location.href = 'pricing.html?need=exam'; return; }
     if (state) {
       const ok = await confirmDialog('มีการสอบที่ยังไม่ได้ส่ง ต้องการละทิ้งและเริ่มสอบใหม่หรือไม่?', {
         okText: 'เริ่มสอบใหม่', cancelText: 'ยกเลิก', danger: true,
@@ -302,7 +305,7 @@
         return h('li', { class: soon ? 'soon' : '' }, h('span', { text: s.title }), h('span', { text: soon ? 'เร็วๆ นี้ · ' + s.minutes + ' นาที' : s.minutes + ' นาที' }));
       })),
       h('p', { class: 'card-meta', text: 'รวม ' + minutes + ' นาที · ' + parts.join(' · ') }),
-      h('div', { class: 'card-actions' }, h('button', { class: 'btn', type: 'button', text: 'เริ่มสอบ ' + p.title, onclick: () => start(p.id) })));
+      h('div', { class: 'card-actions' }, h('button', { class: 'btn', type: 'button', text: locked() ? 'ปลดล็อกด้วยสมาชิก' : 'เริ่มสอบ ' + p.title, onclick: () => start(p.id) })));
   }
 
   function rulesBox() {

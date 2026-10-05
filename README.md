@@ -28,9 +28,10 @@
 ```
 .
 ├── api/translate.js            Vercel Function: แปลวลี/ประโยค (EN→TH) + cache ที่ edge
+├── api/plans · checkout · claim · pass .js   ระบบสมาชิก (ดูหัวข้อ "ระบบสมาชิก"); _pay.js = ตัวช่วยกลาง + ราคา
 ├── public/                     ← โฟลเดอร์ที่ Vercel เสิร์ฟ
 │   ├── index.html              หน้าหลัก 4 แท็บ (#home #learn #practice #test) สร้างด้วย hub.js
-│   ├── learn.html · placement.html · exam.html · tenses.html
+│   ├── learn.html · placement.html · exam.html · tenses.html · pricing.html
 │   ├── grammar.html · conversations.html · cloze.html · extra.html · 404.html
 │   └── assets/
 │       ├── css/style.css       สไตล์ทั้งหมด (สี/ธีมอยู่ใน :root ต้นไฟล์)
@@ -173,6 +174,23 @@ npm run validate
 push เข้า `main` = deploy production อัตโนมัติ · branch/PR อื่น = ได้ลิงก์ Preview
 
 > ความคืบหน้าของผู้ใช้ผูกกับโดเมน ถ้าเปลี่ยนโดเมน สถิติจะเริ่มนับใหม่
+
+## ระบบสมาชิก (3 / 7 / 30 วัน)
+
+**ตอนนี้ปิดอยู่** (`enabled: false` ใน `public/assets/data/billing.js`) ทุกอย่างยังฟรีและไม่เห็นเมนูสมาชิก เปิดใช้เมื่อพร้อม:
+
+1. สมัคร [Stripe](https://dashboard.stripe.com) แล้วเปิดวิธีจ่ายเงิน **PromptPay** และ **บัตร** (Settings → Payment methods) · เริ่มจากโหมดทดสอบ (`sk_test_…`) ก่อน
+2. ที่ Vercel → Settings → Environment Variables ใส่ `STRIPE_SECRET_KEY` (คีย์ลับ ห้ามใส่ในโค้ดหรือแชต) และ `PASS_SECRET` (ข้อความสุ่มยาว ๆ อะไรก็ได้) แล้ว Redeploy
+3. แก้ `enabled: true` ใน `billing.js` แล้ว push → เห็นแท็บ "สมาชิก" และสอบจำลอง + เส้นโยงจะถูกล็อกสำหรับคนที่ยังไม่ซื้อ (เลือกว่าจะล็อกอะไรที่ `premium`)
+4. ลองจ่ายในโหมดทดสอบให้ผ่านก่อน แล้วค่อยเปลี่ยนเป็นคีย์จริง (`sk_live_…`)
+
+ราคาแก้ที่ `api/_pay.js` (`PLANS`) ที่เดียว · ตอนนี้ 3 วัน 60 / 7 วัน 120 / 30 วัน 550 บาท
+
+**ทำงานยังไง (ไม่มีฐานข้อมูล ไม่ต้องสมัครบัญชี):** กด "ซื้อ" → ไปหน้าชำระเงินของ Stripe → กลับมาที่ `/pricing?session_id=…` → `/api/claim` ถาม Stripe ว่าจ่ายแล้วจริงไหม ถ้าจริงจะออก "รหัสสมาชิก" (ลงลายเซ็นด้วย `PASS_SECRET`) เก็บในเบราว์เซอร์ · ซื้อซ้ำตอนยังไม่หมดอายุ วันจะต่อท้ายให้ · เปลี่ยนเครื่องให้คัดลอกรหัสไปใส่ (ปุ่ม "ย้ายเครื่อง" ในหน้าสมาชิก)
+
+**ทดสอบในเครื่องโดยไม่ใช้ Stripe:** `PAY_MODE=mock npm run dev` (ปุ่มซื้อจะข้ามหน้าจ่ายเงินและออกรหัสให้เลย — ใช้ไม่ได้บน Vercel production)
+
+**ข้อจำกัด (ตั้งใจให้เรียบง่าย):** ล็อกเฉพาะฝั่งหน้าเว็บ ไฟล์ข้อสอบเป็นไฟล์ธรรมดา คนที่เก่งเปิดดูได้ และรหัสสมาชิกคัดลอกให้คนอื่นใช้ได้ ถ้าต้องการกันจริงจังต้องย้ายข้อมูลไปไว้หลัง API และผูกกับบัญชีผู้ใช้ · ยังไม่มีคืนเงิน/ใบเสร็จ (Stripe ส่งใบเสร็จทางอีเมลให้ได้ถ้าเปิดไว้)
 
 ## เพิ่ม Part 4 (Listening) ภายหลัง
 

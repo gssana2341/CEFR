@@ -488,28 +488,46 @@
         h('span', { class: 'ex-en', 'data-tr': true, text: en }), h('span', { class: 'ex-th', text: th })))));
   }
 
+  // short version for the feedback: one line that opens to the formulas and the time words
   function tenseCard(id) {
     const t = tenses().find((x) => x.id === id);
     if (!t) return null;
-    return h('details', { class: 'tense-card', open: true },
-      h('summary', {}, h('span', { class: 'tense-name' }, 'Tense: ', h('strong', { text: t.en }), ' · ' + t.th)),
-      tenseDetail(t),
-      h('details', { class: 'tense-grid-wrap' },
-        h('summary', { text: 'ดูตาราง 12 tenses (ช่องที่ไฮไลต์คือ tense ของข้อนี้)' }),
-        tenseGrid(id, true),
-        h('a', { class: 'link-btn', href: 'tenses.html#' + id, text: 'เปิดหน้าสรุปกฎ 12 tenses →' })));
+    return h('details', { class: 'tense-card' },
+      h('summary', {},
+        h('span', { class: 'tense-name' }, h('strong', { text: t.en }), ' ', h('span', { class: 'light', text: t.th })),
+        h('span', { class: 'tense-short', text: t.short })),
+      h('table', { class: 'table tform' },
+        h('tbody', {},
+          h('tr', {}, h('th', { text: '+' }), h('td', { text: t.form.aff })),
+          h('tr', {}, h('th', { text: '−' }), h('td', { text: t.form.neg })),
+          h('tr', {}, h('th', { text: '?' }), h('td', { text: t.form.q })))),
+      h('p', { class: 'tense-signals', 'data-tr': true }, t.signals.slice(0, 6).map((sg) => h('span', { class: 'sig', text: sg }))),
+      h('a', { class: 'link-btn', href: 'tenses.html#' + id, text: 'ดูครบทั้ง 12 tenses →' }));
   }
 
   // ---------- the block shown in the feedback ----------
   // opts: { bank, key, q, answer }  → element, or null when the question has no annotation
+  // Kept short on purpose: the drawing and one line first, everything else folded away.
   function block(opts) {
     const ann = annotation(opts.bank, opts.key);
     if (!ann) return null;
-    const box = h('div', { class: 'clue-box' }, h('p', { class: 'clue-title', text: 'จุดสังเกตในประโยค — ดูตรงไหนถึงตอบได้ไว' }));
+    const pass = window.CEFR.pass;
+    if (pass && !pass.allows('markup')) {
+      return h('div', { class: 'clue-box' },
+        h('p', { class: 'clue-title', text: 'ดูตรงนี้' }),
+        h('p', { class: 'notice' }, 'เส้นโยงบนประโยคและสูตร tense สำหรับสมาชิก · ',
+          h('a', { class: 'link-btn', href: 'pricing.html?need=markup', text: 'ดูแพ็กเกจ →' })));
+    }
+    const box = h('div', { class: 'clue-box' }, h('p', { class: 'clue-title', text: 'ดูตรงนี้' }));
     if ((ann.links && ann.links.length) || (ann.tags && ann.tags.length)) box.append(diagram(opts.q, opts.answer, ann));
-    if (ann.tip) box.append(h('p', { class: 'clue-tip', 'data-tr': true }, h('strong', { text: 'ทางลัด · ' }), ann.tip));
+    if (ann.tip) {
+      const [main, ...rest] = ann.tip.split(' · ');
+      box.append(h('div', { class: 'clue-tip', 'data-tr': true },
+        h('p', {}, h('strong', { text: 'ทางลัด ' }), main),
+        rest.length > 0 && h('details', {}, h('summary', { text: 'ดูเพิ่ม' }), h('p', { text: rest.join(' · ') }))));
+    }
     if (ann.tense) box.append(tenseCard(ann.tense));
-    if (ann.lesson) box.append(h('p', { class: 'clue-more' }, h('a', { class: 'link-btn', href: 'learn.html#' + ann.lesson, text: 'อ่านบทเรียนที่เกี่ยวข้อง →' })));
+    if (ann.lesson) box.append(h('p', { class: 'clue-more' }, h('a', { class: 'link-btn', href: 'learn.html#' + ann.lesson, text: 'บทเรียนเรื่องนี้ →' })));
     return box;
   }
 

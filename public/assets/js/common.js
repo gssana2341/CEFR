@@ -176,7 +176,9 @@
   ];
 
   function renderNav(el, active) {
-    el.replaceChildren(...NAV.map(([id, label, href]) => h('a', { href, text: label, 'aria-current': id === active ? 'page' : null })));
+    const billing = (window.CEFR_DATA && window.CEFR_DATA.billing) || {};
+    const tabs = billing.enabled ? [...NAV, ['member', 'สมาชิก', 'pricing.html']] : NAV;   // shown only when selling is on
+    el.replaceChildren(...tabs.map(([id, label, href]) => h('a', { href, text: label, 'aria-current': id === active ? 'page' : null })));
   }
 
   document.querySelectorAll('nav.tabs[data-section]').forEach((el) => renderNav(el, el.dataset.section));

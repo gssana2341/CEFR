@@ -762,15 +762,22 @@ a { color: inherit; }
 }
 .dg-tag { fill: var(--muted); font-family: inherit; font-size: 11.5px; font-weight: 600; }
 
-.clue-tip { margin: 8px 0 0; padding: 8px 12px; background: var(--subtle); border-radius: 8px; font-size: 0.95rem; line-height: 1.6; }
-.clue-more { margin: 10px 0 0; }
+.clue-tip { margin: 10px 0 0; padding: 10px 14px; background: var(--subtle); border-radius: 8px; font-size: 0.95rem; line-height: 1.6; }
+.clue-tip p { margin: 0; }
+.clue-tip details { margin-top: 6px; }
+.clue-tip summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
+.clue-tip details p { margin-top: 4px; color: var(--muted); }
+.clue-more { margin: 10px 0 0; font-size: 0.9rem; }
 
-.tense-card { margin-top: 14px; padding: 0 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); }
-.tense-card > summary { cursor: pointer; padding: 10px 0; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+.tense-card { margin-top: 10px; padding: 0 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); }
+.tense-card > summary { cursor: pointer; padding: 10px 0; list-style: none; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 0.95rem; }
 .tense-card > summary::-webkit-details-marker { display: none; }
-.tense-card > summary::after { content: "−"; color: var(--muted); }
-.tense-card:not([open]) > summary::after { content: "+"; }
-.tense-body { padding-bottom: 12px; }
+.tense-card > summary::after { content: "+"; color: var(--muted); order: 3; }
+.tense-card[open] > summary::after { content: "−"; }
+.tense-short { margin-left: auto; color: var(--muted); font-size: 0.85rem; }
+.tense-card .tform { margin-top: 0; }
+.tense-card .tense-signals { margin: 10px 0 8px; }
+.tense-card .link-btn { display: inline-block; margin: 2px 0 12px; font-size: 0.9rem; }
 .tform th { width: 7.5rem; white-space: nowrap; }
 .tform td { font-weight: 500; }
 .tense-h { margin: 14px 0 4px; color: var(--muted); font-size: 0.8rem; font-weight: 600; }
@@ -842,3 +849,15 @@ a { color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* ---------- Membership page ---------- */
+.plan { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
+.plan-main { flex: 1 1 8rem; }
+.plan-price { margin: 0; font-size: 1.5rem; font-weight: 600; }
+.plan-price .light { color: var(--muted); font-size: 0.95rem; font-weight: 400; }
+.plan .btn { min-width: 7rem; }
+.notice { margin: 0 0 16px; padding: 10px 14px; background: var(--subtle); border-radius: 8px; }
+.input { flex: 1 1 12rem; min-height: 44px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--fg); font: inherit; }
+.input:focus { outline: 2px solid var(--fg); outline-offset: 1px; }
+.band-details { margin-top: 24px; }
+.tense-card .tform th { width: 2rem; text-align: center; }
