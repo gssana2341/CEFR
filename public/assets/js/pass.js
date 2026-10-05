@@ -186,20 +186,30 @@
 
   function lockPanel(feature, opts) {
     const o = opts || {};
-    const authApi = window.CEFR && window.CEFR.auth;
-    const isLoggedIn = authApi && authApi.user();
+    const root = h('section', { class: 'panel lock-panel' });
 
-    return h('section', { class: 'panel lock-panel' },
-      h('p', { class: 'eyebrow', text: 'สำหรับสมาชิก' }),
-      h('h2', { class: 'lock-title', text: o.title || nameOf(feature) }),
-      h('p', { class: 'lead', text: o.text || 'ส่วนนี้เปิดให้สมาชิก เลือกแพ็กเกจตั้งแต่ 1 วัน (20 บาท) แล้วใช้ได้ทุกอย่างทันที' }),
-      h('div', { class: 'btn-row' },
-        !isLoggedIn && h('button', {
-          class: 'btn', type: 'button', text: 'เข้าสู่ระบบ',
-          onclick: () => authApi && authApi.showLogin(),
-        }),
-        h('a', { class: isLoggedIn ? 'btn' : 'btn btn-outline', href: 'pricing.html?need=' + encodeURIComponent(feature), text: 'ดูแพ็กเกจ' }),
-        h('a', { class: 'btn btn-outline', href: o.freeHref || 'index.html#home', text: o.freeText || 'กลับหน้าหลัก' })));
+    function render() {
+      const authApi = window.CEFR && window.CEFR.auth;
+      const isLoggedIn = authApi && authApi.user();
+
+      root.replaceChildren(
+        h('p', { class: 'eyebrow', text: 'สำหรับสมาชิก' }),
+        h('h2', { class: 'lock-title', text: o.title || nameOf(feature) }),
+        h('p', { class: 'lead', text: o.text || 'ส่วนนี้เปิดให้สมาชิก เลือกแพ็กเกจตั้งแต่ 1 วัน (20 บาท) แล้วใช้ได้ทุกอย่างทันที' }),
+        h('div', { class: 'btn-row' },
+          !isLoggedIn && h('button', {
+            class: 'btn', type: 'button', text: 'เข้าสู่ระบบ',
+            onclick: () => authApi && authApi.showLogin(),
+          }),
+          h('a', { class: isLoggedIn ? 'btn' : 'btn btn-outline', href: 'pricing.html?need=' + encodeURIComponent(feature), text: 'ดูแพ็กเกจ' }),
+          h('a', { class: 'btn btn-outline', href: o.freeHref || 'index.html#home', text: o.freeText || 'กลับหน้าหลัก' })
+        )
+      );
+    }
+
+    render();
+    document.addEventListener('cefr:auth', render);
+    return root;
   }
 
   // ---------- a few free looks at the mark-up each day ----------
