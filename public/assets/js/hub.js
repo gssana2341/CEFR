@@ -25,10 +25,17 @@
   const placementLast = () => store.get('placement:last', null);
   const examHistory = () => store.get('exam:history', []);
 
+  // An exam still in progress (current section's clock not yet run out, or waiting between sections).
   function examRunning() {
     const s = store.get('exam:state', null);
-    return s && s.startedAt && s.startedAt + s.durationMs > Date.now() ? s : null;
+    return s && s.v === 2 && (s.between || s.secEndsAt > Date.now()) ? s : null;
   }
+  const examLeft = (s) => (s.between ? 'รอเริ่มส่วนถัดไป' : 'เหลือเวลา ' + clock(s.secEndsAt - Date.now()));
+
+  // The EF SET-style format (first profile): total minutes of the sections that are available now.
+  const efProfile = () => D.exam.profiles[0];
+  const examMinutes = () => efProfile().sections.filter((s) => s.parts.length && !s.comingSoon).reduce((sum, s) => sum + s.minutes, 0);
+  const examSectionNames = () => efProfile().sections.filter((s) => s.parts.length && !s.comingSoon).map((s) => s.title).join(' + ');
 
   // The level where the learner failed their placement stage → the lessons worth doing first.
   function focusLevel() {
@@ -92,7 +99,7 @@
       items.push({ title: 'ทดสอบระดับ CEFR', meta: ps.between ? 'ผ่านระดับก่อนหน้า รอเริ่มระดับ ' + stage : 'ระดับ ' + stage + ' · ข้อ ' + (ps.index + 1) + '/' + ps.items.length, href: 'placement.html' });
     }
     const ex = examRunning();
-    if (ex) items.push({ title: 'สอบจำลอง', meta: 'เหลือเวลา ' + clock(ex.startedAt + ex.durationMs - Date.now()), href: 'exam.html' });
+    if (ex) items.push({ title: 'สอบจำลอง', meta: examLeft(ex), href: 'exam.html' });
     PRACTICE.forEach((p) => {
       const info = practiceInfo(p.id);
       if (info.resume) items.push({ title: p.title + ' ' + p.thai, meta: info.resume, href: p.href });
@@ -144,7 +151,7 @@
         step(3, 'ฝึกทำข้อสอบ', 'แบบฝึกหัด ' + questions + ' ข้อ ใน 4 ชุด ตอบแล้วเห็นเฉลยพร้อมคำอธิบายทันที',
           wrongTotal ? 'มีข้อที่ยังไม่แม่น ' + wrongTotal + ' ข้อ รอทบทวน' : null,
           btn('เลือกชุดฝึก', 'index.html#practice', rec === 3), { recommended: rec === 3, done: false }),
-        step(4, 'ซ้อมสอบจริง', 'สอบจำลอง ' + D.exam.durationMin + ' นาที จับเวลา ไม่มีเฉลยระหว่างทำ ได้คะแนนแยกตามส่วน',
+        step(4, 'ซ้อมสอบจริง', 'สอบจำลองตามกติกา EF SET: จับเวลาแยกส่วน (' + examSectionNames() + ' ' + examMinutes() + ' นาที) ย้อนกลับไม่ได้ ไม่มีเฉลยระหว่างทำ',
           hist.length ? 'ผลล่าสุด ' + pct(hist[0].score, hist[0].total) + '% (' + dateTh(hist[0].at) + ')' : null,
           btn(examRunning() ? 'กลับไปสอบ' : 'เริ่มสอบจำลอง', 'exam.html', rec === 4), { recommended: rec === 4, done: hist.length > 0 })
       )
@@ -207,9 +214,9 @@
           h('div', { class: 'card-actions' }, btn(store.get('placement:state', null) ? 'ทำต่อ' : last ? 'ทำอีกครั้ง' : 'เริ่มทดสอบ', 'placement.html', true))),
         h('article', { class: 'card' },
           h('h2', { class: 'card-title' }, 'สอบจำลอง ', h('span', { class: 'light', text: 'Mock exam' })),
-          h('p', { class: 'card-desc', text: 'ซ้อมสอบแบบสอบจริง จับเวลา ไม่มีเฉลยและไม่มีระบบแปลช่วยระหว่างทำ ส่งแล้วจึงเห็นคะแนนแยกตามส่วนและเฉลยทุกข้อ' }),
-          h('p', { class: 'card-meta', text: [D.exam.durationMin + ' นาที · ' + D.exam.parts.length + ' ส่วน', hist.length && 'ผลล่าสุด ' + pct(hist[0].score, hist[0].total) + '% (' + dateTh(hist[0].at) + ')', running && 'กำลังสอบอยู่ เหลือ ' + clock(running.startedAt + running.durationMs - Date.now())].filter(Boolean).join(' · ') }),
-          h('div', { class: 'card-actions' }, btn(running ? 'กลับไปสอบ' : 'เริ่มสอบจำลอง', 'exam.html', true)))
+          h('p', { class: 'card-desc', text: 'ซ้อมสอบตามกติกาของ EF SET: จับเวลาแยกส่วน ย้อนกลับไม่ได้ ไม่มีเฉลยและไม่มีระบบแปลช่วยระหว่างทำ หรือเลือกแบบยืดหยุ่นที่ข้ามไปมาได้ ส่งแล้วจึงเห็นคะแนนและเฉลยทุกข้อ' }),
+          h('p', { class: 'card-meta', text: ['แบบ EF SET ' + examMinutes() + ' นาที · แบบยืดหยุ่น ' + D.exam.profiles[1].sections[0].minutes + ' นาที', hist.length && 'ผลล่าสุด ' + pct(hist[0].score, hist[0].total) + '% (' + dateTh(hist[0].at) + ')', running && 'กำลังสอบอยู่ · ' + examLeft(running)].filter(Boolean).join(' · ') }),
+          h('div', { class: 'card-actions' }, btn(running ? 'กลับไปสอบ' : 'เลือกรูปแบบและเริ่มสอบ', 'exam.html', true)))
       ));
   }
 

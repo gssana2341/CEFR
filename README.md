@@ -14,7 +14,7 @@
 | Conversations | `/conversations` | 100 ข้อ |
 | Cloze Test | `/cloze` | 26 บทความ (197 ช่องว่าง) เลือกทำทีละบทได้ |
 | ฝึกเพิ่มเติม | `/extra` | 48 ข้อใหม่: phrasal verbs, collocations, prepositions, word forms, ภาษาพูด, ข้อผิดพลาดที่พบบ่อย |
-| สอบจำลอง | `/exam` | จับเวลา 60 นาที ไม่มีเฉลยระหว่างทำ ข้ามไปมา/ทำเครื่องหมายข้อได้ ส่งแล้วจึงเห็นผล หมดเวลาส่งอัตโนมัติ |
+| สอบจำลอง | `/exam` | เลือกได้ 2 แบบ: **แบบ EF SET** (จับเวลาแยกส่วน ส่วนละ 25 นาที ย้อนกลับไม่ได้) หรือ **แบบยืดหยุ่น** 60 นาที (ข้ามไปมา/ทำเครื่องหมายข้อได้) ไม่มีเฉลยระหว่างทำ หมดเวลาส่งอัตโนมัติ |
 
 **ระบบแปล** (ทุกหน้าที่มีเนื้อหา): คลิกคำภาษาอังกฤษเพื่อดูความหมาย หรือลากคลุมวลี/ประโยคเพื่อแปล มีปุ่มฟังเสียงอ่าน และปุ่ม "แปลทั้งข้อ" ในข้อสอบปรนัย ปิดอัตโนมัติระหว่างทดสอบระดับและสอบจำลอง (เปิดได้ตอนทบทวนผล)
 
@@ -91,13 +91,23 @@ npm run validate
 
 ### สอบจำลอง — `exam.js`
 
+มี 2 รูปแบบ (`profiles`) ให้ผู้ใช้เลือก:
+
+| รูปแบบ | กติกา |
+|---|---|
+| **แบบ EF SET** | แบ่งเป็นส่วน (ตอนนี้ Reading 25 นาที, Listening 25 นาที "เร็วๆ นี้") นาฬิกาแยกส่วน ย้อนกลับไม่ได้ ต้องตอบก่อนไปข้อถัดไป ไม่มีเฉลยระหว่างทำ |
+| **แบบยืดหยุ่น** | 60 นาที ข้ามไปมา ทำเครื่องหมายข้อ แก้คำตอบได้จนกว่าจะส่ง |
+
 ```js
-durationMin: 60,
-parts: [
-  { id: 'grammar', title: 'Part 1 · Grammar', type: 'mcq', source: 'grammar', count: 30 },
-  …
-]
+{ id: 'efset', oneWay: true,
+  sections: [
+    { id: 'reading', title: 'Reading', minutes: 25, parts: [
+        { id: 'grammar', title: 'Grammar', type: 'mcq', source: 'grammar', count: 20 }, … ] },
+    { id: 'listening', title: 'Listening', minutes: 25, comingSoon: true, parts: [] },
+  ] }
 ```
+
+กติกาอ้างอิงจากหน้าทางการของ EF SET ([efset.org](https://www.efset.org/)): 50 นาที = Reading 25 + Listening 25, ไม่จำกัดเวลาต่อข้อ, ย้อนกลับไม่ได้, Listening ฟังได้ 2 รอบ, คะแนน 0–100 เทียบ CEFR (A1 1–30 … C2 71–100) ที่เว็บนี้ **ไม่ได้** จำลองการปรับความยากอัตโนมัติ (adaptive) และไม่ได้แปลงคะแนนเป็นระดับ CEFR เพราะเนื้อหาเป็นข้อสอบชุดคงที่ A1–B1 (ใช้หน้าทดสอบระดับแทน) ส่วนชุด 4 ทักษะ 90 นาทีของ EF SET ไม่ได้จำลอง
 
 เปลี่ยนเวลา จำนวนข้อ หรือเพิ่ม/ลบส่วนได้ที่นี่ (ชนิดที่รองรับ: `mcq`, `cloze`)
 
@@ -146,7 +156,7 @@ push เข้า `main` = deploy production อัตโนมัติ · bran
 3. **หน้าเว็บ** — คัดลอก `extra.html` เป็น `listening.html` เปลี่ยน `data-quiz="listening"` และ `<script src="assets/data/listening.js">` (แท็บเมนู `<nav class="tabs" data-section="practice">` ติดมาด้วยแล้ว)
 4. **ทะเบียน** — เพิ่ม `listening: { id: 'listening', kind: 'mcq', dataKey: 'listening', page: 'listening.html', intro: '…', labels: 'number' }` ใน `QUIZZES` ที่ `common.js`
 5. **ตัวเล่นเสียง** — ใน `quiz-engine.js` (ฟังก์ชัน `renderQuiz`) และ `exam-engine.js` (`renderExam`) เพิ่มก่อนโจทย์: `q.audio && h('audio', { controls: true, preload: 'none', src: q.audio })`
-6. **หน้าหลัก** — เพิ่มรายการใน `PRACTICE` ที่ต้น `hub.js` (คัดลอกรายการ Extra: `id`, `title`, `thai`, `desc`, `href`) จะได้การ์ดในแท็บฝึกและการ์ด "ทำต่อ" ให้เอง และถ้าต้องการให้อยู่ในสอบจำลอง เพิ่ม `{ id: 'listening', title: 'Part 4 · Listening', type: 'mcq', source: 'listening', count: 10 }` ใน `exam.js`
+6. **หน้าหลัก** — เพิ่มรายการใน `PRACTICE` ที่ต้น `hub.js` (คัดลอกรายการ Extra: `id`, `title`, `thai`, `desc`, `href`) จะได้การ์ดในแท็บฝึกและการ์ด "ทำต่อ" ให้เอง และถ้าต้องการให้อยู่ในสอบจำลอง ให้ใส่ `parts: [{ id: 'listening', title: 'Listening', type: 'mcq', source: 'listening', count: 20 }]` แล้วลบ `comingSoon: true` ออกจากส่วน Listening ของแบบ EF SET ใน `exam.js` (ส่วนนี้จะมีนาฬิกา 25 นาทีของตัวเองต่อจาก Reading โดยอัตโนมัติ) พร้อมทั้ง: เพิ่ม `<script src="assets/data/listening.js">` ใน `exam.html` และเพิ่ม `'listening'` ในรายการ `source` ที่ตัวตรวจ (`scripts/validate-data.mjs`) อนุญาต ถ้าอยากให้เหมือน EF SET ให้จำกัดการเล่นเสียงไม่เกิน 2 รอบต่อไฟล์
 
 ## หมายเหตุ
 

@@ -696,6 +696,19 @@ a { color: inherit; }
 .exam-timer { font-size: 1.4rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .exam-timer.low { color: var(--bad); }
 
+.panel > p + .btn-row { margin-top: 16px; }
+.exam-timebox { display: flex; flex-direction: column; line-height: 1.3; }
+.exam-sec { color: var(--muted); font-size: 0.75rem; }
+
+.sec-list { list-style: none; margin: 14px 0 0; padding: 0; }
+.sec-list li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-top: 1px solid var(--border); font-size: 0.95rem; }
+.sec-list li.soon { color: var(--muted); }
+
+.rules-box { margin-top: 8px; }
+.rules-box .section-title { margin-top: 40px; }
+.band-details { margin: 4px 0 0; }
+.band-details summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
+
 .nav-details { margin-top: 28px; }
 .nav-details summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
 .nav-part { margin-top: 12px; }

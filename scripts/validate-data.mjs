@@ -104,24 +104,47 @@ else {
 }
 
 // --- Mock exam config ---
-if (!D.exam || !Array.isArray(D.exam.parts) || !D.exam.parts.length) err('exam', 'missing parts');
+if (!D.exam || !Array.isArray(D.exam.profiles) || D.exam.profiles.length < 2) err('exam', 'needs at least two profiles (the hub reads profiles[0] = EF SET style and profiles[1] = flexible)');
 else {
-  if (!(D.exam.durationMin > 0)) err('exam', 'durationMin must be a positive number');
-  const seen = new Set();
-  D.exam.parts.forEach((p, i) => {
-    const where = `exam.parts[${i}] (${p.id})`;
-    if (!isStr(p.id) || seen.has(p.id)) err(where, 'id missing or duplicated');
-    seen.add(p.id);
-    if (!isStr(p.title)) err(where, 'title is empty');
-    if (p.type === 'mcq') {
-      if (!['grammar', 'conversations', 'extra'].includes(p.source)) err(where, 'mcq source must be grammar, conversations or extra');
-      else if (!(p.count >= 1 && p.count <= D[p.source].length)) err(where, `count must be 1–${D[p.source].length}`);
-    } else if (p.type === 'cloze') {
-      if (!(p.count >= 1 && p.count <= (D.cloze || []).length)) err(where, `count must be 1–${(D.cloze || []).length}`);
-    } else {
-      err(where, `unsupported type "${p.type}" (supported: mcq, cloze)`);
-    }
+  const profileIds = new Set();
+  D.exam.profiles.forEach((pr, pi) => {
+    const pw = `exam.profiles[${pi}] (${pr.id})`;
+    if (!isStr(pr.id) || profileIds.has(pr.id)) err(pw, 'id missing or duplicated');
+    profileIds.add(pr.id);
+    if (!isStr(pr.title) || !isStr(pr.desc)) err(pw, 'title and desc are required');
+    if (typeof pr.oneWay !== 'boolean') err(pw, 'oneWay must be true or false');
+    if (!Array.isArray(pr.sections) || !pr.sections.length) return err(pw, 'needs sections');
+
+    const secIds = new Set();
+    let runnable = 0;
+    pr.sections.forEach((s, si) => {
+      const sw = `${pw} section[${si}] (${s.id})`;
+      if (!isStr(s.id) || secIds.has(s.id)) err(sw, 'id missing or duplicated');
+      secIds.add(s.id);
+      if (!isStr(s.title)) err(sw, 'title is empty');
+      if (!(s.minutes > 0)) err(sw, 'minutes must be a positive number');
+      if (!Array.isArray(s.parts)) return err(sw, 'parts must be an array (use [] for a coming-soon section)');
+      if (s.parts.length && !s.comingSoon) runnable++;
+      const partIds = new Set();
+      s.parts.forEach((p, i) => {
+        const where = `${sw} part[${i}] (${p.id})`;
+        if (!isStr(p.id) || partIds.has(p.id)) err(where, 'id missing or duplicated');
+        partIds.add(p.id);
+        if (!isStr(p.title)) err(where, 'title is empty');
+        if (p.type === 'mcq') {
+          if (!['grammar', 'conversations', 'extra'].includes(p.source)) err(where, 'mcq source must be grammar, conversations or extra');
+          else if (!(p.count >= 1 && p.count <= D[p.source].length)) err(where, `count must be 1–${D[p.source].length}`);
+        } else if (p.type === 'cloze') {
+          if (!(p.count >= 1 && p.count <= (D.cloze || []).length)) err(where, `count must be 1–${(D.cloze || []).length}`);
+        } else {
+          err(where, `unsupported type "${p.type}" (supported: mcq, cloze)`);
+        }
+      });
+    });
+    if (!runnable) err(pw, 'has no section that can run (needs parts and not comingSoon)');
+    if (!pr.oneWay && pr.sections.length > 1) err(pw, 'the flexible (oneWay:false) format should have a single section');
   });
+  if (!Array.isArray(D.exam.bands) || D.exam.bands.some((b) => !Array.isArray(b) || b.length !== 3)) err('exam.bands', 'must be a list of [cefr, name, range]');
 }
 
 // --- Cloze passages ---

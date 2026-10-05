@@ -1,5 +1,7 @@
-// Mock exam: timed, no feedback while answering, free navigation between questions, flag for review,
-// automatic submission when time runs out. Parts come from CEFR_DATA.exam (assets/data/exam.js).
+// Mock exam. Formats come from CEFR_DATA.exam.profiles (assets/data/exam.js):
+//   • "EF SET" style  — separately timed sections, no going back, no feedback while answering
+//   • "flexible"      — one timer, free navigation, flag questions for review
+// Time running out ends the current section automatically; the last section submits the exam.
 (function () {
   'use strict';
 
@@ -12,12 +14,17 @@
 
   const K = { state: 'exam:state', history: 'exam:history' };
   const KEYS = '12345';
-  const DURATION_MS = cfg.durationMin * 60000;
+  const SUPPORTED = ['mcq', 'cloze'];            // other part types (e.g. listening): see README
+  const EF_URL = 'https://www.efset.org/';
 
-  const parts = cfg.parts.filter((p) => p.type === 'mcq' || p.type === 'cloze'); // other types: see README
-  const partById = new Map(parts.map((p) => [p.id, p]));
-  const mcqLookup = {};
-  parts.filter((p) => p.type === 'mcq').forEach((p) => { mcqLookup[p.source] = new Map(D[p.source].map((q) => [q.n, q])); });
+  // Keep only the parts this engine can run; a section is "active" when it has parts and isn't coming soon.
+  const profiles = cfg.profiles.map((p) => ({ ...p, sections: p.sections.map((s) => ({ ...s, parts: s.parts.filter((pt) => SUPPORTED.includes(pt.type)) })) }));
+  const profileById = new Map(profiles.map((p) => [p.id, p]));
+  const activeSections = (p) => p.sections.filter((s) => s.parts.length > 0 && !s.comingSoon);
+  const totalMinutes = (p) => activeSections(p).reduce((sum, s) => sum + s.minutes, 0);
+
+  const mcqCache = {};
+  const lookupMcq = (src) => (mcqCache[src] = mcqCache[src] || new Map(D[src].map((q) => [q.n, q])));
 
   let state = loadState();     // exam in progress (persisted)
   let finished = null;         // result of the exam just submitted
@@ -26,31 +33,34 @@
   let filter = 'all';
 
   // ---------- Items ----------
-  const questionOf = (it) => mcqLookup[partById.get(it.part).source].get(it.n);
+  const questionOf = (it) => lookupMcq(it.src).get(it.n);
   const passageOf = (it) => D.cloze[it.idx];
   const pointsOf = (it) => (it.kind === 'mcq' ? 1 : passageOf(it).blanks.length);
   const unitsAnswered = (it) => (it.kind === 'mcq' ? (it.pick !== null ? 1 : 0) : it.picks.filter((p) => p !== null).length);
   const earnedOf = (it) => (it.kind === 'mcq'
     ? (it.pick === questionOf(it).a ? 1 : 0)
     : passageOf(it).blanks.reduce((s, b, i) => s + (it.picks[i] === b.a ? 1 : 0), 0));
+  const totalPoints = (items) => items.reduce((s, it) => s + pointsOf(it), 0);
 
-  function buildItems() {
+  function buildItems(profile) {
     const items = [];
-    for (const part of parts) {
-      if (part.type === 'mcq') {
-        shuffle(D[part.source]).slice(0, part.count).forEach((q) => {
-          items.push({ part: part.id, kind: 'mcq', n: q.n, order: shuffle(q.c.map((_, i) => i)), pick: null, flag: false });
-        });
-      } else {
-        shuffle(D.cloze.map((_, i) => i)).slice(0, part.count).forEach((idx) => {
-          const blanks = D.cloze[idx].blanks;
-          items.push({
-            part: part.id, kind: 'cloze', idx,
-            orders: blanks.map((b) => shuffle(b.c.map((_, i) => i))),
-            picks: blanks.map(() => null),
-            flag: false,
+    for (const sec of activeSections(profile)) {
+      for (const part of sec.parts) {
+        if (part.type === 'mcq') {
+          shuffle(D[part.source]).slice(0, part.count).forEach((q) => {
+            items.push({ sec: sec.id, part: part.id, kind: 'mcq', src: part.source, n: q.n, order: shuffle(q.c.map((_, i) => i)), pick: null, flag: false });
           });
-        });
+        } else {
+          shuffle(D.cloze.map((_, i) => i)).slice(0, part.count).forEach((idx) => {
+            const blanks = D.cloze[idx].blanks;
+            items.push({
+              sec: sec.id, part: part.id, kind: 'cloze', idx,
+              orders: blanks.map((b) => shuffle(b.c.map((_, i) => i))),
+              picks: blanks.map(() => null),
+              flag: false,
+            });
+          });
+        }
       }
     }
     return items;
@@ -58,20 +68,32 @@
 
   function loadState() {
     const s = store.get(K.state, null);
-    if (!s || s.v !== 1 || !Array.isArray(s.items) || !s.items.length || !(s.startedAt > 0)) return null;
+    const profile = s && profileById.get(s.profile);
+    if (!s || s.v !== 2 || !profile || !Array.isArray(s.items) || !s.items.length || !(s.secEndsAt > 0)) return null;
+    const secs = activeSections(profile);
     const ok = s.items.every((it) => {
-      const part = partById.get(it.part);
-      if (!part) return false;
-      if (it.kind === 'mcq') return part.type === 'mcq' && mcqLookup[part.source].has(it.n);
-      return part.type === 'cloze' && D.cloze[it.idx] && Array.isArray(it.picks) && it.picks.length === D.cloze[it.idx].blanks.length;
+      if (!secs.some((x) => x.id === it.sec)) return false;
+      if (it.kind === 'mcq') return D[it.src] && lookupMcq(it.src).has(it.n);
+      return it.kind === 'cloze' && D.cloze[it.idx] && Array.isArray(it.picks) && it.picks.length === D.cloze[it.idx].blanks.length;
     });
-    if (!ok || !(s.index >= 0 && s.index < s.items.length)) { store.remove(K.state); return null; }
+    if (!ok || !(s.secIndex >= 0 && s.secIndex < secs.length) || !(s.index >= 0 && s.index < s.items.length)) {
+      store.remove(K.state);
+      return null;
+    }
     return s;
   }
 
+  // ---------- State helpers ----------
   const save = () => store.set(K.state, state);
-  const remaining = () => Math.max(0, state.startedAt + state.durationMs - Date.now());
-  const totalPoints = (items) => items.reduce((s, it) => s + pointsOf(it), 0);
+  const prof = () => profileById.get(state.profile);
+  const secs = () => activeSections(prof());
+  const curSec = () => secs()[state.secIndex];
+  const itemsOfSec = (secId) => state.items.filter((it) => it.sec === secId);
+  const remaining = () => Math.max(0, state.secEndsAt - Date.now());
+  const partTitle = (profile, secId, partId) => {
+    const sec = profile.sections.find((s) => s.id === secId);
+    return (sec && sec.parts.find((p) => p.id === partId) || {}).title || partId;
+  };
 
   function fmtClock(ms) {
     const s = Math.ceil(ms / 1000);
@@ -86,14 +108,20 @@
   const setView = (...nodes) => root.replaceChildren(...nodes.flat(Infinity).filter(Boolean));
 
   // ---------- Flow ----------
-  async function start() {
+  async function start(profileId) {
     if (state) {
       const ok = await confirmDialog('มีการสอบที่ยังไม่ได้ส่ง ต้องการละทิ้งและเริ่มสอบใหม่หรือไม่?', {
         okText: 'เริ่มสอบใหม่', cancelText: 'ยกเลิก', danger: true,
       });
       if (!ok) return;
     }
-    state = { v: 1, startedAt: Date.now(), durationMs: DURATION_MS, index: 0, items: buildItems() };
+    const profile = profileById.get(profileId);
+    const now = Date.now();
+    state = {
+      v: 2, profile: profileId, secIndex: 0, startedAt: now, secStartedAt: now,
+      secEndsAt: now + activeSections(profile)[0].minutes * 60000,
+      between: false, secLog: [], items: buildItems(profile), index: 0,
+    };
     save();
     enterExam();
   }
@@ -110,40 +138,85 @@
   function warnLeave(e) { e.preventDefault(); e.returnValue = ''; }
 
   function tick() {
-    if (!state) return;
+    if (!state || state.between) return;
     const ms = remaining();
     const el = document.getElementById('exam-timer');
     if (el) {
       el.textContent = fmtClock(ms);
       el.classList.toggle('low', ms <= 5 * 60000);
     }
-    if (ms <= 0) submit(true);
+    if (ms <= 0) endSection(true);
   }
 
-  async function askSubmit() {
-    const left = state.items.reduce((s, it) => s + pointsOf(it) - unitsAnswered(it), 0);
-    const flagged = state.items.filter((it) => it.flag).length;
-    const msg = 'ส่งข้อสอบตอนนี้? ' + (left ? 'ยังไม่ได้ตอบ ' + left + ' ข้อ' : 'ตอบครบทุกข้อแล้ว') + (flagged ? ' · ทำเครื่องหมายไว้ ' + flagged + ' ข้อ' : '') + ' เมื่อส่งแล้วแก้ไขไม่ได้';
-    if (await confirmDialog(msg, { okText: 'ส่งข้อสอบ', cancelText: 'กลับไปทำต่อ' })) submit(false);
+  function endSection(auto) {
+    const sec = curSec();
+    const now = Date.now();
+    state.secLog.push({ id: sec.id, usedMs: Math.min(now, state.secEndsAt) - state.secStartedAt, auto: !!auto });
+    if (state.secIndex < secs().length - 1) {
+      state.secIndex++;
+      state.between = true;
+      save();
+      render();
+      window.scrollTo(0, 0);
+    } else {
+      submit(auto);
+    }
+  }
+
+  function startNextSection() {
+    const sec = curSec();
+    const now = Date.now();
+    state.between = false;
+    state.secStartedAt = now;
+    state.secEndsAt = now + sec.minutes * 60000;
+    state.index = state.items.findIndex((it) => it.sec === sec.id);
+    save();
+    render();
+    window.scrollTo(0, 0);
+  }
+
+  async function askEndSection() {
+    const sec = curSec();
+    const last = state.secIndex === secs().length - 1;
+    let msg;
+    if (prof().oneWay) {
+      msg = last
+        ? 'ส่งข้อสอบ? หลังจากนี้ย้อนกลับมาแก้ไขไม่ได้'
+        : 'จบส่วน ' + sec.title + '? ย้อนกลับมาแก้ไขไม่ได้ และเวลาของส่วนถัดไปจะเริ่มนับเมื่อคุณกดเริ่ม';
+    } else {
+      const its = itemsOfSec(sec.id);
+      const left = its.reduce((s, it) => s + pointsOf(it) - unitsAnswered(it), 0);
+      const flagged = its.filter((it) => it.flag).length;
+      msg = 'ส่งข้อสอบตอนนี้? ' + (left ? 'ยังไม่ได้ตอบ ' + left + ' ข้อ' : 'ตอบครบทุกข้อแล้ว') + (flagged ? ' · ทำเครื่องหมายไว้ ' + flagged + ' ข้อ' : '') + ' เมื่อส่งแล้วแก้ไขไม่ได้';
+    }
+    if (await confirmDialog(msg, { okText: last ? 'ส่งข้อสอบ' : 'จบส่วนนี้', cancelText: 'กลับไปทำต่อ' })) endSection(false);
   }
 
   function submit(auto) {
     if (!state) return;
     clearInterval(timerId);
     window.removeEventListener('beforeunload', warnLeave);
-    const endedAt = Math.min(Date.now(), state.startedAt + state.durationMs);
-    const items = state.items;
-    const byPart = parts.map((p) => {
-      const its = items.filter((it) => it.part === p.id);
-      return { id: p.id, title: p.title, score: its.reduce((s, it) => s + earnedOf(it), 0), total: totalPoints(its) };
+    const profile = prof();
+    const now = Date.now();
+    const sections = activeSections(profile).map((sec) => {
+      const its = state.items.filter((it) => it.sec === sec.id);
+      const log = state.secLog.find((l) => l.id === sec.id) || { usedMs: 0, auto: false };
+      return {
+        id: sec.id, title: sec.title, minutes: sec.minutes, usedMs: log.usedMs, auto: log.auto,
+        score: its.reduce((s, it) => s + earnedOf(it), 0), total: totalPoints(its),
+        parts: sec.parts.map((p) => {
+          const pi = its.filter((it) => it.part === p.id);
+          return { id: p.id, title: p.title, score: pi.reduce((s, it) => s + earnedOf(it), 0), total: totalPoints(pi) };
+        }),
+      };
     });
-    const score = byPart.reduce((s, p) => s + p.score, 0);
-    const total = totalPoints(items);
-    const usedMs = endedAt - state.startedAt;
-    finished = { items, byPart, score, total, usedMs, auto, at: endedAt };
+    const score = sections.reduce((s, x) => s + x.score, 0);
+    const total = sections.reduce((s, x) => s + x.total, 0);
+    const usedMs = sections.reduce((s, x) => s + x.usedMs, 0);
+    finished = { profile, items: state.items, sections, score, total, usedMs, auto: sections.some((x) => x.auto) || !!auto, at: now };
 
     const history = store.get(K.history, []);
-    history.unshift({ at: endedAt, score, total, usedMs, auto });
+    history.unshift({ at: now, profile: profile.id, title: profile.title, score, total, usedMs, auto: finished.auto });
     store.set(K.history, history.slice(0, 10));
     store.remove(K.state);
     state = null;
@@ -170,18 +243,27 @@
 
   // ---------- Answer handlers ----------
   function go(i) {
-    if (i < 0 || i >= state.items.length) return;
+    if (i < 0 || i >= state.items.length || state.items[i].sec !== curSec().id) return;
     state.index = i;
     save();
     renderExam();
     window.scrollTo(0, 0);
   }
 
+  const canAdvance = (it) => !prof().oneWay || unitsAnswered(it) === pointsOf(it);
+
+  function next() {
+    const it = state.items[state.index];
+    if (!canAdvance(it)) return;
+    const its = itemsOfSec(curSec().id);
+    if (it === its[its.length - 1]) askEndSection(); else go(state.index + 1);
+  }
+
   function pickMcq(displayIdx) {
     const it = state.items[state.index];
     if (it.kind !== 'mcq' || displayIdx >= it.order.length) return;
     const orig = it.order[displayIdx];
-    it.pick = it.pick === orig ? null : orig;   // click again to un-answer
+    it.pick = !prof().oneWay && it.pick === orig ? null : orig;   // flexible mode: click again to un-answer
     save();
     renderExam();
   }
@@ -203,47 +285,98 @@
   // ---------- Views ----------
   function render() {
     if (trToggle) trToggle.hidden = view !== 'result';
-    if (view === 'exam' && state) renderExam();
+    if (view === 'exam' && state) { if (state.between) renderBetween(); else renderExam(); }
     else if (view === 'result' && finished) renderResult();
     else { view = 'intro'; renderIntro(); }
   }
 
+  function profileCard(p) {
+    const parts = activeSections(p).flatMap((s) => s.parts)
+      .map((pt) => pt.title.replace(/^Part \d · /, '') + ' ' + pt.count + (pt.type === 'cloze' ? ' บทความ' : ' ข้อ'));
+    const minutes = totalMinutes(p);
+    return h('article', { class: 'card' },
+      h('div', { class: 'card-head' }, h('h2', { class: 'card-title', text: p.title }), p.tag && h('span', { class: 'rec-tag', text: p.tag })),
+      h('p', { class: 'card-desc', text: p.desc }),
+      h('ul', { class: 'sec-list' }, p.sections.map((s) => {
+        const soon = s.comingSoon || !s.parts.length;
+        return h('li', { class: soon ? 'soon' : '' }, h('span', { text: s.title }), h('span', { text: soon ? 'เร็วๆ นี้ · ' + s.minutes + ' นาที' : s.minutes + ' นาที' }));
+      })),
+      h('p', { class: 'card-meta', text: 'รวม ' + minutes + ' นาที · ' + parts.join(' · ') }),
+      h('div', { class: 'card-actions' }, h('button', { class: 'btn', type: 'button', text: 'เริ่มสอบ ' + p.title, onclick: () => start(p.id) })));
+  }
+
+  function rulesBox() {
+    return h('section', { class: 'rules-box' },
+      h('h2', { class: 'section-title', text: 'กติกาและเวลา — อ้างอิง EF SET' }),
+      h('p', { class: 'card-meta', style: { margin: '0 0 6px' }, text: 'ตามข้อมูลจากหน้าทางการของ EF SET (efset.org, ef.com)' }),
+      h('ul', { class: 'rules' },
+        h('li', { text: 'EF SET ชุด 50 นาที แบ่งเป็น Reading 25 นาที และ Listening 25 นาที แต่ละส่วนมีนาฬิกาของตัวเอง' }),
+        h('li', { text: 'แต่ละข้อหรือแต่ละบทไม่จำกัดเวลา จับเวลาเฉพาะทั้งส่วน' }),
+        h('li', { text: 'ย้อนกลับไปข้อก่อนหน้าไม่ได้ ต้องทำแต่ละบทให้เสร็จก่อนไปต่อ' }),
+        h('li', { text: 'Listening ฟังได้ 2 รอบต่อไฟล์เสียง (ส่วนนี้ของเว็บนี้ยังไม่เปิด)' }),
+        h('li', { text: 'ควรหาที่เงียบและทำให้จบในครั้งเดียว' }),
+        h('li', { text: 'คะแนน 0–100 เทียบกับระดับ CEFR (ตารางด้านล่าง)' })),
+      h('details', { class: 'band-details' },
+        h('summary', { text: 'ตารางเทียบคะแนน EF SET กับ CEFR' }),
+        h('table', { class: 'table' },
+          h('thead', {}, h('tr', {}, h('th', { text: 'CEFR' }), h('th', { text: 'ระดับ' }), h('th', { text: 'คะแนน EF SET' }))),
+          h('tbody', {}, cfg.bands.map((b) => h('tr', {}, b.map((c) => h('td', { text: c }))))))),
+      h('p', { class: 'card-meta', style: { margin: '20px 0 6px' }, text: 'ที่เว็บนี้ต่างจาก EF SET' }),
+      h('ul', { class: 'rules' },
+        h('li', { text: 'EF SET ปรับความยากตามคำตอบของคุณ (adaptive) แต่ที่นี่เป็นข้อสอบชุดคงที่' }),
+        h('li', { text: 'เนื้อหาเน้นไวยากรณ์และคำศัพท์ระดับ A1–B1 ไม่ใช่ข้อสอบของ EF' }),
+        h('li', { text: 'แบบ EF SET ต้องตอบก่อนไปข้อถัดไป (ข้อกำหนดของเว็บนี้)' }),
+        h('li', { text: 'คะแนนที่แสดงเป็นเปอร์เซ็นต์ของข้อสอบชุดนี้ ไม่ใช่คะแนน EF SET จึงไม่แปลงเป็นระดับ CEFR ให้ — ดูระดับของคุณได้ที่หน้าทดสอบระดับ' }),
+        h('li', { text: 'EF SET ยังมีชุด 4 ทักษะ 90 นาที (รวมเขียนและพูด) ซึ่งเว็บนี้ไม่ได้จำลอง' })),
+      h('p', { class: 'fine-print' }, 'ต้องการผลอย่างเป็นทางการ ลองทำข้อสอบจริงฟรีได้ที่ ',
+        h('a', { href: EF_URL, target: '_blank', rel: 'noopener noreferrer', text: 'efset.org' }), ' (เว็บนี้ไม่เกี่ยวข้องกับ EF)'));
+  }
+
   function renderIntro() {
     const history = store.get(K.history, []);
-    const itemsPreview = parts.map((p) => {
-      const n = p.type === 'cloze' ? p.count + ' บทความ' : p.count + ' ข้อ';
-      return p.title + ' — ' + n;
-    });
+    const sec = state && !state.between ? curSec() : null;
     setView(
       state && h('div', { class: 'resume' },
-        h('p', { text: 'มีการสอบที่ยังไม่ได้ส่ง — เหลือเวลา ' + fmtClock(remaining()) }),
+        h('p', { text: state.between
+          ? 'มีการสอบที่ค้างอยู่ — รอเริ่มส่วน ' + curSec().title
+          : 'มีการสอบที่ยังไม่ได้ส่ง (' + prof().title + ' · ' + sec.title + ') — เหลือเวลา ' + fmtClock(remaining()) }),
         h('div', { class: 'btn-row' },
-          h('button', { class: 'btn', type: 'button', text: 'กลับไปสอบต่อ', onclick: () => { if (remaining() <= 0) submit(true); else enterExam(); } }),
+          h('button', { class: 'btn', type: 'button', text: 'กลับไปสอบต่อ', onclick: () => { if (!state.between && remaining() <= 0) endSection(true); else enterExam(); } }),
           h('button', { class: 'btn btn-outline', type: 'button', text: 'ละทิ้ง', onclick: discard }))
       ),
-      h('p', { class: 'lead', text: 'จำลองบรรยากาศสอบจริง จับเวลา ไม่มีเฉลยระหว่างทำ และไม่มีระบบแปลช่วย' }),
-      h('ul', { class: 'rules' },
-        h('li', { text: 'เวลา ' + cfg.durationMin + ' นาที — หมดเวลาแล้วระบบส่งข้อสอบให้อัตโนมัติ' }),
-        itemsPreview.map((t) => h('li', { text: t })),
-        h('li', { text: 'ข้ามไปมาระหว่างข้อได้ เปลี่ยนคำตอบได้ และทำเครื่องหมายข้อที่อยากกลับมาดู' }),
-        h('li', { text: 'เฉลยและคำอธิบายจะแสดงหลังส่งข้อสอบ (และเปิดระบบแปลได้ตอนทบทวน)' }),
-        h('li', { text: 'ปิดหน้าเว็บแล้วกลับมาได้ แต่เวลายังเดินต่อ' })
-      ),
-      h('div', { class: 'btn-row' },
-        h('button', { class: 'btn', type: 'button', text: 'เริ่มสอบ', onclick: start })),
+      h('p', { class: 'lead', text: 'ซ้อมสอบแบบจับเวลา ไม่มีเฉลยและไม่มีระบบแปลช่วยระหว่างทำ ส่งแล้วจึงเห็นคะแนนและเฉลยทุกข้อ เลือกรูปแบบที่ต้องการ' }),
+      h('div', { class: 'stack' }, profiles.map(profileCard)),
+      rulesBox(),
       history.length > 0 && h('div', { class: 'review' },
         h('h3', { text: 'ผลการสอบครั้งก่อน' }),
         h('ul', { class: 'history' }, history.slice(0, 5).map((r) => h('li', {},
-          h('span', { text: fmtDate(r.at) }),
+          h('span', { text: fmtDate(r.at) + (r.title ? ' · ' + r.title : '') }),
           h('span', { text: r.score + '/' + r.total + ' (' + pct(r.score, r.total) + '%)' }),
           h('span', { class: 'meta', text: 'ใช้เวลา ' + fmtClock(r.usedMs) + (r.auto ? ' · หมดเวลา' : '') })))))
     );
   }
 
+  function renderBetween() {
+    const done = state.secLog[state.secLog.length - 1];
+    const sec = curSec();
+    const prevSec = secs()[state.secIndex - 1];
+    setView(
+      h('section', { class: 'panel' },
+        h('p', { class: 'eyebrow', text: 'จบส่วน ' + prevSec.title }),
+        h('div', { class: 'score', text: fmtClock(done.usedMs) }),
+        h('p', { class: 'score-sub', text: 'เวลาที่ใช้ในส่วน ' + prevSec.title + (done.auto ? ' (หมดเวลา)' : '') }),
+        h('p', { text: 'ส่วนถัดไป: ' + sec.title + ' — ' + sec.minutes + ' นาที เวลาจะเริ่มนับเมื่อคุณกดปุ่มด้านล่าง' }),
+        h('div', { class: 'btn-row' },
+          h('button', { class: 'btn', type: 'button', text: 'เริ่มส่วน ' + sec.title, onclick: startNextSection }))
+      )
+    );
+  }
+
   function navigator() {
+    const sec = curSec();
     return h('div', { class: 'navigator' },
-      parts.map((p) => {
-        const idxs = state.items.map((it, i) => (it.part === p.id ? i : -1)).filter((i) => i >= 0);
+      sec.parts.map((p) => {
+        const idxs = state.items.map((it, i) => (it.sec === sec.id && it.part === p.id ? i : -1)).filter((i) => i >= 0);
         return h('div', { class: 'nav-part' },
           h('p', { class: 'meta', text: p.title }),
           h('div', { class: 'nav-cells' }, idxs.map((i, k) => {
@@ -263,12 +396,17 @@
   }
 
   function renderExam() {
+    const profile = prof();
+    const oneWay = profile.oneWay;
+    const sec = curSec();
     const it = state.items[state.index];
-    const part = partById.get(it.part);
-    const inPart = state.items.filter((x) => x.part === it.part);
-    const posInPart = inPart.indexOf(it) + 1;
-    const answered = state.items.reduce((s, x) => s + unitsAnswered(x), 0);
-    const total = totalPoints(state.items);
+    const its = itemsOfSec(sec.id);
+    const pos = its.indexOf(it) + 1;
+    const inPart = its.filter((x) => x.part === it.part);
+    const answered = its.reduce((s, x) => s + unitsAnswered(x), 0);
+    const total = totalPoints(its);
+    const isLast = it === its[its.length - 1];
+    const ptitle = partTitle(profile, sec.id, it.part);
 
     let body;
     if (it.kind === 'mcq') {
@@ -308,53 +446,73 @@
       body = [h('span', { class: 'topic', text: p.topic }), h('div', { class: 'passage' }, nodes)];
     }
 
-    const status = h('span', { class: 'meta', id: 'exam-count', text: 'ตอบแล้ว ' + answered + '/' + total });
+    const status = h('span', { class: 'meta', text: 'ตอบแล้ว ' + answered + '/' + total });
+    const nextBtn = h('button', {
+      class: 'btn',
+      type: 'button',
+      disabled: !canAdvance(it),
+      text: isLast ? (oneWay ? (state.secIndex === secs().length - 1 ? 'ส่งข้อสอบ' : 'จบส่วน ' + sec.title) : 'ตรวจทานก่อนส่ง') : 'ถัดไป →',
+      onclick: next,
+    });
     function updateBar() {
-      const a = state.items.reduce((s, x) => s + unitsAnswered(x), 0);
+      const a = its.reduce((s, x) => s + unitsAnswered(x), 0);
       status.textContent = 'ตอบแล้ว ' + a + '/' + total;
+      nextBtn.disabled = !canAdvance(it);
     }
 
     setView(
       h('div', { class: 'exam-bar' },
-        h('span', { class: 'exam-timer' + (remaining() <= 5 * 60000 ? ' low' : ''), id: 'exam-timer', role: 'timer', 'aria-label': 'เวลาที่เหลือ', text: fmtClock(remaining()) }),
+        h('div', { class: 'exam-timebox' },
+          h('span', { class: 'exam-timer' + (remaining() <= 5 * 60000 ? ' low' : ''), id: 'exam-timer', role: 'timer', 'aria-label': 'เวลาที่เหลือของส่วนนี้', text: fmtClock(remaining()) }),
+          h('span', { class: 'exam-sec', text: profile.sections.length > 1 ? sec.title + ' · ' + sec.minutes + ' นาที' : profile.title })),
         status,
-        h('button', { class: 'btn btn-sm btn-outline', type: 'button', text: 'ส่งข้อสอบ', onclick: askSubmit })
+        !oneWay && h('button', { class: 'btn btn-sm btn-outline', type: 'button', text: 'ส่งข้อสอบ', onclick: askEndSection })
       ),
       h('section', { class: 'panel' },
+        oneWay && h('div', { class: 'progress', role: 'progressbar', 'aria-label': 'ความคืบหน้าของส่วนนี้', 'aria-valuemin': '0', 'aria-valuemax': String(its.length), 'aria-valuenow': String(pos - 1) },
+          h('div', { class: 'progress-fill', style: { width: pct(pos - 1, its.length) + '%' } })),
         h('div', { class: 'top-bar' },
-          h('span', { text: part.title + ' · ' + (it.kind === 'cloze' ? 'บทความ ' : 'ข้อ ') + posInPart + '/' + inPart.length }),
+          h('span', { text: oneWay
+            ? ptitle + ' · ข้อ ' + pos + '/' + its.length
+            : ptitle + ' · ' + (it.kind === 'cloze' ? 'บทความ ' : 'ข้อ ') + (inPart.indexOf(it) + 1) + '/' + inPart.length }),
           it.flag && h('span', { text: 'ทำเครื่องหมายไว้' })),
         body,
-        h('div', { class: 'exam-actions' },
-          h('button', { class: 'btn btn-outline', type: 'button', text: '← ก่อนหน้า', disabled: state.index === 0, onclick: () => go(state.index - 1) }),
-          h('button', { class: 'btn', type: 'button', text: state.index === state.items.length - 1 ? 'ตรวจทานก่อนส่ง' : 'ถัดไป →', onclick: () => (state.index === state.items.length - 1 ? askSubmit() : go(state.index + 1)) })),
-        h('div', { class: 'btn-row exam-tools' },
+        oneWay
+          ? h('div', { class: 'exam-actions' }, nextBtn)
+          : h('div', { class: 'exam-actions' },
+            h('button', { class: 'btn btn-outline', type: 'button', text: '← ก่อนหน้า', disabled: state.index === state.items.findIndex((x) => x.sec === sec.id), onclick: () => go(state.index - 1) }),
+            nextBtn),
+        !oneWay && h('div', { class: 'btn-row exam-tools' },
           h('button', { class: 'btn btn-ghost btn-sm', type: 'button', 'aria-pressed': String(it.flag), text: it.flag ? 'ยกเลิกเครื่องหมาย' : 'ทำเครื่องหมายไว้ทบทวน', onclick: toggleFlag }),
-          h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: 'ล้างคำตอบ', onclick: clearAnswer }))
+          h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: 'ล้างคำตอบ', onclick: clearAnswer })),
+        oneWay && !canAdvance(it) && h('p', { class: 'fine-print', text: 'ต้องตอบให้ครบก่อนไปข้อถัดไป และย้อนกลับมาแก้ไม่ได้' })
       ),
-      h('details', { class: 'nav-details', open: true },
+      !oneWay && h('details', { class: 'nav-details', open: true },
         h('summary', { text: 'รายการข้อทั้งหมด' }),
         navigator()),
-      h('p', { class: 'fine-print', text: 'คีย์ลัด: 1–' + (it.kind === 'mcq' ? it.order.length : 5) + ' เลือกคำตอบ · ลูกศรซ้าย/ขวา ย้ายข้อ' })
+      h('p', { class: 'fine-print', text: oneWay
+        ? 'คีย์ลัด: 1–' + (it.kind === 'mcq' ? it.order.length : 5) + ' เลือกคำตอบ · Enter ไปข้อถัดไป'
+        : 'คีย์ลัด: 1–' + (it.kind === 'mcq' ? it.order.length : 5) + ' เลือกคำตอบ · ลูกศรซ้าย/ขวา ย้ายข้อ' })
     );
   }
 
   function renderResult() {
     const f = finished;
     const p = pct(f.score, f.total);
+    const multi = f.sections.length > 1;
 
-    const rows = f.byPart.map((bp) => h('li', { class: 'stage-row part' },
-      h('span', { class: 'stage-lv', text: bp.title }),
+    const rows = f.sections.flatMap((s) => s.parts.map((bp) => h('li', { class: 'stage-row part' },
+      h('span', { class: 'stage-lv', text: multi ? s.title + ' · ' + bp.title : bp.title }),
       h('span', { class: 'bar' }, h('span', { class: 'bar-fill', style: { width: pct(bp.score, bp.total) + '%' } })),
-      h('span', { class: 'stage-score', text: bp.score + '/' + bp.total })));
+      h('span', { class: 'stage-score', text: bp.score + '/' + bp.total }))));
 
     const FILTERS = [
       ['all', 'ทั้งหมด', () => true],
       ['wrong', 'ที่ตอบผิด', (it) => earnedOf(it) < pointsOf(it)],
       ['skipped', 'ที่ไม่ได้ตอบ', (it) => unitsAnswered(it) < pointsOf(it)],
       ['flagged', 'ที่ทำเครื่องหมาย', (it) => it.flag],
-    ];
-    const active = FILTERS.find(([k]) => k === filter);
+    ].filter(([k]) => k !== 'flagged' || f.items.some((it) => it.flag));
+    const active = FILTERS.find(([k]) => k === filter) || FILTERS[0];
     const shown = f.items.filter(active[2]);
 
     const chips = h('div', { class: 'chips' }, FILTERS.map(([k, label, fn]) => h('button', {
@@ -366,10 +524,11 @@
     })));
 
     const list = shown.map((it) => {
+      const tag = multi ? f.sections.find((s) => s.id === it.sec).title : '';
       if (it.kind === 'mcq') {
         const q = questionOf(it);
         return h('div', { class: 'review-item' },
-          h('p', { class: 'review-q', 'data-tr': true, text: partById.get(it.part).title.split(' · ')[0] + ' ข้อ ' + q.n + ': ' + q.q }),
+          h('p', { class: 'review-q', 'data-tr': true, text: (tag ? tag + ' · ' : '') + partTitle(f.profile, it.sec, it.part).replace(/^Part \d · /, '') + ' ข้อ ' + q.n + ': ' + q.q }),
           it.pick === null
             ? h('p', { class: 'meta', text: 'ไม่ได้ตอบ' })
             : h('p', { class: it.pick === q.a ? 'review-right' : 'review-you', text: (it.pick === q.a ? '✓ ' : '✗ ') + 'คุณตอบ: ' + q.c[it.pick] }),
@@ -390,13 +549,15 @@
 
     setView(
       h('section', { class: 'panel summary' },
-        h('h2', { text: 'ผลการสอบจำลอง' }),
+        h('h2', { text: 'ผลการสอบจำลอง · ' + f.profile.title }),
         h('div', { class: 'score', text: f.score + ' / ' + f.total }),
-        h('p', { class: 'score-sub', text: p + '% · ใช้เวลา ' + fmtClock(f.usedMs) + ' จาก ' + cfg.durationMin + ' นาที' + (f.auto ? ' · หมดเวลา ระบบส่งให้อัตโนมัติ' : '') }),
+        h('p', { class: 'score-sub', text: p + '% · ใช้เวลา ' + fmtClock(f.usedMs) + (f.auto ? ' · มีส่วนที่หมดเวลา ระบบส่งให้อัตโนมัติ' : '') }),
         h('ul', { class: 'stage-rows' }, rows),
+        multi && h('p', { class: 'card-meta', text: f.sections.map((s) => s.title + ' ใช้เวลา ' + fmtClock(s.usedMs) + ' จาก ' + s.minutes + ':00').join(' · ') }),
+        h('p', { class: 'fine-print', text: 'คะแนนข้างบนเป็นเปอร์เซ็นต์ของข้อสอบชุดนี้ ไม่ใช่คะแนน EF SET (0–100) และไม่แปลงเป็นระดับ CEFR — ดูระดับของคุณที่หน้าทดสอบระดับ' }),
         h('div', { class: 'btn-row' },
-          h('button', { class: 'btn', type: 'button', text: 'สอบใหม่อีกครั้ง', onclick: start }),
-          h('button', { class: 'btn btn-outline', type: 'button', text: 'กลับหน้าแรก', onclick: goIntro })),
+          h('button', { class: 'btn', type: 'button', text: 'สอบใหม่อีกครั้ง', onclick: () => start(f.profile.id) }),
+          h('button', { class: 'btn btn-outline', type: 'button', text: 'กลับหน้าเลือกรูปแบบ', onclick: goIntro })),
         h('div', { class: 'review' },
           h('h3', { text: 'ทบทวนข้อสอบ' }),
           chips,
@@ -407,16 +568,18 @@
 
   // ---------- Keyboard ----------
   document.addEventListener('keydown', (e) => {
-    if (view !== 'exam' || !state || e.ctrlKey || e.metaKey || e.altKey || dialogOpen()) return;
+    if (view !== 'exam' || !state || state.between || e.ctrlKey || e.metaKey || e.altKey || dialogOpen()) return;
     if (e.target && /^(SELECT|INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
     const it = state.items[state.index];
-    if (e.key === 'ArrowRight') { go(state.index + 1); return; }
-    if (e.key === 'ArrowLeft') { go(state.index - 1); return; }
+    const oneWay = prof().oneWay;
+    if (e.key === 'Enter' && oneWay && canAdvance(it)) { e.preventDefault(); next(); return; }
+    if (!oneWay && e.key === 'ArrowRight') { go(state.index + 1); return; }
+    if (!oneWay && e.key === 'ArrowLeft') { go(state.index - 1); return; }
     const idx = KEYS.indexOf(e.key);
     if (it.kind === 'mcq' && e.key.length === 1 && idx >= 0 && idx < it.order.length) pickMcq(idx);
   });
 
   // ---------- Init ----------
-  if (state && remaining() <= 0) submit(true);   // time ran out while the tab was closed
+  if (state && !state.between && remaining() <= 0) { view = 'exam'; endSection(true); }   // time ran out while the tab was closed
   else render();
 })();
