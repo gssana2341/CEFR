@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ควิซไวยากรณ์ A1A2B1 (150 ข้อ)</title>
+    <style>
+        :root {
+            --bg-color: #f1f5f9;
+            --text-color: #334155;
+            --card-bg: #ffffff;
+            --primary: #1e293b;
+            --primary-hover: #334155;
+            --secondary: #e2e8f0;
+            --accent: #fef08a;
+            --accent-text: #854d0e;
+            --correct-bg: #dcfce7;
+            --correct-border: #22c55e;
+            --wrong-bg: #fee2e2;
+            --wrong-border: #ef4444;
+            --notebook-line: #e2e8f0;
+            --notebook-margin: #fca5a5;
+            --resume-bg: #ecfdf5;
+            --resume-text: #065f46;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #0f172a;
+                --text-color: #f8fafc;
+                --card-bg: #1e293b;
+                --primary: #cbd5e1;
+                --primary-hover: #f1f5f9;
+                --secondary: #334155;
+                --accent: #ca8a04;
+                --accent-text: #fef08a;
+                --correct-bg: #14532d;
+                --correct-border: #22c55e;
+                --wrong-bg: #7f1d1d;
+                --wrong-border: #ef4444;
+                --notebook-line: #334155;
+                --notebook-margin: #991b1b;
+                --resume-bg: #064e3b;
+                --resume-text: #34d399;
+            }
+        }
+
+        * { box-sizing: border-box; font-family: 'Sarabun', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; display: flex; justify-content: center; min-height: 100vh; transition: background-color 0.3s; }
+        .container { max-width: 700px; width: 100%; }
+        
+        h2 { text-align: center; color: var(--text-color); }
+        mark { background-color: var(--accent); color: var(--accent-text); padding: 0 8px; border-radius: 4px; }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Notebook Style */
+        .notebook-style {
+            background-image: repeating-linear-gradient(transparent, transparent 39px, var(--notebook-line) 39px, var(--notebook-line) 40px);
+            background-position: 0 40px;
+            padding: 40px 20px 20px 50px;
+            position: relative;
+            line-height: 40px;
+        }
+        .notebook-style::before {
+            content: ''; position: absolute; top: 0; bottom: 0; left: 40px; width: 2px; background-color: var(--notebook-margin);
+        }
+
+        /* Home Screen */
+        .resume-box { background-color: var(--resume-bg); color: var(--resume-text); padding: 20px; border-radius: 12px; margin-bottom: 20px; display: none; }
+        .btn {
+            background-color: var(--primary); color: var(--card-bg); border: none; padding: 12px 24px; border-radius: 999px;
+            font-size: 16px; font-weight: bold; cursor: pointer; display: inline-block; transition: all 0.2s; text-align: center;
+        }
+        .btn:hover { background-color: var(--primary-hover); transform: translateY(-1px); }
+        .btn-outline { background-color: transparent; border: 2px solid var(--secondary); color: var(--text-color); }
+        .btn-outline.active { background-color: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+        
+        .option-group { display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
+        
+        /* Quiz Screen */
+        #quiz-screen, #summary-screen { display: none; }
+        .question-text { font-size: 18px; font-weight: 500; margin-bottom: 20px; line-height: 1.5; background-color: var(--card-bg); padding: 10px; border-radius: 8px; display: inline-block; z-index: 1; position: relative; }
+        .choice-btn {
+            display: block; width: 100%; text-align: left; background-color: var(--card-bg); border: 2px solid var(--secondary);
+            padding: 12px 20px; border-radius: 8px; margin-bottom: 12px; cursor: pointer; color: var(--text-color); font-size: 16px; transition: 0.2s;
+            position: relative; z-index: 1; line-height: normal;
+        }
+        .choice-btn:hover:not(:disabled) { border-color: var(--primary); }
+        .choice-btn.correct { background-color: var(--correct-bg); border-color: var(--correct-border); }
+        .choice-btn.wrong { background-color: var(--wrong-bg); border-color: var(--wrong-border); }
+        .choice-btn:disabled { cursor: default; }
+
+        .explanation { margin-top: 15px; padding: 15px; background-color: var(--secondary); border-radius: 8px; display: none; position: relative; z-index: 1; line-height: normal;}
+        .progress-bar { height: 6px; background-color: var(--secondary); border-radius: 3px; margin-bottom: 20px; overflow: hidden; }
+        .progress-fill { height: 100%; background-color: var(--primary); width: 0%; transition: width 0.3s; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 14px; position: relative; z-index: 1;}
+        .q-number { background: var(--secondary); padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+
+        .footer-note { font-size: 12px; color: gray; margin-top: 10px; line-height: normal; }
+        
+        .summary-item { border-bottom: 1px solid var(--secondary); padding: 15px 0; line-height: normal;}
+        .flex-center { display: flex; justify-content: center; gap: 10px; margin-top: 20px; flex-wrap: wrap;}
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>ควิซไวยากรณ์ <mark>A1A2B1</mark></h2>
+
+    <!-- หน้าแรก -->
+    <div id="home-screen">
+        <div id="resume-section" class="resume-box">
+            <p style="margin-top:0;">มีรอบที่ทำค้างไว้ ข้อ <span id="resume-progress"></span></p>
+            <button class="btn" onclick="resumeQuiz()">ทำต่อจากเดิม</button>
+        </div>
+
+        <div class="card notebook-style">
+            <h3 style="margin-top:0;">พร้อมแล้วเริ่มได้เลย</h3>
+            <p style="line-height: normal;">ข้อสอบฉบับสมบูรณ์ครบ 150 ข้อ สุ่มลำดับข้อและตัวเลือกใหม่ทุกครั้ง ตอบแล้วเห็นเฉลยทันที</p>
+            
+            <p style="font-weight:bold; margin-top:20px;">จำนวนข้อในรอบนี้</p>
+            <div class="option-group">
+                <button class="btn btn-outline" id="btn-count-25" onclick="setCount(25)">25 ข้อ</button>
+                <button class="btn btn-outline" id="btn-count-50" onclick="setCount(50)">50 ข้อ</button>
+                <button class="btn btn-outline active" id="btn-count-all" onclick="setCount(150)">ทั้งหมด 150 ข้อ</button>
+            </div>
+
+            <button class="btn" style="margin-top:20px;" onclick="startNewQuiz()">เริ่มทำข้อสอบ</button>
+            <p class="footer-note">กดปุ่ม 1-4 เพื่อเลือกคำตอบ และ Enter เพื่อไปข้อถัดไป ความคืบหน้าบันทึกไว้ในเครื่องนี้</p>
+        </div>
+    </div>
+
+    <!-- หน้าควิซ -->
+    <div id="quiz-screen" class="card notebook-style">
+        <div class="progress-bar"><div class="progress-fill" id="progress-bar"></div></div>
+        <div class="top-bar">
+            <span id="quiz-progress-text">ข้อ 1/25</span>
+            <span class="q-number" id="book-q-number">อ้างอิงหนังสือข้อ: 1</span>
+        </div>
+        
+        <div class="question-text" id="question-text"></div>
+        <div id="options-container"></div>
+        
+        <div class="explanation" id="explanation-box">
+            <strong id="explain-title"></strong>
+            <p id="explain-text" style="margin:5px 0;"></p>
+            <button class="btn" style="margin-top:10px; width:100%;" id="next-btn" onclick="nextQuestion()">ถัดไป (Enter)</button>
+        </div>
+
+        <div class="flex-center" style="margin-top: 30px; position: relative; z-index: 1;">
+            <button class="btn btn-outline" style="font-size: 14px; padding: 6px 12px;" onclick="goHomeConfirm()">🏠 กลับหน้าแรก (เริ่มใหม่)</button>
+        </div>
+    </div>
+
+    <!-- หน้าสรุปผล -->
+    <div id="summary-screen" class="card" style="padding: 30px;">
+        <h3 style="text-align: center;">สรุปผลคะแนน</h3>
+        <h1 style="text-align: center; color: var(--primary); font-size: 48px; margin: 10px 0;"><span id="score-text"></span></h1>
+        
+        <div id="wrong-answers-container" style="margin-top: 30px; display: none;">
+            <h4>ทบทวนข้อที่ตอบผิด</h4>
+            <div id="wrong-list"></div>
+        </div>
+
+        <div class="flex-center">
+            <button class="btn" id="retry-wrong-btn" onclick="retryWrong()" style="display:none;">ทำเฉพาะข้อที่ผิด</button>
+            <button class="btn btn-outline" onclick="showHome()">กลับหน้าแรก</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ข้อมูลข้อสอบสมบูรณ์ 150 ข้อ
+    const sourceData = [
+        { n: 1, q: "Man: Where's Billy?\nWoman: He's _______ his bedroom, I think.", c: ["in", "on", "under", "between"], a: 0, e: "in ใช้กับพื้นที่ปิด (ในห้องนอน)" },
+        { n: 2, q: "Man: How many goals _______ scored in the soccer game yesterday?\nWoman: Only one, I think.", c: ["are", "were", "scored", "were being"], a: 1, e: "Passive Voice (to be + V3) เพราะประธานทำเองไม่ได้ และ yesterday เป็นอดีตจึงใช้ were" },
+        { n: 3, q: "Man: Do you want to go running or swimming this weekend?\nWoman: _______ is fine with me.", c: ["All", "Both", "Every", "Either"], a: 3, e: "Either แปลว่า อันไหนก็ได้ ระหว่าง 2 อย่าง (running หรือ swimming)" },
+        { n: 4, q: "Girl: Good news. My mother let me _______ at school until five today.", c: ["stay", "stayed", "to stay"], a: 0, e: "โครงสร้าง let + คน + V1 (infinitive ไม่เปลี่ยนรูป) แปลว่า ปล่อยให้" },
+        { n: 5, q: "Man: This is _______ great picture!\nWoman: Yes, it is.", c: ["a", "the", "some"], a: 0, e: "รูปภาพ 1 รูปที่ไม่ได้เจาะจง ใช้ a" },
+        { n: 6, q: "Man: Is this David's phone?\nWoman: Yes, it is _______ phone?", c: ["him", "his", "he"], a: 1, e: "his เป็นสรรพนามแสดงความเป็นเจ้าของ แปลว่า ของเขา" },
+        { n: 7, q: "Woman: Do you live with your parents?\nMan: No, I live by _______.", c: ["my own", "me", "myself"], a: 2, e: "by myself = on my own แปลว่า ด้วยตัวเอง/คนเดียว" },
+        { n: 8, q: "Server: Would you like _______ dessert?\nCustomer: No, thank you. I'm full.", c: ["some", "a", "any"], a: 0, e: "some ใช้กับประโยคคำถามเชิงเสนอ (เสนอของหวานให้)" },
+        { n: 9, q: "Woman: Can I borrow a pen?\nMan: Sorry! I _______ have one.", c: ["can't", "won't", "don't", "didn't"], a: 2, e: "ปฏิเสธในปัจจุบัน (I don't have) สอดคล้องกับเหตุการณ์ปัจจุบัน Can I..." },
+        { n: 10, q: "Woman: _______ did you get home last night?\nMan: I got a taxi.", c: ["What", "When", "Where", "How"], a: 3, e: "How ใช้ถามวิธีการ (เดินทางอย่างไร - นั่งแท็กซี่)" },
+        { n: 11, q: "Man: Are _______ any bananas on the table?\nWoman: I'm sorry. I ate the last one.", c: ["they", "this", "it", "there"], a: 3, e: "there are / are there แปลว่า มี" },
+        { n: 12, q: "Woman: Please _______ talk on your phone in this area, sir.\nMan: I'm sorry. I will go outside.", c: ["no", "not", "isn't", "don't"], a: 3, e: "Please don't + V1 ใช้บอกให้กรุณาอย่าทำ..." },
+        { n: 13, q: "Man: Where did you go on vacation?\nWoman: We went to Florida, and we _______ a great time.", c: ["did", "had", "took", "made"], a: 1, e: "สำนวน have a good time (อดีตใช้ had) = มีเวลาที่สนุก/ดี" },
+        { n: 14, q: "Man: Whose is that fantastic car?\nWoman: Actually, it's _______.", c: ["theirs", "mine", "yours", "hers"], a: 1, e: "mine สรรพนามแสดงความเป็นเจ้าของ แปลว่า ของฉัน (ไม่ต้องมีนามตามหลัง)" },
+        { n: 15, q: "Woman: I'll be back in the office early on Monday.\nMan: Right. _______ a good weekend, then.", c: ["get", "have", "take", "make"], a: 1, e: "have a good weekend เป็นคำอวยพรขอให้มีวันหยุดที่ดี" },
+        { n: 16, q: "Woman: Sorry I didn't make it to the party.\nMan: What happened?\nWoman: Oh, I _______ really ill so I couldn't go.", c: ["feel", "felt", "feels", "feeling"], a: 1, e: "เหตุการณ์เกิดในอดีต (didn't make it) จึงต้องใช้กริยาช่อง 2 คือ felt" },
+        { n: 17, q: "Man: Are you looking forward _______ your holiday next week?\nWoman: Yes, I can't wait.", c: ["in", "to", "at", "for"], a: 1, e: "สำนวน look forward to + Noun/V.ing แปลว่า ตั้งตารอคอย" },
+        { n: 18, q: "Man: Whose is that money on the table?\nWoman: It's _______. I forgot that I left it there last night.", c: ["his", "mine", "ours", "yours"], a: 1, e: "mine (ของฉัน) เพราะประโยคหลังบอกว่า ฉันลืมทิ้งไว้เอง" },
+        { n: 19, q: "Man: Do you know Teresa?\nWoman: Yes, I met her a couple of months _______.", c: ["ago", "past", "away", "since"], a: 0, e: "ago แปลว่า ที่ผ่านมา ใช้บอกระยะเวลาในอดีต" },
+        { n: 20, q: "Boy: Shall we go out to the movie tonight?\nGirl: No, we _______ finish our homework first. It has to be in tomorrow.", c: ["might", "would", "could", "should"], a: 3, e: "should แปลว่า ควรจะ (เราควรทำการบ้านให้เสร็จก่อน)" },
+        { n: 21, q: "Girl: What did you give your little brother for his birthday?\nBoy: A toy train _______ of chocolate.", c: ["filled", "done", "made", "covered"], a: 2, e: "made of = ทำมาจาก (รถไฟทำจากช็อกโกแลต)" },
+        { n: 22, q: "Boy: What have you done to your leg?\nGirl: Oh, I fell over yesterday and it _______ hurts now.", c: ["so", "very", "quite", "really"], a: 3, e: "really ขยายกริยา hurts ได้ แปลว่า เจ็บจริงๆ" },
+        { n: 23, q: "Woman: _______ did you get home last night?\nMan: I got a taxi.", c: ["How", "When", "What", "Where"], a: 0, e: "How ถามวิธีการเดินทาง (เหมือนข้อ 10)" },
+        { n: 24, q: "Woman: I can't afford to go away on holiday this year.\nMan: What _______ instead?", c: ["do you do", "will you do", "have you do", "were you doing"], a: 1, e: "ถามถึงแผนในอนาคต (จะทำอะไรแทน) จึงใช้ will" },
+        { n: 25, q: "Man: Does it cost _______ to fly from London to Edinburgh?", c: ["many", "much", "a few", "a lot of"], a: 1, e: "cost (ราคา) เป็นนามนับไม่ได้ ใช้ much ในประโยคคำถาม" },
+        { n: 26, q: "Man: What do you think of Maria?\nWoman: Well, she struck me _______ very pleasant.", c: ["so", "as", "for", "like"], a: 1, e: "สำนวน strike someone as... แปลว่า ทำให้รู้สึกว่ามีลักษณะ..." },
+        { n: 27, q: "Husband: Has Sam said anything about when I should pick him up...\nWife: Yes. He said _______ you at the airport at five o'clock.", c: ["he met", "he meets", "he's met", "he'd meet"], a: 3, e: "Reported Speech เปลี่ยนจาก will meet (จะเจอ) เป็น would meet (he'd meet)" },
+        { n: 28, q: "Boy: Do you like playing this computer game?\nGirl: No, _______ boring.", c: ["they're", "it's", "we're", "I'm"], a: 1, e: "เกมคอมพิวเตอร์ (เอกพจน์) ใช้ it's (มันน่าเบื่อ)" },
+        { n: 29, q: "Woman: How many children _______ you got?\nMan: Three. Two girls and a boy.", c: ["do", "did", "have", "are"], a: 2, e: "โครงสร้าง have got / has got = มี (คู่กับ V3 got ต้องใช้ have/has)" },
+        { n: 30, q: "Man: Do you want to come with me to the supermarket?\nWoman: No, thanks. I don't need _______.", c: ["it", "something", "one", "anything"], a: 3, e: "ประโยคปฏิเสธ (don't need) ใช้ anything" },
+        { n: 31, q: "Woman: Can I borrow a pen?\nMan: Sorry, I _______ have one.", c: ["didn't", "haven't got", "won't", "don't"], a: 3, e: "เหตุการณ์ปัจจุบันใช้ don't have (เหมือนข้อ 9)" },
+        { n: 32, q: "Girl: Could I _______ your pen for a minute?\nBoy: Yeah, sure!", c: ["borrow", "borrowed", "lend", "lent"], a: 0, e: "Could I + V1 (ขอยืม) ใช้ borrow ไม่เปลี่ยนรูป" },
+        { n: 33, q: "Boy: Do you eat brown bread?\nGirl: Not really. I _______ white better.", c: ["like", "want", "prefer", "eat"], a: 0, e: "โครงสร้าง like + สิ่งหนึ่ง + better แปลว่า ชอบสิ่งนี้มากกว่า" },
+        { n: 34, q: "Man: _______ wrong?\nWoman: I don't feel very well.", c: ["How's", "What's", "Are you", "What's matter"], a: 1, e: "What's wrong? = เกิดอะไรขึ้น/มีอะไรผิดปกติ" },
+        { n: 35, q: "Woman: I always travel by bus.\nMan: Why?\nWoman: Because it's _______ than the train.", c: ["much cheaper", "as cheap", "more cheap", "cheap"], a: 0, e: "เปรียบเทียบขั้นกว่า (cheaper) และใช้ much ขยายเน้นว่า ถูกกว่ามาก" },
+        { n: 36, q: "Man: Is Anna here today?\nWoman: No, _______ at home on Tuesdays.", c: ["she is working", "she would work", "she works", "she work"], a: 2, e: "ทำเป็นประจำทุกวันอังคาร (Tuesdays) ใช้ Present Simple (ประธานเอกพจน์กริยาเติม s)" },
+        { n: 37, q: "Woman: _______ do you do?\nMan: I'm a chef in a French restaurant.", c: ["How", "Where", "What", "Whose"], a: 2, e: "What do you do? ถามอาชีพ (คุณทำอาชีพอะไร)" },
+        { n: 38, q: "Girl: Is Sam _______ than you now?\nBoy: Yes. He's grown a lot recently.", c: ["taller", "the tallest", "more taller", "tall"], a: 0, e: "มีคำว่า than ต้องใช้ขั้นกว่า (taller)" },
+        { n: 39, q: "Woman: Where did you get that book?\nMan: Peter gave it to _______ yesterday.", c: ["me", "my", "mine", "myself"], a: 0, e: "ให้ฉัน ต้องเป็น me (กรรมของประโยค) **(ข้อนี้หนังสือเฉลยผิดเป็น my จึงถูกปรับแก้ให้ถูกต้องแล้ว)**", override: 1 },
+        { n: 40, q: "Boy: When _______ George start learning Spanish?\nGirl: About two years ago, I think.", c: ["did", "will", "was"], a: 0, e: "มี start (V1) และเหตุการณ์ในอดีต (ago) จึงต้องใช้ did เป็นกริยาช่วย" },
+        { n: 41, q: "Woman: Would you like another coffee?\nMan: No thanks, I've had _______.", c: ["any", "some", "much", "enough"], a: 3, e: "I've had enough แปลว่า ฉันดื่มพอแล้ว" },
+        { n: 42, q: "Girl: What are your plans for the weekend?\nBoy: I _______ to the cinema with Kirsty.", c: ["go", "went", "will going", "am going"], a: 3, e: "Present Continuous (am going) ใช้กับแผนการในอนาคตอันใกล้ที่แน่ชัดแล้ว" },
+        { n: 43, q: "Man: How long have you been in Australia?\nWoman: Two months.\nMan: And do you _______ it in Sydney?", c: ["like", "live", "find", "want"], a: 0, e: "ถามความชอบ Do you like it? (คุณชอบมันไหม)" },
+        { n: 44, q: "Woman: I always look forward to the summer holidays.\nMan: So _______ I.", c: ["do", "am", "can", "have"], a: 0, e: "เห็นด้วยกับประโยคบอกเล่า So + กริยาช่วย (ประโยคแรกใช้ V1 จึงใช้ do) + ประธาน" },
+        { n: 45, q: "Woman: I'm going to the mountains... I haven't got any climbing boots.\nMan: Oh, do you want to borrow _______?", c: ["my", "me", "mine", "mines"], a: 2, e: "mine (ของฉัน) สรรพนามความเป็นเจ้าของที่ไม่ต้องมีนามตาม" },
+        { n: 46, q: "Waiter: Who ordered the soft drink?\nMan: I did.\nWaiter: _______ Enjoy!", c: ["Right", "Here you are", "Who is it"], a: 1, e: "Here you are = นี่ยื่นของให้ (เวลาเสิร์ฟ)" },
+        { n: 47, q: "Woman: You look a bit stressed. What's the matter?\nMan: I'm worried _______ my job interview next week.", c: ["to", "for", "of", "about"], a: 3, e: "กังวลเกี่ยวกับ ใช้ worried about" },
+        { n: 48, q: "Woman: How far is _______ to the bus stop?\nMan: Just a couple of blocks away.", c: ["it", "that", "this", "there"], a: 0, e: "ถามระยะทางใช้ it (How far is it...)" },
+        { n: 49, q: "Man: What did you think of Paul's girlfriend?\nWoman: I thought she was _______ nice, but she talks all the time.", c: ["much", "quite", "some", "enough"], a: 1, e: "quite + adj (ค่อนข้างดี) ขยาย nice" },
+        { n: 50, q: "Man: These two coats look the same. Which one is yours?\nWoman: I think mine's the one _______ the right.", c: ["to", "in", "for", "on"], a: 3, e: "ตำแหน่ง ทางขวามือ ใช้ on the right" },
+        { n: 51, q: "Girl: How often do you play football?\nBoy: Actually, I _______ play football.", c: ["often", "never", "always", "usually"], a: 1, e: "Actually มักใช้แย้งข้อมูล (ความจริงแล้วฉันไม่เคยเล่นเลย)" },
+        { n: 52, q: "Man: Do you spell your name with _______ without an \"e\"?\nWoman: It's Anne with an \"e\".", c: ["or", "for", "but", "and"], a: 0, e: "ให้เลือก 2 ทาง (มี e หรือ ไม่มี e) ใช้ or" },
+        { n: 53, q: "Woman: Where did you _______ last night?\nMan: A new pizzeria in town.", c: ["go", "been", "went", "going"], a: 0, e: "ประโยคคำถามอดีตมี did กริยาหลักต้องกลับเป็น V1 คือ go" },
+        { n: 54, q: "Salesperson: I'm sorry, were you waiting a long time?\nCustomer: No, I've only been here _______ a few minutes.", c: ["since", "from", "for", "in"], a: 2, e: "บอกระยะเวลา (ช่วงเวลา) ใช้ for" },
+        { n: 55, q: "Woman: Did you and Sally go to the meeting last night?\nMan: No, _______ couldn't go.", c: ["she", "they", "we", "I"], a: 2, e: "ถามคุณและแซลลี่ (พวกคุณ) สรรพนามตอบคือ we (พวกเรา)" },
+        { n: 56, q: "Man: What do you usually _______ in the evenings?\nWoman: I like to watch Netflix.", c: ["do", "doing", "done", "did"], a: 0, e: "หลัง do/does (กริยาช่วย) กริยาหลักต้องเป็น V1 คือ do" },
+        { n: 57, q: "Man: _______ I speak to Mr. Brown, please?\nWoman: He's not here, I'm afraid.", c: ["Would", "Could", "Do", "Should"], a: 1, e: "ขอร้องอย่างสุภาพใช้ Could I... (สุภาพกว่า Can I)" },
+        { n: 58, q: "Girl: I thought it was a bit boring.\nBoy: Me too. The other team didn't get the ball very much, _______?", c: ["are they", "didn't they", "do they", "did they"], a: 3, e: "Tag question ประโยคหน้าปฏิเสธ (didn't) Tag ต้องเป็นบอกเล่า (did they)" },
+        { n: 59, q: "Man: Do you like Rosie?\nWoman: She's OK but she doesn't say much.\nMan: Yes, she's a bit _______.", c: ["shy", "silly", "kind", "calm"], a: 0, e: "doesn't say much (ไม่ค่อยพูด) สอดคล้องกับ shy (ขี้อาย)" },
+        { n: 60, q: "Boy: What's the homework for tonight?\nGirl: The teacher _______ us to revise the irregular verbs.", c: ["gave", "told", "spoke", "talked"], a: 1, e: "told + กรรม + to V1 (บอกให้พวกเราไปทบทวน)" },
+        { n: 61, q: "Man: The music was fantastic, wasn't it?\nWoman: Yes, it was the best concert I've _______ been to.", c: ["never", "ever", "just", "already"], a: 1, e: "the best... I've ever been to (ดีที่สุดที่ฉันเคยไปมา)" },
+        { n: 62, q: "Woman: Is _______ any cake in the fridge?\nMan: Yes. Help yourself.", c: ["it", "here", "that", "there"], a: 3, e: "Is there...? แปลว่า มี...ไหม?" },
+        { n: 63, q: "Wife: I can't find my keys anywhere!\nHusband: Oh, look! They're _______ the kitchen floor.", c: ["on", "by", "at", "in"], a: 0, e: "บนพื้นผิว 2 มิติ (บนพื้น) ใช้ on the floor" },
+        { n: 64, q: "Man: She is great! I can't get _______ how focused her students are!\nWoman: Yes! They really like her class!", c: ["by", "after", "over", "between"], a: 2, e: "get over (แปลว่า ผ่านพ้น/เลิกประหลาดใจไม่ได้) = ยังทึ่งอยู่ว่าเด็กโฟกัสขนาดไหน" },
+        { n: 65, q: "Man: Beautiful curtains!\nWoman: Thanks, I made them _______.", c: ["myself", "me", "my me", "my"], a: 0, e: "ด้วยตัวฉันเอง ทำเอง ใช้ myself" },
+        { n: 66, q: "Man: I've had almost no energy for three days now.\nWoman: Then you _______ stay home from work. You need to rest.", c: ["had to", "would best", "had better", "would better"], a: 2, e: "had better + V1 (ไม่เปลี่ยนรูป) แปลว่า 'ควรจะ' ใช้แนะนำ" },
+        { n: 67, q: "Woman: You play the piano, _______ you?\nMan: No, I play the guitar.", c: ["aren't", "haven't", "won't", "don't"], a: 3, e: "Tag question ของ V1 (play) คือ don't/doesn't ประธาน you ใช้ don't" },
+        { n: 68, q: "Man: Will you be at John's party tomorrow?\nWoman: Well, I'll come _______ I finish work in time.", c: ["if", "while", "when", "unless"], a: 0, e: "if แปลว่า 'ถ้า' (ฉันจะมา ถ้าฉันทำงานเสร็จทันเวลา)" },
+        { n: 69, q: "Woman: Do you know Tony?\nMan: Is he the one _______ son is a doctor?", c: ["who", "whom", "which", "whose"], a: 3, e: "whose แสดงความเป็นเจ้าของ (ลูกชายของเขา)" },
+        { n: 70, q: "Woman: You play the piano beautifully!\nMan: Thank you! _______ you like me to play another song?", c: ["Should", "Do", "Would", "Will"], a: 2, e: "Would you like...? เป็นการเสนออย่างสุภาพ (อยากให้ฉันเล่นอีกเพลงไหม?)" },
+        { n: 71, q: "Man: How's your lunch?\nWoman: There _______ be a lot of pepper in this dish. It is very spicy!", c: ["can", "would", "must", "should"], a: 2, e: "must be = ต้องเป็น/ต้องมีแน่ๆ (อนุมานจากความเผ็ดว่าต้องมีพริกเยอะ)" },
+        { n: 72, q: "Woman: Where did you get that book?\nMan: Peter gave it to _______ yesterday.", c: ["myself", "my", "mine", "me"], a: 3, e: "to + กรรม (me) แปลว่า ให้ฉัน" },
+        { n: 73, q: "Woman: Is your sister _______ television?\nMan: No, she is not.", c: ["watch", "watches", "to watch", "watching"], a: 3, e: "Present Continuous: is/am/are + V.ing (กำลังดูทีวีอยู่ไหม)" },
+        { n: 74, q: "Woman: What's the name of Sam's new baby?\nMan: I think she _______ Linda.", c: ["names", "named", "will name", "was named"], a: 3, e: "Passive voice: was named แปลว่า 'ถูกตั้งชื่อว่า'" },
+        { n: 75, q: "Woman: Come in - you look a bit cold.\nMan: Thanks - the wind's so strong it nearly blew my hat _______.", c: ["out", "off", "on", "down"], a: 1, e: "blow off = พัดปลิวหลุดออกไป (ลมพัดหมวกปลิว)" },
+        { n: 76, q: "Woman: Look at this picture of my brother's new baby?\nMan: You know, he looks just _______ your brother.", c: ["as", "too", "like", "same"], a: 2, e: "look like = ดูเหมือน (เขาดูเหมือนพี่ชายคุณเลย)" },
+        { n: 77, q: "Man: What exactly do you want?\nWoman: I would like to see you _______ a good job on the project.", c: ["to do", "doing", "having done", "do"], a: 3, e: "see + someone + do (V1 ไม่เปลี่ยนรูป) = เห็นใครทำอะไรตั้งแต่ต้นจนจบ (อยากเห็นคุณทำโปรเจกต์นี้ให้ดี)" },
+        { n: 78, q: "Woman: Hello! Can I _______ a message for Jim?\nMan: Hang on! Just let me find a pen.", c: ["say", "give", "drop", "leave"], a: 3, e: "leave a message = ฝากข้อความทิ้งไว้" },
+        { n: 79, q: "Man: What's wrong?\nWoman: My car _______.", c: ["can't start", "isn't starting", "won't start", "doesn't starting"], a: 2, e: "won't start มักใช้กับเครื่องยนต์หรืออุปกรณ์ที่ 'สตาร์ทไม่ติด/ไม่ยอมทำงาน'" },
+        { n: 80, q: "Man: I failed the test.\nWoman: Frankly, it's _______ surprise to me.", c: ["none", "no", "any", "not"], a: 1, e: "no + noun (surprise) = ไม่ใช่เรื่องน่าประหลาดใจ" },
+        { n: 81, q: "Woman: Good morning. May I help you?\nMan: Yes, I _______ that you sell laptop computers.", c: ["was telling", "been told", "was told", "did tell"], a: 2, e: "was told (Passive) = ฉันถูกบอกมา/ได้รับแจ้งมา (ว่าคุณขายแล็ปท็อป)" },
+        { n: 82, q: "Boy: Do you like playing this computer game?\nGirl: _______ boring. Shall we choose something else to play?", c: ["It's", "They're", "I'm", "You're"], a: 0, e: "It's = มัน (เกมเดียว) น่าเบื่อ" },
+        { n: 83, q: "Woman: My coworkers are always arguing. Should I say something?\nMan: If I were you, I'd _______ out of it.", c: ["put", "stay", "hold", "move"], a: 1, e: "stay out of it = ไม่เข้าไปยุ่งเกี่ยว/อยู่ห่างๆ ไว้" },
+        { n: 84, q: "Woman: There is a green scarf on the chair. _______ is it?\nMan: It isn't mine. It might be Ben's.", c: ["Who", "Whom", "Which", "Whose"], a: 3, e: "Whose is it? = มันเป็นของใคร?" },
+        { n: 85, q: "Wife: Do you fancy going to that new restaurant in town?\nHusband: Oh, I'm really tired. Let's eat _______ this evening.", c: ["in", "at", "out", "about"], a: 0, e: "eat in = กินข้าวที่บ้าน (เพราะเหนื่อยไม่อยากออกไปร้าน)" },
+        { n: 86, q: "Woman: Oh dear, I've left my gloves in the car.\nMan: Don't worry, I'll get _______ for you.", c: ["it", "them", "some", "ones"], a: 1, e: "gloves (ถุงมือเติม s) เป็นพหูพจน์ ใช้สรรพนาม them" },
+        { n: 87, q: "Woman: Why did you decide to _______ another job?\nMan: I wasn't happy with the one I had.", c: ["look at", "look after", "look for", "look into"], a: 2, e: "look for = มองหา (หางานใหม่)" },
+        { n: 88, q: "Woman: _______ of my friends can speak French very well.\nMan: Neither can mine.", c: ["No one", "Nobody", "No", "None"], a: 3, e: "None of + นามพหูพจน์ = ไม่มีใครเลย (ในกลุ่มเพื่อนของฉัน)" },
+        { n: 89, q: "Girl: I thought it was a bit boring.\nBoy: Me too. The other team didn't get the ball very much, _______?", c: ["did they", "do they", "are they", "doesn't they"], a: 0, e: "ประโยคหลักปฏิเสธ (didn't) Tag question ต้องเป็นบอกเล่า (did they)" },
+        { n: 90, q: "Man: I don't feel very well.\nWoman: It sounds like you might be _______ a cold.", c: ["doing", "having", "feeling", "getting"], a: 3, e: "getting a cold = กำลังจะเป็นหวัด" },
+        { n: 91, q: "Woman: Do you know what I really like about the weekends?\nMan: What?\nWoman: _______ have to get up early.", c: ["I don't", "I can't", "I haven't", "I'm not"], a: 0, e: "I don't have to = ฉันไม่จำเป็นต้อง (ตื่นเช้า)" },
+        { n: 92, q: "Man: Are those your students?\nWoman: Neither of the two girls _______ my student.", c: ["is", "have been", "are", "were"], a: 0, e: "Neither of + นามพหูพจน์ ตามหลักทางการจะใช้กริยาเอกพจน์ (is)" },
+        { n: 93, q: "Woman: Can you tell me where the nearest garage is?\nMan: Turn right _______ the next crossroads. You can't miss it.", c: ["on", "at", "in", "across"], a: 1, e: "ที่ทางแยก ใช้ at the crossroads" },
+        { n: 94, q: "Man: Did you go out last night?\nWoman: No, I _______ too tired.", c: ["am", "were", "was", "did"], a: 2, e: "เหตุการณ์ในอดีต (last night) ประธาน I คู่กับ was (tired เป็น adjective ต้องมี verb to be)" },
+        { n: 95, q: "Woman: There isn't _______ to make a cake.\nMan: Do you want me to get it now?", c: ["enough sugar", "sugar enough", "enough of sugar", "few sugar"], a: 0, e: "enough ขยายคำนามจะวางไว้หน้าคำนาม (enough + noun)" },
+        { n: 96, q: "Woman: _______ your brother spend Christmas with you?\nMan: Every year.", c: ["Do", "Does", "Have", "Has"], a: 1, e: "ประธานเอกพจน์ (your brother) และมีกริยาแท้ (spend) ต้องใช้กริยาช่วย Does" },
+        { n: 97, q: "Woman: Do you like your new job?\nMan: Yes, but my employer insists that I _______ on time.", c: ["was", "am", "be", "have been"], a: 2, e: "โครงสร้าง Subjunctive: insist that + ประธาน + V1 (ไม่ผันรูป/infinitive) เสมอ จึงใช้ be" },
+        { n: 98, q: "Man: It is dark in here.\nWoman: I will turn _______ the light.", c: ["on", "out", "over", "off"], a: 0, e: "มืด (dark) จึงต้อง เปิดไฟ (turn on)" },
+        { n: 99, q: "Woman: _______ do you visit your hometown?\nMan: Once a year.", c: ["How long", "How far", "How often", "How"], a: 2, e: "How often ถามความถี่ (คำตอบคือปีละครั้ง)" },
+        { n: 100, q: "Man: When did you realize _______ your purse?\nWoman: When I tried to pay for my lunch.", c: ["you lost", "you lose", "you'd lost", "you have lost"], a: 2, e: "you'd lost (Past Perfect) เหตุการณ์ทำกระเป๋าหายเกิดก่อน realize (Past Simple)" },
+        { n: 101, q: "Man: _______ you play the violin in school last year?\nWoman: No, I played the piano.", c: ["Did", "Are", "Have", "Were"], a: 0, e: "คำถามในอดีต (last year) ใช้กริยาช่วย Did" },
+        { n: 102, q: "Man: Why don't you take the bus to work?\nWoman: Well, I _______, but it was just so slow.", c: ["have to", "need to", "used to", "want to"], a: 2, e: "used to = เคย (เคยนั่งบัส แต่มันช้าเกินไป)" },
+        { n: 103, q: "Man: Can you work late tonight? ...\nWoman: I'm more than _______ to help, but I have to leave by 6 p.m. at the latest.", c: ["will", "will be", "willing", "be willing"], a: 2, e: "willing (adj.) = เต็มใจ (ฉันเต็มใจช่วยมากๆ แต่...)" },
+        { n: 104, q: "Boy: Why _______ you going swimming with us tomorrow?\nGirl: I'm just too busy.", c: ["haven't", "aren't", "don't", "can't"], a: 1, e: "Why aren't you going... (Present Continuous ใช้ถามแผนในอนาคต)" },
+        { n: 105, q: "Woman: Have you finished moving out of your old apartment?\nMan: Yes, the only thing I have left _______ is take my name off the mailbox.", c: ["do", "done", "to do", "for doing"], a: 2, e: "have left to do = เหลือสิ่งที่ต้องทำ" },
+        { n: 106, q: "Boy: Do you like playing this computer game?\nGirl: Not really. Do you have _______ else?", c: ["anything", "one thing", "everything", "another thing"], a: 0, e: "anything else = อย่างอื่นอีกไหม (ใช้ในประโยคคำถาม)" },
+        { n: 107, q: "Boy: Have you seen Maria?\nGirl: Sorry, I don't know where she _______.", c: ["is", "was", "been", "being"], a: 0, e: "ถามถึงปัจจุบันว่าไม่รู้ตอนนี้นางอยู่ไหน ใช้ is" },
+        { n: 108, q: "Man: Has Julia _______ you her new email address yet?\nWoman: Yes. I'll send it to you.", c: ["give", "gave", "given", "giving"], a: 2, e: "Present Perfect: Has + ประธาน + V3 (given)" },
+        { n: 109, q: "Woman: Sorry I didn't come to your party.\nMan: What happened?\nWoman: Oh, I _______ sick, so I went to sleep.", c: ["felt", "feel", "feels", "feeling"], a: 0, e: "เหตุการณ์ในอดีต (went to sleep) ใช้กริยาช่อง 2 (felt)" },
+        { n: 110, q: "Man: Don't you miss _______ in the big city?\nWoman: Not one bit. I like it here.", c: ["work", "to work", "working", "worked"], a: 2, e: "miss + V.ing = คิดถึงการทำ... (คิดถึงการทำงานในเมืองใหญ่ไหม)" },
+        { n: 111, q: "Man: Do you know Maria?\nWoman: Yes, I met her two months _______.", c: ["ago", "past", "away", "since"], a: 0, e: "ago = ที่ผ่านมา (ฉันเจอเธอเมื่อ 2 เดือนที่แล้ว)" },
+        { n: 112, q: "Man: Richard _______ the doctor every year.\nWoman: I should do that, too.", c: ["saw", "sees", "seen", "seeing"], a: 1, e: "every year เป็นกิจวัตร (Present Simple) ประธานเอกพจน์กริยาเติม s (sees)" },
+        { n: 113, q: "Teacher: Are you an Italian citizen?\nStudent: No, I was born _______ the United States.", c: ["in", "to", "at", "on"], a: 0, e: "in + ประเทศ (เกิดในอเมริกา)" },
+        { n: 114, q: "Man: Jeff keeps _______ at his watch.\nWoman: I know. He has an important meeting to go to.", c: ["look", "to look", "looking", "to looking"], a: 2, e: "keep + V.ing = ทำบางอย่างต่อไปเรื่อยๆ (เอาแต่มองนาฬิกา)" },
+        { n: 115, q: "Woman: _______ coat is this?\nMan: I don't know. It's not mine.", c: ["Who", "Who's", "Whom", "Whose"], a: 3, e: "Whose + Noun = ...ของใคร (เสื้อโค้ทตัวนี้ของใคร)" },
+        { n: 116, q: "Man: I didn't like the movie very much. Did you?\nWoman: No. It was one of the _______ I've ever seen.", c: ["worse", "worst", "least", "less"], a: 1, e: "the worst = แย่ที่สุด (หนังที่แย่ที่สุดเรื่องนึงที่เคยดู)" },
+        { n: 117, q: "Man: It's hot in here. We need some fresh air.\nWoman: But I _______ the window five minutes ago.", c: ["opened", "opening", "had opened", "was opening"], a: 0, e: "five minutes ago บอกเวลาในอดีตชัดเจน ใช้ Past Simple (opened)" },
+        { n: 118, q: "Man: Jenny's really good at drawing, isn't she?\nWoman: ...so I guess she can't help but _______ artistic.", c: ["be", "been", "to be", "being"], a: 0, e: "can't help but + V1 (infinitive) เสมอ **(ข้อนี้หนังสือเฉลยผิดเป็น being จึงถูกปรับแก้ให้ถูกต้องแล้ว)**", override: 1 },
+        { n: 119, q: "Aunt: I'm going to play tennis this Saturday. Do you want to come?\nNiece: Sorry, I promised my mother I _______ go shopping with her.", c: ["would", "have to", "want to", "should"], a: 0, e: "promised (V2) สัญญาในอดีตว่าจะทำในอนาคต ใช้ would (รูปอดีตของ will)" },
+        { n: 120, q: "Man: Are there computers in both classrooms?\nWoman: I'm sorry. _______ of them have computers.", c: ["Any", "Only", "Either", "Neither"], a: 3, e: "Neither of them = ไม่มีเลยทั้งคู่ (ห้องเรียน 2 ห้องไม่มีคอมพิวเตอร์)" },
+        { n: 121, q: "Woman: Are there any shops _______ your house?\nMan: Yes, it's quite a busy area.", c: ["near", "close", "next", "opposite to"], a: 0, e: "near แปลว่า 'ใกล้' ไม่ต้องมี preposition ตามหลัง (ส่วน close ต้อง to, next ต้อง to)" },
+        { n: 122, q: "Boss: We will need to get that order _______ in by the end of the week.\nEmployee: OK. I will make sure to give the company a call today to get the ball rolling.", c: ["sent", "send", "be sent", "sending"], a: 0, e: "Causative form: get + สิ่งของ (that order) + V.3 (sent)" },
+        { n: 123, q: "Man: How _______ does the train to New York take?\nWoman: Around five hours.", c: ["far", "long", "much", "many"], a: 1, e: "How long = นานแค่ไหน (ถามระยะเวลา)" },
+        { n: 124, q: "Woman: You met John at the last meeting, _______ you?\nMan: I don't think so.", c: ["don't", "didn't", "hadn't", "haven't"], a: 1, e: "Tag question ของ V.2 (met) คือ didn't" },
+        { n: 125, q: "Boy: Don't you think Richard's just _______ his brother?\nGirl: Well, they are twins, you know!", c: ["as", "the same", "like", "look like"], a: 2, e: "be like = เหมือนกับ (เป็น adjective)" },
+        { n: 126, q: "Woman: Did you enjoy reading the book?\nMan: No, I was really _______ by the end of it.", c: ["boring", "bore", "bored", "interest"], a: 2, e: "รู้สึกเบื่อ ใช้ bored (เติม -ed)" },
+        { n: 127, q: "Man: Do you know what's wrong with Ryan?\nWoman: No, but he does _______ upset with something.", c: ["seemingly", "seems", "seem", "seem like"], a: 2, e: "มี does (กริยาช่วย) แล้ว กริยาแท้ต้องเป็น V.1 ไม่เปลี่ยนรูป (seem)" },
+        { n: 128, q: "Man: Are you sure you are telling me the truth?\nWoman: What do you mean _______ that?", c: ["about", "by", "at", "of"], a: 1, e: "mean by that = หมายความว่ายังไงด้วยสิ่งนั้น" },
+        { n: 129, q: "Man: You haven't met Mr. Smith at the meeting, _______?\nWoman: Er... I don't think so.", c: ["have you", "do you", "are you", "did you"], a: 0, e: "ประโยคหน้าเป็น haven't (ปฏิเสธ) Tag ต้องเป็น have (บอกเล่า)" },
+        { n: 130, q: "Man: What are you smiling about?\nWoman: I was just thinking - this time next week _______ our suitcases to go on holiday.", c: ["we'll be packing", "we'll pack", "we'll have packed", "we'll have been packing"], a: 0, e: "this time next week ระบุเวลาชัดเจนในอนาคต ใช้ Future Continuous (will be + V.ing)" },
+        { n: 131, q: "Boy: Didn't you tell Michael he could keep the book?\nGirl: Yes, but he insisted _______ giving it back.", c: ["in", "on", "at", "about"], a: 1, e: "insist on + V.ing = ยืนกรานที่จะทำ" },
+        { n: 132, q: "Woman: Hi, how's your new job going?\nMan: I'm trying to _______ with the fact that expecting a perfect job is unrealistic.", c: ["bring it on", "get the news", "say to myself", "come to terms"], a: 3, e: "come to terms with = ทำใจยอมรับกับความจริง" },
+        { n: 133, q: "A: I think my computer is broken. It won't _______ up.\nB: Sorry. I can't help much. I don't know anything about computers.", c: ["turn", "start", "work", "switch"], a: 1, e: "start up แปลว่า (เครื่อง/ระบบ) เปิดทำงาน/บูตขึ้นมา" },
+        { n: 134, q: "Girl: How do you like your new phone?\nBoy: It's confusing. I'm still getting _______ it.", c: ["use", "used", "to use", "used to"], a: 3, e: "get used to = คุ้นชิน (กำลังทำความคุ้นเคยกับมัน)" },
+        { n: 135, q: "Daughter: Mom, do you recycle these bottles?\nMom: Yes, but _______ a minute. We need to wash them first.", c: ["come by", "come on", "hang on", "hang in"], a: 2, e: "hang on = รอก่อน/แป๊บนึง" },
+        { n: 136, q: "Girl: Is California bigger than Japan?\nBoy: I think so, but there _______ many more people in Japan.", c: ["are", "live", "stay", "have"], a: 0, e: "there are = มี (ใช้กับ people พหูพจน์)" },
+        { n: 137, q: "Boy: How long will you stay at the zoo today?\nGirl: I think we'll stay _______ noon.", c: ["for", "until", "from", "since"], a: 1, e: "until = จนกระทั่ง (อยู่จนถึงเที่ยง)" },
+        { n: 138, q: "Woman: Did you buy anything today?\nMan: No, I couldn't. _______ of the stores were open!", c: ["Any", "None", "Every", "No one"], a: 1, e: "None of + นาม = ไม่มีเลย (ไม่มีร้านไหนเปิดเลย)" },
+        { n: 139, q: "Man: Is this your daughter's first-time swimming?\nWoman: Oh, yes. She's never even _______ the ocean before.", c: ["saw", "sees", "seen", "seeing"], a: 2, e: "Present Perfect (has + V.3) ใช้ seen" },
+        { n: 140, q: "Man: Why did you move to the city?\nWoman: For me, it's more _______ than a small town.", c: ["interest", "interests", "interested", "interesting"], a: 3, e: "interesting = น่าสนใจ (เมืองมันน่าสนใจกว่า)" },
+        { n: 141, q: "Woman: Where do you live?\nMan: In Boston. I _______ there for six years now.", c: ["live", "lived", "have lived", "was leaving"], a: 2, e: "มี for + ระยะเวลา ใช้ Present Perfect (I have lived)" },
+        { n: 142, q: "Woman: I wonder how old that house is.\nMan: It looks _______ least 200 years old to me.", c: ["in", "at", "of", "on"], a: 1, e: "at least = อย่างน้อย" },
+        { n: 143, q: "Man: Did you watch the basketball game last night?\nWoman: Yes! It was _______ an exciting game.", c: ["so", "that", "very", "such"], a: 3, e: "such + noun phrase (an exciting game)" },
+        { n: 144, q: "Boy: By the time Mary gets here, the movie _______.\nGirl: She's always late.", c: ["will finish", "will have finished", "is going to finish", "will be finishing"], a: 1, e: "มี By the time (ภายในตอนที่) ใช้ Future Perfect (will have + V.3)" },
+        { n: 145, q: "Woman: What time _______ they call you last night?\nMan: Actually, they never called.", c: ["did", "were", "have", "had"], a: 0, e: "คำถามในอดีต (last night) ใช้กริยาช่วย did" },
+        { n: 146, q: "Woman: Do you play tennis?\nMan: Yes, but I'm not very good _______ it.", c: ["at", "on", "for", "with"], a: 0, e: "good at = เก่งเรื่อง..." },
+        { n: 147, q: "Man: She keeps _______ her things all around the place which is so annoying.\nWoman: You should say something about that.", c: ["to leave", "leaves", "leave", "leaving"], a: 3, e: "keep + V.ing = ทำสิ่งนั้นอยู่เรื่อยๆ เป็นประจำ" },
+        { n: 148, q: "Man: What's the new student like?\nWoman: She's really quiet, I think she's a bit shy. She _______ talks.", c: ["very little", "only a bit", "not much", "hardly ever"], a: 3, e: "hardly ever = แทบจะไม่ (วางหน้ากริยา talks)" },
+        { n: 149, q: "Man: I realized that I _______ my car keys in the office.\nWoman: Do you want me to go back with you?", c: ["left", "has left", "had left", "was leaving"], a: 2, e: "เหตุการณ์ที่เกิดก่อนอดีต (ลืมกุญแจเกิดก่อนนึกขึ้นได้) ใช้ Past Perfect (had left)" },
+        { n: 150, q: "Woman: Oh, you're busy? I _______ you later, OK?\nMan: Alright!", c: ["am calling", "call", "have called", "will call"], a: 3, e: "ตัดสินใจจะทำเดี๋ยวนั้น ใช้ will + V.1" }
+    ];
+
+    let questions = [];
+    let state = {
+        activeRound: false,
+        totalInRound: 0,
+        currentIndex: 0,
+        score: 0,
+        currentQuestions: [],
+        wrongAnswers: []
+    };
+
+    let selectedCount = 150;
+    const STATE_KEY = 'quiz_state';
+    const WRONG_KEY = 'quiz_wrong_answers';
+
+    // เตรียมคำถาม
+    function generateQuestions(mode = "normal") {
+        let pool = [];
+        if (mode === "wrong") {
+            const savedWrong = JSON.parse(localStorage.getItem(WRONG_KEY)) || [];
+            pool = savedWrong.map(q => JSON.parse(JSON.stringify(q)));
+        } else {
+            pool = sourceData.map(q => JSON.parse(JSON.stringify(q)));
+        }
+        
+        // Shuffle questions
+        pool.sort(() => Math.random() - 0.5);
+        if (mode === "normal") {
+            pool = pool.slice(0, selectedCount);
+        }
+
+        // Shuffle choices and map answers
+        pool.forEach(q => {
+            const options = q.c.map((text, idx) => ({ text, isCorrect: idx === q.a }));
+            options.sort(() => Math.random() - 0.5);
+            q.options = options;
+        });
+
+        return pool;
+    }
+
+    function init() {
+        const savedState = localStorage.getItem(STATE_KEY);
+        if (savedState) {
+            const parsed = JSON.parse(savedState);
+            if (parsed.activeRound) {
+                document.getElementById('resume-section').style.display = 'block';
+                document.getElementById('resume-progress').innerText = `${parsed.currentIndex + 1}/${parsed.totalInRound}`;
+            }
+        }
+    }
+
+    function setCount(num) {
+        selectedCount = num;
+        document.querySelectorAll('.option-group .btn-outline').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`btn-count-${num === 150 ? 'all' : num}`).classList.add('active');
+    }
+
+    function startNewQuiz(mode = "normal") {
+        if(localStorage.getItem(STATE_KEY)) {
+            const parsed = JSON.parse(localStorage.getItem(STATE_KEY));
+            if(parsed.activeRound && !confirm('คุณมีรอบที่ทำค้างไว้ ต้องการเริ่มใหม่และลบทิ้งใช่หรือไม่?')) return;
+        }
+
+        questions = generateQuestions(mode);
+        if(questions.length === 0) {
+            alert("ไม่มีข้อผิดให้ทำซ้ำครับ");
+            return;
+        }
+
+        state = {
+            activeRound: true,
+            totalInRound: questions.length,
+            currentIndex: 0,
+            score: 0,
+            currentQuestions: questions,
+            wrongAnswers: []
+        };
+        saveState();
+        showQuizScreen();
+    }
+
+    function resumeQuiz() {
+        const savedState = localStorage.getItem(STATE_KEY);
+        if (savedState) {
+            state = JSON.parse(savedState);
+            questions = state.currentQuestions;
+            showQuizScreen();
+        }
+    }
+
+    function showQuizScreen() {
+        document.getElementById('home-screen').style.display = 'none';
+        document.getElementById('summary-screen').style.display = 'none';
+        document.getElementById('quiz-screen').style.display = 'block';
+        renderQuestion();
+    }
+
+    function renderQuestion() {
+        const q = questions[state.currentIndex];
+        
+        document.getElementById('quiz-progress-text').innerText = `ข้อ ${state.currentIndex + 1}/${state.totalInRound}`;
+        document.getElementById('book-q-number').innerText = `อ้างอิงหนังสือข้อ: ${q.n}`;
+        document.getElementById('progress-bar').style.width = `${(state.currentIndex / state.totalInRound) * 100}%`;
+        
+        document.getElementById('question-text').innerText = q.q;
+        
+        const optsContainer = document.getElementById('options-container');
+        optsContainer.innerHTML = '';
+        
+        q.options.forEach((opt, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'choice-btn';
+            btn.innerText = `${index + 1}. ${opt.text}`;
+            btn.onclick = () => selectOption(index, btn);
+            optsContainer.appendChild(btn);
+        });
+
+        document.getElementById('explanation-box').style.display = 'none';
+    }
+
+    let isAnswered = false;
+
+    function selectOption(selectedIndex, btnElement) {
+        if (isAnswered) return;
+        isAnswered = true;
+
+        const q = questions[state.currentIndex];
+        const isCorrect = q.options[selectedIndex].isCorrect;
+        
+        const buttons = document.querySelectorAll('.choice-btn');
+        buttons.forEach(btn => btn.disabled = true);
+
+        if (isCorrect) {
+            btnElement.classList.add('correct');
+            state.score++;
+            document.getElementById('explain-title').innerText = "✅ ถูกต้อง!";
+            document.getElementById('explain-title').style.color = "var(--correct-border)";
+        } else {
+            btnElement.classList.add('wrong');
+            document.getElementById('explain-title').innerText = "❌ ผิดครับ";
+            document.getElementById('explain-title').style.color = "var(--wrong-border)";
+            
+            // หาข้อถูกเพื่อไฮไลท์
+            const correctIndex = q.options.findIndex(o => o.isCorrect);
+            buttons[correctIndex].classList.add('correct');
+
+            // บันทึกข้อผิด
+            const originalQ = sourceData.find(sq => sq.n === q.n);
+            if (!state.wrongAnswers.find(w => w.n === originalQ.n)) {
+                state.wrongAnswers.push(originalQ);
+            }
+        }
+
+        let explainText = q.e;
+        if(q.override !== undefined) {
+             explainText += " (หมายเหตุ: ข้อนี้เฉลยไม่ตรงกับในหนังสือ โดยระบบปรับให้ถูกต้องตามหลักไวยากรณ์แล้ว)";
+        }
+        
+        document.getElementById('explain-text').innerText = explainText;
+        document.getElementById('explanation-box').style.display = 'block';
+        
+        saveState();
+    }
+
+    function nextQuestion() {
+        if (!isAnswered) return;
+        
+        if (state.currentIndex < state.totalInRound - 1) {
+            state.currentIndex++;
+            isAnswered = false;
+            saveState();
+            renderQuestion();
+        } else {
+            endQuiz();
+        }
+    }
+
+    function endQuiz() {
+        state.activeRound = false;
+        
+        // Save wrong answers to overall storage
+        let savedWrong = JSON.parse(localStorage.getItem(WRONG_KEY)) || [];
+        state.wrongAnswers.forEach(wq => {
+            if(!savedWrong.find(s => s.n === wq.n)) savedWrong.push(wq);
+        });
+        localStorage.setItem(WRONG_KEY, JSON.stringify(savedWrong));
+        
+        localStorage.removeItem(STATE_KEY); // Clear active round
+        
+        showSummary();
+    }
+
+    function showSummary() {
+        document.getElementById('quiz-screen').style.display = 'none';
+        document.getElementById('summary-screen').style.display = 'block';
+        
+        document.getElementById('score-text').innerText = `${state.score} / ${state.totalInRound}`;
+        
+        const wrongContainer = document.getElementById('wrong-answers-container');
+        const wrongList = document.getElementById('wrong-list');
+        
+        if (state.wrongAnswers.length > 0) {
+            wrongContainer.style.display = 'block';
+            wrongList.innerHTML = '';
+            state.wrongAnswers.forEach(wq => {
+                const div = document.createElement('div');
+                div.className = 'summary-item';
+                div.innerHTML = `<strong>ข้อ ${wq.n}:</strong> ${wq.q.replace(/\n/g, '<br>')} <br>
+                                 <span style="color: green;">✔ ตอบ: ${wq.c[wq.a]}</span><br>
+                                 <em>อธิบาย: ${wq.e}</em>`;
+                wrongList.appendChild(div);
+            });
+            document.getElementById('retry-wrong-btn').style.display = 'inline-block';
+        } else {
+            wrongContainer.style.display = 'none';
+            document.getElementById('retry-wrong-btn').style.display = 'none';
+        }
+    }
+
+    function showHome() {
+        document.getElementById('summary-screen').style.display = 'none';
+        document.getElementById('quiz-screen').style.display = 'none';
+        document.getElementById('home-screen').style.display = 'block';
+        document.getElementById('resume-section').style.display = 'none';
+        isAnswered = false;
+        init();
+    }
+
+    function goHomeConfirm() {
+        if(confirm('ต้องการหยุดพักและกลับหน้าแรกหรือไม่? ความคืบหน้าของคุณจะถูกบันทึกไว้')) {
+            showHome();
+        }
+    }
+
+    function retryWrong() {
+        startNewQuiz("wrong");
+    }
+
+    function saveState() {
+        localStorage.setItem(STATE_KEY, JSON.stringify(state));
+    }
+
+    // Keyboard Shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (document.getElementById('quiz-screen').style.display === 'block') {
+            if (['1', '2', '3', '4'].includes(e.key) && !isAnswered) {
+                const idx = parseInt(e.key) - 1;
+                const buttons = document.querySelectorAll('.choice-btn');
+                if (buttons[idx]) buttons[idx].click();
+            } else if (e.key === 'Enter' && isAnswered) {
+                nextQuestion();
+            }
+        }
+    });
+
+    init();
+</script>
+
+</body>
+</html>

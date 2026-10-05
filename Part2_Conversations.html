@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ควิซไวยากรณ์ Part 2 (100 ข้อ)</title>
+    <style>
+        :root {
+            --bg-color: #f1f5f9;
+            --text-color: #334155;
+            --card-bg: #ffffff;
+            --primary: #1e293b;
+            --primary-hover: #334155;
+            --secondary: #e2e8f0;
+            --accent: #fef08a;
+            --accent-text: #854d0e;
+            --correct-bg: #dcfce7;
+            --correct-border: #22c55e;
+            --wrong-bg: #fee2e2;
+            --wrong-border: #ef4444;
+            --notebook-line: #e2e8f0;
+            --notebook-margin: #fca5a5;
+            --resume-bg: #ecfdf5;
+            --resume-text: #065f46;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #0f172a;
+                --text-color: #f8fafc;
+                --card-bg: #1e293b;
+                --primary: #cbd5e1;
+                --primary-hover: #f1f5f9;
+                --secondary: #334155;
+                --accent: #ca8a04;
+                --accent-text: #fef08a;
+                --correct-bg: #14532d;
+                --correct-border: #22c55e;
+                --wrong-bg: #7f1d1d;
+                --wrong-border: #ef4444;
+                --notebook-line: #334155;
+                --notebook-margin: #991b1b;
+                --resume-bg: #064e3b;
+                --resume-text: #34d399;
+            }
+        }
+
+        * { box-sizing: border-box; font-family: 'Sarabun', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; display: flex; justify-content: center; min-height: 100vh; transition: background-color 0.3s; }
+        .container { max-width: 700px; width: 100%; }
+        
+        h2 { text-align: center; color: var(--text-color); }
+        mark { background-color: var(--accent); color: var(--accent-text); padding: 0 8px; border-radius: 4px; }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Notebook Style */
+        .notebook-style {
+            background-image: repeating-linear-gradient(transparent, transparent 39px, var(--notebook-line) 39px, var(--notebook-line) 40px);
+            background-position: 0 40px;
+            padding: 40px 20px 20px 50px;
+            position: relative;
+            line-height: 40px;
+        }
+        .notebook-style::before {
+            content: ''; position: absolute; top: 0; bottom: 0; left: 40px; width: 2px; background-color: var(--notebook-margin);
+        }
+
+        /* Home Screen */
+        .resume-box { background-color: var(--resume-bg); color: var(--resume-text); padding: 20px; border-radius: 12px; margin-bottom: 20px; display: none; }
+        .btn {
+            background-color: var(--primary); color: var(--card-bg); border: none; padding: 12px 24px; border-radius: 999px;
+            font-size: 16px; font-weight: bold; cursor: pointer; display: inline-block; transition: all 0.2s; text-align: center;
+        }
+        .btn:hover { background-color: var(--primary-hover); transform: translateY(-1px); }
+        .btn-outline { background-color: transparent; border: 2px solid var(--secondary); color: var(--text-color); }
+        .btn-outline.active { background-color: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+        
+        .option-group { display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
+        
+        /* Quiz Screen */
+        #quiz-screen, #summary-screen { display: none; }
+        .question-text { font-size: 18px; font-weight: 500; margin-bottom: 20px; line-height: 1.5; background-color: var(--card-bg); padding: 10px; border-radius: 8px; display: inline-block; z-index: 1; position: relative; white-space: pre-wrap;}
+        .choice-btn {
+            display: block; width: 100%; text-align: left; background-color: var(--card-bg); border: 2px solid var(--secondary);
+            padding: 12px 20px; border-radius: 8px; margin-bottom: 12px; cursor: pointer; color: var(--text-color); font-size: 16px; transition: 0.2s;
+            position: relative; z-index: 1; line-height: normal;
+        }
+        .choice-btn:hover:not(:disabled) { border-color: var(--primary); }
+        .choice-btn.correct { background-color: var(--correct-bg); border-color: var(--correct-border); }
+        .choice-btn.wrong { background-color: var(--wrong-bg); border-color: var(--wrong-border); }
+        .choice-btn:disabled { cursor: default; }
+
+        .explanation { margin-top: 15px; padding: 15px; background-color: var(--secondary); border-radius: 8px; display: none; position: relative; z-index: 1; line-height: normal;}
+        .progress-bar { height: 6px; background-color: var(--secondary); border-radius: 3px; margin-bottom: 20px; overflow: hidden; }
+        .progress-fill { height: 100%; background-color: var(--primary); width: 0%; transition: width 0.3s; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 14px; position: relative; z-index: 1;}
+        .q-number { background: var(--secondary); padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+
+        .footer-note { font-size: 12px; color: gray; margin-top: 10px; line-height: normal; }
+        
+        .summary-item { border-bottom: 1px solid var(--secondary); padding: 15px 0; line-height: normal;}
+        .flex-center { display: flex; justify-content: center; gap: 10px; margin-top: 20px; flex-wrap: wrap;}
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>ควิซ <mark>Part 2: Conversations</mark></h2>
+
+    <!-- หน้าแรก -->
+    <div id="home-screen">
+        <div id="resume-section" class="resume-box">
+            <p style="margin-top:0;">มีรอบที่ทำค้างไว้ ข้อ <span id="resume-progress"></span></p>
+            <button class="btn" onclick="resumeQuiz()">ทำต่อจากเดิม</button>
+        </div>
+
+        <div class="card notebook-style">
+            <h3 style="margin-top:0;">พร้อมแล้วเริ่มได้เลย</h3>
+            <p style="line-height: normal;">แบบทดสอบความเข้าใจในบริบทการสนทนา (Part 2) อัปเดตครบ 100 ข้อแล้ว</p>
+            
+            <p style="font-weight:bold; margin-top:20px;">จำนวนข้อในรอบนี้</p>
+            <div class="option-group">
+                <button class="btn btn-outline" id="btn-count-25" onclick="setCount(25)">25 ข้อ</button>
+                <button class="btn btn-outline" id="btn-count-50" onclick="setCount(50)">50 ข้อ</button>
+                <button class="btn btn-outline active" id="btn-count-all" onclick="setCount(100)">ทั้งหมด 100 ข้อ</button>
+            </div>
+
+            <button class="btn" style="margin-top:20px;" onclick="startNewQuiz()">เริ่มทำข้อสอบ</button>
+            <p class="footer-note">กดปุ่ม 1-4 เพื่อเลือกคำตอบ และ Enter เพื่อไปข้อถัดไป ความคืบหน้าบันทึกไว้ในเครื่องนี้</p>
+        </div>
+    </div>
+
+    <!-- หน้าควิซ -->
+    <div id="quiz-screen" class="card notebook-style">
+        <div class="progress-bar"><div class="progress-fill" id="progress-bar"></div></div>
+        <div class="top-bar">
+            <span id="quiz-progress-text">ข้อ 1/25</span>
+            <span class="q-number" id="book-q-number">อ้างอิงหนังสือข้อ: 1</span>
+        </div>
+        
+        <div class="question-text" id="question-text"></div>
+        <div id="options-container"></div>
+        
+        <div class="explanation" id="explanation-box">
+            <strong id="explain-title"></strong>
+            <p id="explain-text" style="margin:5px 0;"></p>
+            <button class="btn" style="margin-top:10px; width:100%;" id="next-btn" onclick="nextQuestion()">ถัดไป (Enter)</button>
+        </div>
+
+        <div class="flex-center" style="margin-top: 30px; position: relative; z-index: 1;">
+            <button class="btn btn-outline" style="font-size: 14px; padding: 6px 12px;" onclick="goHomeConfirm()">🏠 กลับหน้าแรก (เริ่มใหม่)</button>
+        </div>
+    </div>
+
+    <!-- หน้าสรุปผล -->
+    <div id="summary-screen" class="card" style="padding: 30px;">
+        <h3 style="text-align: center;">สรุปผลคะแนน</h3>
+        <h1 style="text-align: center; color: var(--primary); font-size: 48px; margin: 10px 0;"><span id="score-text"></span></h1>
+        
+        <div id="wrong-answers-container" style="margin-top: 30px; display: none;">
+            <h4>ทบทวนข้อที่ตอบผิด</h4>
+            <div id="wrong-list"></div>
+        </div>
+
+        <div class="flex-center">
+            <button class="btn" id="retry-wrong-btn" onclick="retryWrong()" style="display:none;">ทำเฉพาะข้อที่ผิด</button>
+            <button class="btn btn-outline" onclick="showHome()">กลับหน้าแรก</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ข้อมูล Part 2 (1-100)
+    const sourceData = [
+        {"n": 1, "q": "Man: Sam gets on my nerves.\nWoman: Oh, I really like him!\nWhat does the Man mean?", "c": ["Sam scares me.", "Sam annoys me.", "Sam worries me."], "a": 1, "e": "get on someone's nerves เป็นสำนวนแปลว่า ทำให้รำคาญหรือหงุดหงิด"},
+        {"n": 2, "q": "Boy: I didn't borrow your new CD!\nGirl: I never said you did!\nWhat does the girl mean?", "c": ["I didn't want you to borrow the CD.", "I didn't accuse you of borrowing the CD.", "I didn't prevent you from borrowing the CD."], "a": 1, "e": "I never said you did แปลว่า ฉันไม่เคยพูดว่าเธอทำ (ไม่ได้กล่าวหา)"},
+        {"n": 3, "q": "Woman: Can I talk to you?\nMan: Well, I have to leave in five minutes.\nWhat does the Man mean?", "c": ["I don't like talking to you.", "I'll talk to you in five minutes.", "I don't have very long to talk to you."], "a": 2, "e": "leave in five minutes หมายความว่ามีเวลาคุยได้แค่แป๊บเดียว เพราะอีก 5 นาทีต้องไปแล้ว"},
+        {"n": 4, "q": "Woman: Excuse me. What time does the train leave?\nMan: At 4 o'clock.\nWhat does the Woman mean?", "c": ["What's the time now?", "When did the train go?", "When will the train go?"], "a": 2, "e": "ถามตารางเวลาเดินรถ (Present Simple) เป็นการถามถึงสิ่งที่จะเกิดขึ้นในอนาคต (When will...)"},
+        {"n": 5, "q": "Woman: Do you fancy going out somewhere tonight?\nMan: Why not?\nWhat does the Man mean?", "c": ["I think it's a good idea.", "I don't really want to go.", "I'm not sure why you're asking me."], "a": 0, "e": "Why not? แปลว่า ทำไมจะไม่ล่ะ (ตกลง/เห็นด้วยว่าเป็นความคิดที่ดี)"},
+        {"n": 6, "q": "Man: Did I give you my car keys?\nWoman: They're on the table in the hall.\nWhat does the Man mean?", "c": ["Can I have your car keys?", "Do you need my car keys?", "Have you got my car keys?"], "a": 2, "e": "ถามว่า 'ฉันให้กุญแจรถคุณไปไหม' ก็คือการถามว่า 'คุณมีกุญแจรถฉันอยู่ไหม' (Have you got...)"},
+        {"n": 7, "q": "Girl: What sort of books do you like reading?\nBoy: Well, anything really.\nWhat does the boy mean?", "c": ["I don't like reading.", "I don't mind what I read.", "I don't have anything to read."], "a": 1, "e": "anything really หมายความว่าอ่านอะไรก็ได้ (I don't mind = ไม่เกี่ยง/อ่านได้หมด)"},
+        {"n": 8, "q": "Sister: I don't know what you see in fishing...\nBrother: You just don't get it, do you? It's not about how many fish you catch.\nWhat does the brother mean?", "c": ["You can't understand.", "You don't understand.", "You refuse to understand."], "a": 1, "e": "You just don't get it = เธอไม่เข้าใจหรอก"},
+        {"n": 9, "q": "Man: Adam's business seems to be thriving.\nWoman: Actually, I think he's only just about breaking even.\nWhat does the Man mean?", "c": ["It's losing a lot of money.", "It's bringing in a lot of money.", "It's hardly making any money."], "a": 1, "e": "thriving แปลว่า เจริญรุ่งเรือง/ทำเงินได้มาก (ผู้ชายคิดว่ารุ่งเรือง แต่ผู้หญิงแย้งว่าแค่คุ้มทุน)"},
+        {"n": 10, "q": "Man: Adam's business seems to be thriving.\nWoman: Actually, I think he's only just about breaking even.\nWhat does the Woman mean?", "c": ["It's losing a lot of money.", "It's bringing in a lot of money.", "It's hardly making any money."], "a": 2, "e": "breaking even แปลว่า คุ้มทุน (ไม่กำไรแต่ไม่ขาดทุน) = แทบจะไม่ทำเงินเลย"},
+        {"n": 11, "q": "Man: I've never been much good at dancing.\nWoman: You'll pick it up in no time - take my word for it.\nWhat does the Woman mean?", "c": ["I'll help you if you find it difficult.", "I know it won't take you long to learn.", "I'm sure you'll be able to do it eventually."], "a": 1, "e": "pick it up in no time แปลว่า เรียนรู้ได้เร็ว/ใช้เวลาไม่นาน (in no time)"},
+        {"n": 12, "q": "Man: Let's walk to the beach this afternoon.\nWoman: Isn't it too far in this weather?\nWhat does the Woman mean?", "c": ["I don't know how far it is.", "I never walk such a long way.", "I don't want to walk there today."], "a": 2, "e": "การถามกลับว่า 'มันไม่ไกลไปเหรอในสภาพอากาศแบบนี้' แสดงความไม่อยากเดินไป"},
+        {"n": 13, "q": "Woman: I'm starving.\nMan: I'll see if I can rustle something up.\nWhat does the Man mean?", "c": ["I'll make a meal with what we have.", "I'll go and buy something to eat.", "I'll phone and order a takeout."], "a": 0, "e": "rustle something up เป็นสำนวนแปลว่า หา/ทำของกินอย่างรวดเร็วจากของที่มีอยู่"},
+        {"n": 14, "q": "Woman: Can I try this swimsuit on, please?\nMan: Sure - the changing room's over there on the right.\nWhat does the Woman mean?", "c": ["Can you tell me how much this swimsuit is?", "Where can I pay for this swimsuit?", "Can I see if this swimsuit fits me?"], "a": 2, "e": "try something on แปลว่า ลองสวมดู (เพื่อดูว่าใส่พอดีไหม)"},
+        {"n": 15, "q": "Son: Can I have £6 for the cinema, please?\nMother: But I gave you £10 this morning!\nWhat does the mother mean?", "c": ["You might need more money than that.", "That's too much money for the cinema.", "I've given you enough money already."], "a": 2, "e": "แม่บอกว่าเพิ่งให้ไป 10 ปอนด์เมื่อเช้า หมายความว่า ให้เงินไปพอแล้ว/เยอะแล้ว"},
+        {"n": 16, "q": "Daughter: I don't understand tonight's history homework.\nFather: Why don't you ask John about it?\nWhat does the father mean?", "c": ["I think John wants to help you with the homework.", "I don't think John understands the homework.", "I think John can help you."], "a": 2, "e": "การแนะนำให้ไปถามจอห์น แสดงว่าพ่อคิดว่าจอห์นสามารถช่วยได้"},
+        {"n": 17, "q": "Boy: How many people do we need for tomorrow's tennis match?\nGirl: Four - but we only have three at the moment.\nWhat does the girl mean?", "c": ["There are four tennis matches tomorrow.", "The tennis match is at 4 o'clock tomorrow.", "We need another player for tomorrow's match."], "a": 2, "e": "ต้องการ 4 คน แต่มีแค่ 3 หมายความว่า ขาดอีก 1 คน (ต้องการผู้เล่นเพิ่ม)"},
+        {"n": 18, "q": "Man: Can I have one coffee and two teas, please?\nWaitress: I'm sorry. The coffee machine's just being fixed.\nWhat does the waitress mean?", "c": ["I can make coffee, but not tea.", "I can't make coffee at the moment.", "I can only make a drink from the machine."], "a": 1, "e": "เครื่องชงกาแฟกำลังซ่อมอยู่ หมายความว่า ตอนนี้ชงกาแฟให้ไม่ได้"},
+        {"n": 19, "q": "Woman: I'm cold, Jim. Have you got a sweater?\nMan: Yes, but it's not very clean, I'm afraid.\nWhat does the Woman mean?", "c": ["Can you lend me a sweater?", "Do you still have my sweater?", "Why aren't you wearing a sweater?"], "a": 0, "e": "บอกว่าหนาวและถามว่ามีเสื้อกันหนาวไหม จุดประสงค์คือขอยืมเสื้อกันหนาว"},
+        {"n": 20, "q": "Woman: I've got a terrible headache!\nMan: Why don't you lie down for a while?\nWhat does the Man mean?", "c": ["He is criticizing the Woman.", "He is giving the Woman some advice.", "He is asking the Woman for information."], "a": 1, "e": "Why don't you...? เป็นรูปแบบการให้คำแนะนำ (ให้ไปนอนพัก)"},
+        {"n": 21, "q": "Male shop assistant: Have you seen the new Sales Manager?\nFemale shop assistant: Yes, what's she like?\nWhat does the female shop assistant mean?", "c": ["What does she look like?", "What do you like about her?", "What can you tell me about her?"], "a": 2, "e": "What is someone like? ใช้ถามลักษณะนิสัยหรือภาพรวมของคนๆ นั้น (ช่วยเล่าเกี่ยวกับเธอให้ฟังหน่อย)"},
+        {"n": 22, "q": "Mother: Have you learned all your lines for the play tonight?\nSon: Yes, but I know I'll forget them as soon as I get on the stage.\nWhat does the son mean?", "c": ["I'll be nervous on stage tonight.", "I can't remember my lines now.", "I need to get on the stage as soon as possible."], "a": 0, "e": "การบอกว่าจะลืมบททันทีที่ขึ้นเวที แสดงถึงความประหม่า/ตื่นเต้น (nervous)"},
+        {"n": 23, "q": "Man: It's a nice day for a drive in the countryside.\nWoman: Yes, but I'm a bit busy this afternoon.\nThe Man is...", "c": ["Suggesting a trip to the countryside.", "Agreeing to drive the woman to the countryside.", "Finding out about the weather in the countryside."], "a": 0, "e": "การพูดเกริ่นว่าอากาศดีเหมาะแก่การขับรถเล่น เป็นการชักชวน/เสนอแนะทางอ้อม"},
+        {"n": 24, "q": "Woman: I can't believe it's snowing today.\nMan: It wasn't exactly unexpected.\nWhat does the Man mean?", "c": ["He doesn't believe that it is really snowing.", "The snow had been predicted.", "The exact amount of snow is unclear."], "a": 1, "e": "wasn't unexpected (ปฏิเสธซ้อนปฏิเสธ) = expected หมายความว่า คาดการณ์ไว้แล้ว/ทำนายไว้แล้ว"},
+        {"n": 25, "q": "Man: How do you think you did on the literature exam...?\nWoman: I really wish I could take it over again.\nWhat does the Woman imply?", "c": ["She's going to take the test over again.", "She thinks she did a good job on the exam.", "She's unhappy with how she did."], "a": 2, "e": "การบอกว่าอยากสอบใหม่ (take it over again) แสดงว่าไม่พอใจกับผลสอบของตัวเอง"},
+        {"n": 26, "q": "Woman: You didn't have to wait outside. You could've just opened the door and walked right in.\nMan: So the door was not locked!\nWhat had the Man assumed?", "c": ["The door was unlocked.", "It was better to wait outside.", "He could not open the door."], "a": 2, "e": "ผู้ชายพูดว่า 'อ้าว ประตูไม่ได้ล็อคเหรอ' แสดงว่าก่อนหน้านี้เขาเข้าใจไปเองว่าประตูล็อค (เปิดไม่ได้)"},
+        {"n": 27, "q": "Man: Can you start work immediately?\nWoman: No, but I can begin in two weeks.\nWhat does the Woman mean?", "c": ["She doesn't want the job.", "She can't start working now.", "She didn't work for two weeks."], "a": 1, "e": "การบอกว่าเริ่มได้ในอีก 2 สัปดาห์ หมายความว่า ไม่สามารถเริ่มงานได้ทันทีตอนนี้"},
+        {"n": 28, "q": "Woman: Where are you going for vacation?\nMan: Definitely somewhere away from here. I can't stand the cold.\nWhat does the Man mean?", "c": ["He prefers staying at home this time.", "He always goes to the same place for vacation.", "He wants to travel to a place with warm weather."], "a": 2, "e": "can't stand the cold = ทนความหนาวไม่ไหว ดังนั้นจึงอยากไปที่ที่อากาศอบอุ่น"},
+        {"n": 29, "q": "Man: That concert last night was terrific.\nWoman: It was. Did you get to sit up front?\nMan: I'd hoped to, but I got there too late.\nWhat does the Man mean by his SECOND statement?", "c": ["I couldn't sit where I wanted.", "I didn't see the end of the concert.", "I wish I could see the concert again."], "a": 0, "e": "หวังว่าจะได้นั่งข้างหน้า แต่ไปสาย หมายความว่า ไม่ได้นั่งในที่ที่ต้องการ"},
+        {"n": 30, "q": "Woman: What did you think of that book?\nMan: I had a hard time with a lot of it.\nWhat does the Man mean?", "c": ["The book was very difficult.", "It took one day to read the book.", "He was too busy to finish the book."], "a": 0, "e": "have a hard time with (บางสิ่ง) = ประสบความยากลำบากกับสิ่งนั้น (หนังสืออ่านยาก)"},
+        {"n": 31, "q": "Man: I'm not going to bother washing the car. It's going to rain later.\nWoman: Yes, I heard that on the news this morning.\nWhat does the Man mean?", "c": ["He won't wash his car.", "His car isn't very dirty.", "He doesn't like the rain."], "a": 0, "e": "not going to bother = ไม่เสียเวลา/ไม่รบกวนตัวเองทำ หมายความว่า เขาจะไม่ล้างรถ"},
+        {"n": 32, "q": "Man: I'm looking for a new dentist. What's yours like?\nWoman: Well, I would definitely recommend her.\nWhat does the Woman mean?", "c": ["Are you looking for a new dentist?", "What does your dentist look like?", "What do you think about your dentist?"], "a": 2, "e": "What's yours like? ในบริบทนี้คือถามความคิดเห็น/ลักษณะการทำงานของหมอฟันของคุณ"},
+        {"n": 33, "q": "Woman: I'm sorry. I forgot to wash the dishes this morning.\nMan: It's okay. I did them when I got home.\nWhat does the Man mean?", "c": ["He can't do the dishes later.", "He wants the woman to wash the dishes.", "The woman doesn't need to wash the dishes."], "a": 2, "e": "I did them = ฉันล้างมันไปแล้ว หมายความว่า ผู้หญิงไม่ต้องล้างแล้ว"},
+        {"n": 34, "q": "Woman: So how did things go at work?\nMan: I'm telling you, today is just not my day.\nWhat does the Man mean?", "c": ["He didn't have to work today.", "He is having a bad day at work.", "He'll tell her about his workday later."], "a": 1, "e": "not my day = ไม่ใช่วันของฉัน (เป็นวันที่แย่/โชคร้าย)"},
+        {"n": 35, "q": "Father: What on earth did you do to the car last night?\nSon: Don't know what you're talking about.\nWhat does the son mean?", "c": ["He is refusing to acknowledge the problem.", "He denies borrowing the car.", "He is changing the subject."], "a": 0, "e": "การบอกว่า 'ไม่รู้ว่าพูดเรื่องอะไร' เป็นการปฏิเสธที่จะรับรู้/ยอมรับปัญหาที่เกิดขึ้นกับรถ"},
+        {"n": 36, "q": "Girl: My brother is so outgoing. I'd like to be like that.\nBoy: Well, you have your good points, too.\nWhat does the boy mean?", "c": ["She could be more like her brother.", "She should be more confident in herself.", "She needs to change her opinion."], "a": 1, "e": "การบอกว่า 'คุณก็มีข้อดีของตัวเองเหมือนกันนะ' เป็นการปลอบให้เธอมั่นใจในตัวเองมากขึ้น"},
+        {"n": 37, "q": "Girl: Do you want to come out with us tonight?\nBoy: I'd love to, but I've got a lot of homework. I'll have to see.\nWhat does the boy mean?", "c": ["I will go out.", "I can't go out.", "I might go out."], "a": 2, "e": "I'll have to see = ขอดูก่อนนะ/เดี๋ยวดูอีกที (แสดงความไม่แน่ใจ อาจจะไปหรือไม่ไปก็ได้)"},
+        {"n": 38, "q": "Man: This vacation has been wonderful.\nWoman: Can we come back next year?\nMan: If you'd like to, sure.\nWhat does the Man mean by his SECOND comment?", "c": ["We can return to this place.", "I'm not sure if we can come back.", "You like this place more than I do."], "a": 0, "e": "If you'd like to, sure = ถ้าคุณอยากมา แน่นอน (เราสามารถกลับมาที่นี่ได้)"},
+        {"n": 39, "q": "Man: Do you know where the class is meeting for dinner?\nWoman: At Thai Lotus Restaurant, right next to the main school building.\nWhat does the Woman mean?", "c": ["The restaurant is close to school.", "People will have dinner on the beach.", "The class will meet at the main building."], "a": 0, "e": "right next to the main school building = ติดกับอาคารเรียนหลัก (หมายความว่าอยู่ใกล้โรงเรียน)"},
+        {"n": 40, "q": "Man: I made some soup. Would you like some?\nWoman: No thanks. I don't feel like eating at the moment.\nWhat does the Woman mean?", "c": ["She isn't very hungry.", "She isn't enjoying the soup.", "She doesn't have time to eat."], "a": 0, "e": "don't feel like eating = ไม่อยากกิน (ไม่ได้หิวมากนักในตอนนี้)"},
+        {"n": 41, "q": "Wife: I've been so late leaving for work in the morning.\nHusband: That's because you take your time getting ready.\nWhat does the husband mean?", "c": ["The wife should do things faster.", "The wife ought to go to sleep earlier.", "The wife needs more time to get ready."], "a": 0, "e": "take your time = ทำตัวช้าๆ เรื่อยเปื่อย (สามีสื่อเป็นนัยว่าภรรยาควรทำอะไรให้เร็วขึ้น)"},
+        {"n": 42, "q": "Man: Do you often work at the weekends?\nWoman: Well, only once a month.\nWhat does the Woman mean?", "c": ["She always works at the weekends.", "She usually works at the weekends.", "She sometimes works at the weekends."], "a": 2, "e": "only once a month (เดือนละครั้ง) ถือเป็นความถี่ในระดับ 'บางครั้ง' (sometimes)"},
+        {"n": 43, "q": "Boy: I really like going swimming.\nGirl: Really, but I hardly ever see you at the swimming pool.\nWhat does the girl mean?", "c": ["She never sees the boy at the swimming pool.", "She always sees the boy at the swimming pool.", "She sometimes sees the boy at the swimming pool."], "a": 2, "e": "hardly ever = แทบจะไม่ (ไม่ถึงกับ never แต่ก็น้อยมาก คือ sometimes/นานๆ ทีเห็น)"},
+        {"n": 44, "q": "Man: It's a shame you won't be able to come and see the film...\nWoman: Well, I really wanted to, but the buses stop so early...\nMan: Oh, I'm sure one of us can put you up.\nWhat does the Man mean in his second comment?", "c": ["Someone can take the woman back to her house.", "Someone will find a hotel for the woman.", "The woman can stay at someone's house."], "a": 2, "e": "put someone up เป็นสำนวนแปลว่า ให้ที่พักพิง/ให้ค้างคืนที่บ้าน"},
+        {"n": 45, "q": "Woman: I'm going to have some new curtain made!\nMan: I'd rather we kept the ones we've got.\nWhat does the Man mean?", "c": ["We've had the old curtains for too long.", "I don't want you to change the curtains.", "I'd prefer curtains in a more traditional style."], "a": 1, "e": "kept the ones we've got = เก็บอันที่เรามีอยู่ไว้ (ไม่ต้องการให้เปลี่ยนผ้าม่าน)"},
+        {"n": 46, "q": "Wife: This apartment is becoming very small for us. Should we sell it?\nHusband: Well, I don't see why not.\nWhat does the husband mean?", "c": ["I don't think selling it is a good idea.", "I don't have any problems with selling it.", "I don't understand how selling it would help us."], "a": 1, "e": "I don't see why not = ไม่เห็นมีเหตุผลอะไรที่จะไม่ทำ (แปลว่าเห็นด้วย/ไม่มีปัญหาที่จะขาย)"},
+        {"n": 47, "q": "Teacher: Don't forget your bag!\nStudent: Oh, that bag isn't mine.\nWhat does the teacher mean?", "c": ["You don't usually forget to take your bag.", "Try to remember to take your bag next time.", "Remember to take your bag when you leave."], "a": 2, "e": "Don't forget (อย่าลืม) เป็นการเตือนให้ Remember (จำไว้/อย่าลืมเอาไปตอนออกไป)"},
+        {"n": 48, "q": "Woman: This pie is delicious. You must give me the recipe.\nMan: OK, would you like another piece?\nWhat does the Woman mean?", "c": ["She wants to have another piece of pie.", "She wants to know where to get the pie.", "She wants to know how to make the pie."], "a": 2, "e": "recipe = สูตรอาหาร การขอสูตรอาหารแปลว่าต้องการทราบวิธีทำ"},
+        {"n": 49, "q": "Girl: Have you got a good memory?\nBoy: Well, I'm hopeless at remembering names.\nWhat does the boy mean?", "c": ["I'm not good at remembering names.", "I'm very good at remembering names.", "I'm quite good at remembering names."], "a": 0, "e": "hopeless at (ทำบางสิ่ง) = แย่มาก/ไม่ได้เรื่องในเรื่องนั้น (not good at)"},
+        {"n": 50, "q": "Woman: I really have to make an appointment at the dentist's.\nMan: You've been worrying about that tooth for ages.\nWhat does the Woman mean?", "c": ["I need to find a new dentist.", "I want a dentist to look at my bad tooth.", "I mustn't miss my dentist's appointment."], "a": 1, "e": "การบอกว่าต้องนัดหมอฟัน (และกังวลเรื่องฟันมานาน) หมายความว่าต้องการให้หมอตรวจฟันที่มีปัญหา"},
+        {"n": 51, "q": "Sam: Do you think you'll get a promotion at work this year?\nJohn: I think so. Do you?\nSam: No, it's probably too soon for me.\nWhat does Sam mean by his SECOND comment?", "c": ["He started his job recently.", "He is planning to leave his job.", "He needs to work longer hours at his job."], "a": 0, "e": "too soon (เร็วเกินไป) บอกเป็นนัยว่าเขาเพิ่งเริ่มทำงานมาได้ไม่นาน (recently)"},
+        {"n": 52, "q": "Man: So, have you finalized your schedule for next semester yet?\nWoman: Well, I have lots of great options, but my job really limits what I can choose.\nWhat does the Woman mean?", "c": ["She has to take more classes.", "She needs to quit her job soon.", "She wishes she had more flexibility."], "a": 2, "e": "งานทำให้ตัวเลือกจำกัด (limits) หมายความว่าเธอปรารถนาจะมีความยืดหยุ่น(ในการเลือก)มากกว่านี้"},
+        {"n": 53, "q": "Man: I really need to take my computer to the shop. It's broken again.\nWoman: Do you want to use mine?\nWhat does the Woman mean?", "c": ["The man needs to call the computer repair store.", "The man can use the Woman's computer.", "The man should buy a new computer."], "a": 1, "e": "Do you want to use mine? (อยากใช้ของฉันไหม) เป็นการเสนอให้ผู้ชายใช้คอมพิวเตอร์ของตัวเองได้"},
+        {"n": 54, "q": "Man: Well, was parachute jumping everything it was cracked up to be?\nWoman: I'd say so - there was a lot of hanging around, though.\nWhat does the Man mean?", "c": ["Was parachute jumping as difficult as people say it is?", "Was parachute jumping as scary as people say it is?", "Was parachute jumping as good as people say it is?"], "a": 2, "e": "cracked up to be = ดีอย่างที่คนเขาพูด/ร่ำลือกันไหม"},
+        {"n": 55, "q": "Man: Well, was parachute jumping everything it was cracked up to be?\nWoman: I'd say so - there was a lot of hanging around, though.\nWhat does the Woman mean?", "c": ["It's over quite quickly.", "It took a long time.", "It costs too much."], "a": 1, "e": "hanging around = การรอคอย/เสียเวลาไปเปล่าๆ หมายความว่ากิจกรรมนี้กินเวลานาน (มีช่วงให้ต้องรอเยอะ)"},
+        {"n": 56, "q": "Student: Bye then sir!\nTeacher: Bye Sam - and do make an effort to come to class on time tomorrow!\nWhat does the teacher mean?", "c": ["You were late for the class today.", "You don't try hard enough in class.", "You must find out the time of the class tomorrow."], "a": 0, "e": "การเตือนให้ 'พยายามมาให้ตรงเวลาพรุ่งนี้' สื่อเป็นนัยว่า วันนี้เขามาสาย"},
+        {"n": 57, "q": "Man: Do you mind if I use your computer when you're out of the office next week?\nWoman: I'm afraid that's not really up to me.\nWhat does the Woman mean?", "c": ["It's not my computer.", "I'm sorry, but you can't.", "I can't make that decision."], "a": 2, "e": "not up to me = ไม่ได้ขึ้นอยู่กับฉัน (ฉันไม่มีอำนาจตัดสินใจในเรื่องนี้)"},
+        {"n": 58, "q": "Woman: Is there any rice in the cupboard?\nMan: Um, no. Shall I go and get some?\nWoman: Don't worry. I'll use pasta instead.\nWhat does the Woman mean by her SECOND comment?", "c": ["I prefer the taste of pasta to rice.", "I can cook with pasta or rice.", "I need both pasta and rice."], "a": 1, "e": "การบอกว่าจะใช้พาสต้าแทน (เนื่องจากข้าวหมด) หมายความว่า เธอสามารถทำอาหารด้วยพาสต้าหรือข้าวก็ได้"},
+        {"n": 59, "q": "Boy: I aced that last test, thanks to our study group. Want a repeat?\nGirl: Great minds think alike! How does after class sound?\nWhat does the girl mean?", "c": ["They will start a new study group.", "They agree to study together again.", "They both need to take the test again."], "a": 1, "e": "Great minds think alike (ใจตรงกันเลย) แสดงว่าตกลงที่จะติวหนังสือด้วยกันอีกครั้ง (Want a repeat?)"},
+        {"n": 60, "q": "Man: Do you think the senator has a good chance of becoming the next president?\nWoman: Well he might be really young, but he certainly gives speeches like one.\nWhat does the Woman mean?", "c": ["The senator already sounds like a president.", "The senator needs more experience to be president.", "The senator has been giving more speeches recently."], "a": 0, "e": "gives speeches like one (one = president) หมายความว่า สุนทรพจน์ของเขาฟังดูเหมือนประธานาธิบดีแล้ว"},
+        {"n": 61, "q": "Woman: One moment my friend and I were having fun, and the next, she up and left with her bag.\nMan: Don't worry. I'm sure it has nothing to do with you.\nWhat does the Woman mean?", "c": ["The Woman doesn't know what to do with her friend's bag.", "The Woman won't go out with her friend anymore.", "The Woman can't explain her friend's behavior."], "a": 2, "e": "การเล่าว่าจู่ๆ เพื่อนก็คว้ากระเป๋าเดินออกไปเลย แสดงถึงความงุนงง ไม่สามารถอธิบายพฤติกรรมของเพื่อนได้"},
+        {"n": 62, "q": "Man: Where were you brought up?\nWoman: In Australia.\nWhat does the Man mean?", "c": ["Where did you move home to?", "Where did you go for your holiday?", "Where did you spend your childhood?"], "a": 2, "e": "brought up = ถูกเลี้ยงดู/เติบโตมาที่ไหน ซึ่งก็คือการถามถึงสถานที่ใช้ชีวิตในวัยเด็ก"},
+        {"n": 63, "q": "Husband: Is your brother still planning on joining us for summer vacation?\nWife: It sounds like money is tight for him now, so I'm not sure he'll be able to spend it with us.\nWhat does the wife mean?", "c": ["She needs to cancel her trip to visit her brother.", "Her brother agreed to pay for the family vacation.", "Her brother might stay home during the vacation."], "a": 2, "e": "money is tight (เงินตึงมือ/ขัดสน) อาจทำให้เขามาพักร้อนด้วยไม่ได้ (อาจต้องอยู่บ้าน)"},
+        {"n": 64, "q": "Man: We're going to miss the start of the game, you know.\nWoman: Yes. You said the traffic would be light on a Monday.\nMan: Well, it usually is.\nWhat does the Woman mean?", "c": ["It's the Man's fault that they are late.", "She doesn't mind the traffic.", "He should drive faster."], "a": 0, "e": "การยกคำพูดผู้ชายมาอ้าง ('คุณบอกเองว่ารถจะไม่ติด') เป็นการตำหนิกลายๆ ว่าเป็นความผิดของเขาที่ทำให้สาย"},
+        {"n": 65, "q": "Daughter: Mum, where are my jeans?\nMother: They're where you put them, Lucy!\nWhat does the mother mean?", "c": ["You should put them away!", "I've told you where to find them!", "You ought to know where they are!"], "a": 2, "e": "They're where you put them (มันก็อยู่ตรงที่ลูกวางนั่นแหละ) หมายความว่า ลูกควรจะรู้เองว่ามันอยู่ไหน"},
+        {"n": 66, "q": "Man: Do you work on Mondays?\nWoman: No, I only work on weekends.\nWhat does the Woman mean?", "c": ["She is finished with her work.", "She works every day of the week.", "She works on Saturday and Sunday."], "a": 2, "e": "weekends หมายถึง วันเสาร์และวันอาทิตย์"},
+        {"n": 67, "q": "Man: What time do you finish work today?\nWoman: I work from 10 a.m. to 2 p.m.\nWhat does the Woman mean?", "c": ["She works until 2 p.m.", "She begins work at 2 p.m.", "She finishes work at 10 a.m."], "a": 0, "e": "ทำงานถึง 2 p.m. (บ่ายสอง) หมายความว่า เลิกงานเวลา 2 p.m. (until 2 p.m.)"},
+        {"n": 68, "q": "Man: Excuse me. Can you pass me the dictionary?\nWoman: Sure. No problem. Here you are.\nWhat does the Woman mean?", "c": ["I don't have it.", "I am looking for it.", "I can give it to you."], "a": 2, "e": "Here you are. = นี่ยื่นให้/อยู่นี่ไง แปลว่า เธอสามารถให้พจนานุกรมกับเขาได้"},
+        {"n": 69, "q": "Man: When I was growing up, my cousin's family would always come over to our place for the holidays.\nWoman: I wish I could say the same! Mine lived so far away.\nWhat does the Woman mean?", "c": ["She often likes to talk about family holidays.", "She rarely got to see her cousins on holidays.", "She usually traveled long distances for holidays."], "a": 1, "e": "ญาติอยู่ไกลมาก จึงไม่ได้มาหากันช่วงวันหยุดเหมือนของผู้ชาย หมายความว่า เธอแทบไม่ได้เจอญาติเลย (rarely)"},
+        {"n": 70, "q": "Man: Isn't he a great painter?\nWoman: Do you really think so? I'm not so sure.\nWhat does the Woman mean?", "c": ["She doesn't know the artist.", "She doesn't like the painting.", "She doesn't understand the question."], "a": 1, "e": "I'm not so sure (ฉันไม่ค่อยแน่ใจนะ) ในบริบทนี้คือการแสดงความไม่เห็นด้วย (ไม่คิดว่าภาพเขาสวย/ไม่ชอบ)"},
+        {"n": 71, "q": "Man: How was your vacation?\nWoman: Well, the food was better than the hotel.\nWhat does the Woman mean?", "c": ["She tried different foods at the hotel.", "She did not eat at the hotel.", "She did not like the hotel."], "a": 2, "e": "อาหารดีกว่าโรงแรม หมายความว่า โรงแรมแย่ (ไม่ชอบโรงแรม)"},
+        {"n": 72, "q": "Man: If you go to New York, visit the museum.\nWoman: I went last year. It was great.\nWhat does the Man mean?", "c": ["He is inviting the woman to the museum.", "He wants to know if the woman liked the museum.", "He thinks the woman should go to the museum."], "a": 2, "e": "visit the museum เป็นประโยคคำสั่งเชิงแนะนำ (เขาคิดว่าเธอควรไปเยี่ยมชมพิพิธภัณฑ์)"},
+        {"n": 73, "q": "Man: Did you ask Liz to come to the party?\nWoman: I don't know her phone number.\nWhat does the Woman mean?", "c": ["Liz can't come to the party.", "She didn't ask Liz to come.", "She doesn't know Liz very well."], "a": 1, "e": "ไม่รู้เบอร์โทรศัพท์ เป็นการให้เหตุผลว่า ทำไมถึงไม่ได้ชวนลิซมางานปาร์ตี้"},
+        {"n": 74, "q": "Man: Jack is so annoying.\nWoman: I couldn't agree more.\nWhat does the Woman mean?", "c": ["I don't think Jack is annoying.", "I think you are right about Jack.", "I've changed my mind about Jack."], "a": 1, "e": "I couldn't agree more. = เห็นด้วยอย่างยิ่ง (เห็นด้วยว่าแจ็คทำตัวน่ารำคาญจริงๆ)"},
+        {"n": 75, "q": "Man: Did you get a speeding ticket? What did the policeman say?\nWoman: He said he was letting me off with just a warning, or words to that effect.\nWhat does the Woman mean?", "c": ["She won't have to pay a fine for driving too fast.", "She didn't understand what the policeman said to her.", "The policeman told her that the road was dangerous."], "a": 0, "e": "letting me off with just a warning = ปล่อยตัวไปโดยแค่ตักเตือน (ไม่ต้องจ่ายค่าปรับ)"},
+        {"n": 76, "q": "Woman: Is Walter's job near here?\nMan: Walter's been commuting to Boston on a regular basis.\nWhat does the man say about Walter?", "c": ["He lives in Boston.", "He communicates with a Boston company.", "He has been traveling back and forth to Boston."], "a": 2, "e": "commuting = เดินทางไป-กลับระหว่างบ้านกับที่ทำงาน (เดินทางไปกลับบอสตันเป็นประจำ)"},
+        {"n": 77, "q": "Woman: Is there any way I could help you with dinner?\nMan: Would you mind chopping vegetables for salad?\nWhat does the man ask the woman?", "c": ["If she could do the grocery shopping.", "If she prefers cooked vegetables or salad.", "If she could help prepare the salad."], "a": 2, "e": "chopping vegetables for salad = หั่นผักสำหรับสลัด (ช่วยเตรียมสลัด)"},
+        {"n": 78, "q": "Man: Has your family been in business for quite some time?\nWoman: No, the family business was just established last year.\nWhat does the woman say about the family business?", "c": ["The company was founded about a year ago.", "The family is well established.", "The business only lasted a year."], "a": 0, "e": "established last year = เพิ่งก่อตั้งเมื่อปีที่แล้ว (founded about a year ago)"},
+        {"n": 79, "q": "Man: Last night's fire burned the entire hillside.\nWoman: At least the homes were saved.\nWhat does the woman mean?", "c": ["The firefighters saved the homes for last.", "The homes on the hillside were burned.", "The houses weren't destroyed."], "a": 2, "e": "homes were saved = บ้านเรือนได้รับการช่วยเหลือ/ปลอดภัย (ไม่ได้ถูกไฟทำลาย)"},
+        {"n": 80, "q": "Man: How successful was the corporation last year?\nWoman: It made quite a big profit.\nWhat does the woman say about the corporation?", "c": ["It earned a lot of money.", "This was the last year that it would make a profit.", "It was not so successful."], "a": 0, "e": "made a big profit = ทำกำไรได้ก้อนโต (earned a lot of money)"},
+        {"n": 81, "q": "Man: My pipe was leaking again last night; I had a lot of trouble finding a plumber.\nWoman: Really? You know if you need help, just call Mike. He can come at the drop of a hat.\nWhat does the woman mean?", "c": ["Mike is a good plumber.", "Mike will come quickly.", "Mike knows a good plumber."], "a": 1, "e": "at the drop of a hat = ทันทีทันใด/อย่างรวดเร็ว (มาได้อย่างรวดเร็ว)"},
+        {"n": 82, "q": "Woman: Why don't you help yourself to some food?\nMan: It looks delicious.\nWhat does the woman mean?", "c": ["Shall I give you some food?", "Could you pass me some food?", "Would you like to take some food?"], "a": 2, "e": "help yourself to... = เชิญตัก/หยิบ...ทานได้ตามสบาย (เสนออาหารให้)"},
+        {"n": 83, "q": "Man: How am I going to get all this paperwork done today?\nWoman: You should have come in earlier.\nWhat does the woman mean?", "c": ["You'll have to come to work early tomorrow.", "You always start work too late.", "You needed to start earlier."], "a": 2, "e": "should have + V.3 = ควรจะทำไปแล้ว (ในอดีต) หมายความว่า คุณจำเป็นต้องเริ่มงานให้เร็วกว่านี้ (แต่ไม่ได้ทำ)"},
+        {"n": 84, "q": "Customer: But I was told I could exchange this shirt within one week of the purchase date.\nSalesclerk: We have a strict policy. Sale items are not refundable.\nWhat does the customer mean?", "c": ["She is able to pick up the shirt next week.", "She should be allowed to return the shirt.", "She is trying to buy another shirt."], "a": 1, "e": "ลูกค้าบอกว่ามีคนบอกว่าเปลี่ยนได้ใน 1 สัปดาห์ หมายความว่าเธอเชื่อว่าเธอควรได้รับอนุญาตให้คืน/เปลี่ยนเสื้อตัวนี้ได้"},
+        {"n": 85, "q": "Boy: I have a feeling I'll regret enrolling in the World History class.\nGirl: Yeah, it's supposed to be impossible. Plus, you're already very busy.\nWhat does the girl mean?", "c": ["The man shouldn't bother taking the class.", "She would take the class if it weren't so difficult.", "There are already too many students in the class."], "a": 0, "e": "impossible (ยากมากจนเป็นไปไม่ได้) + busy (ยุ่งอยู่แล้ว) เป็นการสนับสนุนว่าเขาไม่ควรลงเรียนวิชานี้"},
+        {"n": 86, "q": "Man: How would you describe your taste in art?\nWoman: Oh, I can't really say. My taste is so broad.\nWhat does the woman mean?", "c": ["She likes many types of art.", "She wants to learn more about art.", "She prefers not to share her opinion."], "a": 0, "e": "broad = กว้างขวาง (รสนิยมกว้าง หมายความว่าชอบศิลปะหลากหลายประเภท)"},
+        {"n": 87, "q": "Man: Did you finish all the work you had to do over the weekend?\nWoman: Well, by the time I was ready to start, the weekend was over!\nWhat does the woman mean?", "c": ["She decided not to do the work.", "She did not have time to do the work.", "She did not know how to do the work."], "a": 1, "e": "พอพร้อมจะเริ่ม วันหยุดก็หมดซะแล้ว หมายความว่า เธอไม่มีเวลาทำงาน (เพราะหมดเวลาไปก่อน)"},
+        {"n": 88, "q": "Man: Do you get along with your sister.\nWoman: Yes, I do.\nWhat does the man mean?", "c": ["Do you travel to work with your sister?", "Do you like to spend time with your sister?", "Do you live in the same place as your sister?"], "a": 1, "e": "get along with = เข้ากันได้ดี/ถูกคอกัน ซึ่งมักหมายถึงการชอบที่จะใช้เวลาร่วมกันอย่างมีความสุข"},
+        {"n": 89, "q": "Woman: Do you want to walk to John's house?\nMan: Oh, it's not close enough for that!\nWoman: Okay, I'll drive us.\nWhat does the man mean?", "c": ["He does not know where John's house is.", "He does not want to walk to John's house.", "He wants to ask John to come to his house."], "a": 1, "e": "not close enough (ไม่ใกล้พอที่จะเดิน) เป็นการปฏิเสธทางอ้อมว่าไม่อยากเดินไป"},
+        {"n": 90, "q": "Man: Excuse me, may I take this chair?\nWoman: Go ahead, it's free.\nWhat does the woman mean?", "c": ["Someone is sitting there.", "The woman wants the chair.", "The man can have the chair."], "a": 2, "e": "Go ahead, it's free. = เอาไปเลย มันว่างอยู่ (อนุญาตให้ผู้ชายเอาเก้าอี้ไปได้)"},
+        {"n": 91, "q": "Man: Good morning. I'd like to get a ticket to New York.\nWoman: Of course. When would you like to fly?\nWhat does the woman mean?", "c": ["What time do you want to leave?", "How long will you be on the airplane?", "When are you coming back from New York?"], "a": 0, "e": "When would you like to fly? (อยากบินเมื่อไหร่) = ถามเวลาที่ต้องการจะออกเดินทาง"},
+        {"n": 92, "q": "Father: Are you leaving now?\nSon: Yes, the bus is here.\nFather: Okay. Give me a call tonight.\nWhat does the father mean by his SECOND comment?", "c": ["He wants to go with his son.", "He will talk to his son later.", "He needs his son's phone."], "a": 1, "e": "Give me a call tonight = คืนนี้โทรหาพ่อด้วย (แสดงว่าจะคุยกันในภายหลัง)"},
+        {"n": 93, "q": "Woman: Oh no, what's this bag sitting here?\nMan: It looks as if somebody left their lunch on the counter.\nWoman: Well, I hope Beth thought to bring money with her to school.\nWhat does the man mean?", "c": ["Beth forgot to take lunch.", "Someone took Beth's lunch.", "Beth prefers to buy her lunch."], "a": 0, "e": "คำพูดของผู้หญิงที่ว่าหวังว่าเบธจะพกเงินไป แสดงว่ากระเป๋าข้าวกล่องที่ลืมไว้นั้นเป็นของเบธ (เบธลืมเอาไป)"},
+        {"n": 94, "q": "Man: When I was growing up, my cousin's family would always come over to our place for the holidays.\nWoman: I wish I could say the same! Mine lived so far away.\nMan: Yes, we were pretty fortunate.\nWhat does the man mean by his FIRST comment?", "c": ["He regularly saw his cousin during the holidays.", "He often traveled to his cousin's house for the holidays.", "He wished he could see his cousin during the holidays."], "a": 0, "e": "would always come over (มักจะมาหาเสมอ) หมายความว่า เขาได้เจอญาติเป็นประจำ (regularly)"},
+        {"n": 95, "q": "Woman: I wish I could say the same! Mine lived so far away.\nWhat does the woman mean?", "c": ["She often likes to talk about family holidays.", "She rarely got to see her cousins on holidays.", "She usually traveled long distances for holidays."], "a": 1, "e": "ญาติอยู่ไกลมาก ทำให้เธอแทบไม่ได้เจอญาติเลยในช่วงวันหยุด (rarely got to see)"},
+        {"n": 96, "q": "Woman: I'm sorry I'm late. There was so much traffic.\nMan: Oh, I was worried. You are hardly ever late.\nWhat does the man mean?", "c": ["I didn't think you would come.", "I know you are usually on time.", "It's difficult for you to be on time."], "a": 1, "e": "hardly ever late (แทบจะไม่เคยสายเลย) หมายความว่า ปกติเธอเป็นคนตรงเวลา (usually on time)"},
+        {"n": 97, "q": "Mom: I'll make you a sandwich for lunch.\nGirl: No thanks. I just ate one.\nWhat does the girl mean?", "c": ["She isn't hungry.", "She will eat later.", "She doesn't like sandwiches."], "a": 0, "e": "I just ate one (เพิ่งกินไปชิ้นนึง) เป็นการปฏิเสธเพราะอิ่มแล้ว (ไม่หิว)"},
+        {"n": 98, "q": "Man: I'm moving to London next month.\nWoman: I'm sorry to hear that.\nWhat does the woman mean?", "c": ["She didn't hear what the man said.", "She doesn't want the man to move.", "She doesn't know why the man is moving."], "a": 1, "e": "I'm sorry to hear that (เสียใจที่ได้ยินแบบนั้น) แสดงถึงความไม่อยากให้เขาไป (ไม่อยากให้ย้าย)"},
+        {"n": 99, "q": "Husband: Do we have to go out tonight?\nWife: Well, we could stay in and watch a DVD if you like.\nWhat does the husband mean?", "c": ["I'd really prefer to stay in tonight.", "I don't know what we should do tonight.", "I'm sure you don't really want to go out tonight."], "a": 0, "e": "การถามว่า 'เราจำเป็นต้องออกไปข้างนอกไหม' เป็นการบอกใบ้ว่าใจจริงเขาอยากอยู่บ้านมากกว่า (prefer to stay in)"},
+        {"n": 100, "q": "Woman: Do you think it'll rain today?\nMan: I heard on the news that a bad storm is heading in.\nWhat does the man mean?", "c": ["The weather will probably get worse later.", "The newspaper headlines described a bad storm.", "There was news about a headstrong man."], "a": 0, "e": "bad storm is heading in (พายุร้ายกำลังมุ่งหน้ามา) หมายความว่า อากาศกำลังจะแย่ลงในภายหลัง"}
+    ];
+
+    let questions = [];
+    let state = {
+        activeRound: false,
+        totalInRound: 0,
+        currentIndex: 0,
+        score: 0,
+        currentQuestions: [],
+        wrongAnswers: []
+    };
+
+    let selectedCount = 100;
+    const STATE_KEY = 'quiz_part2_state';
+    const WRONG_KEY = 'quiz_part2_wrong_answers';
+
+    // เตรียมคำถาม
+    function generateQuestions(mode = "normal") {
+        let pool = [];
+        if (mode === "wrong") {
+            const savedWrong = JSON.parse(localStorage.getItem(WRONG_KEY)) || [];
+            pool = savedWrong.map(q => JSON.parse(JSON.stringify(q)));
+        } else {
+            pool = sourceData.map(q => JSON.parse(JSON.stringify(q)));
+        }
+        
+        // Shuffle questions
+        pool.sort(() => Math.random() - 0.5);
+        if (mode === "normal") {
+            pool = pool.slice(0, selectedCount);
+        }
+
+        // Shuffle choices and map answers
+        pool.forEach(q => {
+            const options = q.c.map((text, idx) => ({ text, isCorrect: idx === q.a }));
+            options.sort(() => Math.random() - 0.5);
+            q.options = options;
+        });
+
+        return pool;
+    }
+
+    function init() {
+        const savedState = localStorage.getItem(STATE_KEY);
+        if (savedState) {
+            const parsed = JSON.parse(savedState);
+            if (parsed.activeRound) {
+                document.getElementById('resume-section').style.display = 'block';
+                document.getElementById('resume-progress').innerText = `${parsed.currentIndex + 1}/${parsed.totalInRound}`;
+            }
+        }
+    }
+
+    function setCount(num) {
+        selectedCount = num;
+        document.querySelectorAll('.option-group .btn-outline').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`btn-count-${num === 100 ? 'all' : num}`).classList.add('active');
+    }
+
+    function startNewQuiz(mode = "normal") {
+        if(localStorage.getItem(STATE_KEY)) {
+            const parsed = JSON.parse(localStorage.getItem(STATE_KEY));
+            if(parsed.activeRound && !confirm('คุณมีรอบที่ทำค้างไว้ ต้องการเริ่มใหม่และลบทิ้งใช่หรือไม่?')) return;
+        }
+
+        questions = generateQuestions(mode);
+        if(questions.length === 0) {
+            alert("ไม่มีข้อผิดให้ทำซ้ำครับ");
+            return;
+        }
+
+        state = {
+            activeRound: true,
+            totalInRound: questions.length,
+            currentIndex: 0,
+            score: 0,
+            currentQuestions: questions,
+            wrongAnswers: []
+        };
+        saveState();
+        showQuizScreen();
+    }
+
+    function resumeQuiz() {
+        const savedState = localStorage.getItem(STATE_KEY);
+        if (savedState) {
+            state = JSON.parse(savedState);
+            questions = state.currentQuestions;
+            showQuizScreen();
+        }
+    }
+
+    function showQuizScreen() {
+        document.getElementById('home-screen').style.display = 'none';
+        document.getElementById('summary-screen').style.display = 'none';
+        document.getElementById('quiz-screen').style.display = 'block';
+        renderQuestion();
+    }
+
+    function renderQuestion() {
+        const q = questions[state.currentIndex];
+        
+        document.getElementById('quiz-progress-text').innerText = `ข้อ ${state.currentIndex + 1}/${state.totalInRound}`;
+        document.getElementById('book-q-number').innerText = `อ้างอิงหนังสือข้อ: ${q.n}`;
+        document.getElementById('progress-bar').style.width = `${(state.currentIndex / state.totalInRound) * 100}%`;
+        
+        document.getElementById('question-text').innerText = q.q;
+        
+        const optsContainer = document.getElementById('options-container');
+        optsContainer.innerHTML = '';
+        
+        q.options.forEach((opt, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'choice-btn';
+            btn.innerText = `${String.fromCharCode(65 + index)}. ${opt.text}`;
+            btn.onclick = () => selectOption(index, btn);
+            optsContainer.appendChild(btn);
+        });
+
+        document.getElementById('explanation-box').style.display = 'none';
+    }
+
+    let isAnswered = false;
+
+    function selectOption(selectedIndex, btnElement) {
+        if (isAnswered) return;
+        isAnswered = true;
+
+        const q = questions[state.currentIndex];
+        const isCorrect = q.options[selectedIndex].isCorrect;
+        
+        const buttons = document.querySelectorAll('.choice-btn');
+        buttons.forEach(btn => btn.disabled = true);
+
+        if (isCorrect) {
+            btnElement.classList.add('correct');
+            state.score++;
+            document.getElementById('explain-title').innerText = "✅ ถูกต้อง!";
+            document.getElementById('explain-title').style.color = "var(--correct-border)";
+        } else {
+            btnElement.classList.add('wrong');
+            document.getElementById('explain-title').innerText = "❌ ผิดครับ";
+            document.getElementById('explain-title').style.color = "var(--wrong-border)";
+            
+            const correctIndex = q.options.findIndex(o => o.isCorrect);
+            buttons[correctIndex].classList.add('correct');
+
+            const originalQ = sourceData.find(sq => sq.n === q.n);
+            if (!state.wrongAnswers.find(w => w.n === originalQ.n)) {
+                state.wrongAnswers.push(originalQ);
+            }
+        }
+
+        document.getElementById('explain-text').innerText = q.e;
+        document.getElementById('explanation-box').style.display = 'block';
+        
+        saveState();
+    }
+
+    function nextQuestion() {
+        if (!isAnswered) return;
+        
+        if (state.currentIndex < state.totalInRound - 1) {
+            state.currentIndex++;
+            isAnswered = false;
+            saveState();
+            renderQuestion();
+        } else {
+            endQuiz();
+        }
+    }
+
+    function endQuiz() {
+        state.activeRound = false;
+        
+        let savedWrong = JSON.parse(localStorage.getItem(WRONG_KEY)) || [];
+        state.wrongAnswers.forEach(wq => {
+            if(!savedWrong.find(s => s.n === wq.n)) savedWrong.push(wq);
+        });
+        localStorage.setItem(WRONG_KEY, JSON.stringify(savedWrong));
+        
+        localStorage.removeItem(STATE_KEY);
+        
+        showSummary();
+    }
+
+    function showSummary() {
+        document.getElementById('quiz-screen').style.display = 'none';
+        document.getElementById('summary-screen').style.display = 'block';
+        
+        document.getElementById('score-text').innerText = `${state.score} / ${state.totalInRound}`;
+        
+        const wrongContainer = document.getElementById('wrong-answers-container');
+        const wrongList = document.getElementById('wrong-list');
+        
+        if (state.wrongAnswers.length > 0) {
+            wrongContainer.style.display = 'block';
+            wrongList.innerHTML = '';
+            state.wrongAnswers.forEach(wq => {
+                const div = document.createElement('div');
+                div.className = 'summary-item';
+                div.innerHTML = `<strong>ข้อ ${wq.n}:</strong> <br>${wq.q.replace(/\n/g, '<br>')} <br>
+                                 <span style="color: green;">✔ ตอบ: ${wq.c[wq.a]}</span><br>
+                                 <em>อธิบาย: ${wq.e}</em>`;
+                wrongList.appendChild(div);
+            });
+            document.getElementById('retry-wrong-btn').style.display = 'inline-block';
+        } else {
+            wrongContainer.style.display = 'none';
+            document.getElementById('retry-wrong-btn').style.display = 'none';
+        }
+    }
+
+    function showHome() {
+        document.getElementById('summary-screen').style.display = 'none';
+        document.getElementById('quiz-screen').style.display = 'none';
+        document.getElementById('home-screen').style.display = 'block';
+        document.getElementById('resume-section').style.display = 'none';
+        isAnswered = false;
+        init();
+    }
+
+    function goHomeConfirm() {
+        if(confirm('ต้องการหยุดพักและกลับหน้าแรกหรือไม่? ความคืบหน้าของคุณจะถูกบันทึกไว้')) {
+            showHome();
+        }
+    }
+
+    function retryWrong() {
+        startNewQuiz("wrong");
+    }
+
+    function saveState() {
+        localStorage.setItem(STATE_KEY, JSON.stringify(state));
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (document.getElementById('quiz-screen').style.display === 'block') {
+            if (['1', '2', '3'].includes(e.key) && !isAnswered) {
+                const idx = parseInt(e.key) - 1;
+                const buttons = document.querySelectorAll('.choice-btn');
+                if (buttons[idx]) buttons[idx].click();
+            } else if (e.key === 'Enter' && isAnswered) {
+                nextQuestion();
+            }
+        }
+    });
+
+    init();
+</script>
+
+</body>
+</html>
