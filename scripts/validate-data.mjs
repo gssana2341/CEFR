@@ -12,9 +12,14 @@ const dataDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'a
 // The data files are plain browser scripts: they assign to window.CEFR_DATA.
 const sandbox = { window: {} };
 vm.createContext(sandbox);
-for (const file of ['grammar', 'conversations', 'cloze', 'extra', 'placement', 'lessons', 'exam', 'glossary']) {
+for (const file of ['grammar', 'conversations', 'cloze', 'extra', 'placement', 'lessons', 'exam', 'glossary',
+  'tenses', 'clues-grammar', 'clues-conversations', 'clues-extra', 'clues-placement', 'clues-lessons']) {
   vm.runInContext(readFileSync(join(dataDir, file + '.js'), 'utf8'), sandbox, { filename: file + '.js' });
 }
+// markup.js is a browser script; only its pure helpers (plan) are used here
+sandbox.window.CEFR = { h() {} };
+vm.runInContext(readFileSync(join(dataDir, '..', 'js', 'markup.js'), 'utf8'), sandbox, { filename: 'markup.js' });
+const markup = sandbox.window.CEFR.markup;
 const D = sandbox.window.CEFR_DATA;
 
 const errors = [];
@@ -169,6 +174,81 @@ else {
   });
 }
 
+// --- 12 tenses + sentence mark-up annotations (assets/data/clues-*.js) ---
+const warnings = [];
+const TENSE_KINDS = ['simple', 'continuous', 'perfect', 'perfectcont'];
+const tenseIds = new Set();
+if (!Array.isArray(D.tenses) || D.tenses.length !== 12) err('tenses', 'expected exactly 12 tenses');
+else {
+  D.tenses.forEach((t, i) => {
+    const where = `tenses[${i}] (${t.id})`;
+    if (!isStr(t.id) || tenseIds.has(t.id)) err(where, 'id missing or duplicate');
+    tenseIds.add(t.id);
+    if (!['past', 'present', 'future'].includes(t.group)) err(where, 'group must be past / present / future');
+    if (!TENSE_KINDS.includes(t.kind)) err(where, `kind must be one of ${TENSE_KINDS.join(', ')}`);
+    for (const f of ['en', 'th', 'short', 'tip']) if (!isStr(t[f])) err(where, `${f} is empty`);
+    for (const f of ['aff', 'neg', 'q']) if (!isStr(t.form?.[f])) err(where, `form.${f} is empty`);
+    for (const f of ['use', 'signals', 'examples']) if (!Array.isArray(t[f]) || !t[f].length) err(where, `${f} is empty`);
+  });
+}
+const lessonIds = new Set((D.lessons ?? []).map((l) => l.id));
+const clueStats = {};
+
+function checkClue(where, bank, q, answer, ann) {
+  if (!ann || typeof ann !== 'object') return err(where, 'annotation must be an object');
+  if (!(ann.links?.length || ann.tags?.length || ann.tip)) err(where, 'needs links, tags or a tip');
+  if (ann.tense && !tenseIds.has(ann.tense)) err(where, `unknown tense "${ann.tense}"`);
+  if (ann.lesson && !lessonIds.has(ann.lesson)) err(where, `unknown lesson "${ann.lesson}"`);
+  for (const [i, l] of (ann.links ?? []).entries()) {
+    if (!Array.isArray(l) || !isStr(l[0]) || !(l[1] === null || isStr(l[1])) || !isStr(l[2])) err(where, `links[${i}] must be [from, to|null, label]`);
+  }
+  for (const [i, t] of (ann.tags ?? []).entries()) {
+    if (!Array.isArray(t) || !isStr(t[0]) || !isStr(t[1])) err(where, `tags[${i}] must be [word, caption]`);
+  }
+  const p = markup.plan(q, answer, ann);
+  for (const m of p.missing) err(where, `"${m}" is not in the sentence (or overlaps another mark)`);
+  for (const m of p.ambiguous) warnings.push(`${where}: "${m}" appears more than once - first one is used (write "${m}@2" for the second)`);
+}
+
+const clues = D.clues ?? {};
+for (const bank of ['grammar', 'conversations', 'extra']) {
+  const byN = new Map((D[bank] ?? []).map((q) => [q.n, q]));
+  const c = clues[bank] ?? {};
+  clueStats[bank] = [Object.keys(c).length, byN.size];
+  for (const [key, ann] of Object.entries(c)) {
+    const q = byN.get(Number(key));
+    if (!q) { err(`clues.${bank}[${key}]`, 'no question with this number'); continue; }
+    checkClue(`clues.${bank}[${key}]`, bank, q.q, q.c[q.a], ann);
+  }
+}
+{
+  const byId = new Map((D.placement ?? []).map((q) => [q.id, q]));
+  const c = clues.placement ?? {};
+  clueStats.placement = [Object.keys(c).length, byId.size];
+  for (const [key, ann] of Object.entries(c)) {
+    const q = byId.get(key);
+    if (!q) { err(`clues.placement[${key}]`, 'no question with this id'); continue; }
+    checkClue(`clues.placement[${key}]`, 'placement', q.q, q.c[q.a], ann);
+  }
+}
+{
+  const c = clues.lessons ?? {};
+  let have = 0;
+  let total = 0;
+  for (const l of D.lessons ?? []) total += l.exercises?.length ?? 0;
+  for (const [lid, byIdx] of Object.entries(c)) {
+    const lesson = (D.lessons ?? []).find((l) => l.id === lid);
+    if (!lesson) { err(`clues.lessons[${lid}]`, 'no lesson with this id'); continue; }
+    for (const [idx, ann] of Object.entries(byIdx)) {
+      const ex = lesson.exercises?.[Number(idx)];
+      if (!ex) { err(`clues.lessons[${lid}][${idx}]`, 'no exercise at this index'); continue; }
+      have++;
+      checkClue(`clues.lessons[${lid}][${idx}]`, 'lessons', ex.q, ex.c[ex.a], ann);
+    }
+  }
+  clueStats.lessons = [have, total];
+}
+
 // --- Glossary (click-to-translate dictionary) ---
 const G = D.glossary || {};
 for (const [word, gloss] of Object.entries(G)) {
@@ -226,8 +306,10 @@ if (errors.length) {
 console.log(
   `✓ Data OK\n` +
   `  practice : grammar ${counts.grammar} · conversations ${counts.conversations} · cloze ${counts.cloze} passages / ${counts.clozeBlanks} blanks · extra ${counts.extra}\n` +
+  `  mark-up  : ${Object.entries(clueStats).map(([k, [a, b]]) => `${k} ${a}/${b}`).join(' · ')} annotated (cloze is not annotated)\n` +
   `  learning : placement ${counts.placement} · lessons ${counts.lessons} (${counts.exercises} exercises) · glossary ${Object.keys(G).length} entries`
 );
+if (warnings.length) console.warn(`\n! ${warnings.length} mark-up warning(s):\n  ` + warnings.join('\n  '));
 if (uncovered.size) {
   const list = [...uncovered].sort();
   console.warn(`\n! ${list.length} word(s) are not in the glossary yet (click-to-translate will use machine translation):\n  ${list.slice(0, 60).join(' ')}${list.length > 60 ? ' …' : ''}\n  → add them to public/assets/data/glossary.js`);

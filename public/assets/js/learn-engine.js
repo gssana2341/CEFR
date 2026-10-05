@@ -72,9 +72,11 @@
             btns[k].classList.add(ok ? 'correct' : 'wrong');
             if (!ok) btns[order.indexOf(ex.a)].classList.add('correct');
             fb.className = 'feedback ' + (ok ? 'ok' : 'bad');
-            fb.replaceChildren(
+            fb.replaceChildren(...[
               h('strong', { class: 'feedback-title', text: ok ? 'ถูกต้อง' : 'ผิด' }),
-              h('p', { class: 'feedback-text', 'data-tr': true }, rich(ex.e)));
+              h('p', { class: 'feedback-text', 'data-tr': true }, rich(ex.e)),
+              window.CEFR.markup && window.CEFR.markup.block({ bank: 'lessons', key: lesson.id + '#' + i, q: ex.q, answer: ex.c[ex.a] }),
+            ].filter(Boolean));
             fb.hidden = false;
             if (answered === lesson.exercises.length) finish();
           },

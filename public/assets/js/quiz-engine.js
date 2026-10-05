@@ -261,6 +261,7 @@
       const feedback = answered && h('div', { class: 'feedback ' + (correct ? 'ok' : 'bad'), 'aria-live': 'polite' },
         h('strong', { class: 'feedback-title', text: correct ? 'ถูกต้อง' : 'ผิด' }),
         h('p', { class: 'feedback-text', 'data-tr': true }, rich(q.e)),
+        clueBlock(q),
         nextBtn
       );
 
@@ -301,6 +302,11 @@
       if (opts && opts.focusNext) nextBtn.focus();
     }
 
+    // Arcs above the sentence + tense card (needs markup.js and the clues for this set; null when not annotated)
+    const clueBlock = (q) => (window.CEFR.markup
+      ? window.CEFR.markup.block({ bank: meta.dataKey, key: q.n, q: q.q, answer: q.c[q.a] })
+      : null);
+
     // Fills the panel with a Thai translation of each question line and each choice.
     async function fillTranslation(panel, q) {
       const my = ++trToken;
@@ -329,7 +335,8 @@
             h('p', { class: 'review-q', 'data-tr': true, text: 'ข้อ ' + q.n + ': ' + q.q }),
             h('p', { class: 'review-you', text: '✗ คุณตอบ: ' + q.c[it.pick] }),
             h('p', { class: 'review-right', text: '✓ เฉลย: ' + q.c[q.a] }),
-            h('p', { class: 'review-expl', 'data-tr': true }, rich(q.e))
+            h('p', { class: 'review-expl', 'data-tr': true }, rich(q.e)),
+            clueBlock(q)
           );
         })
       );

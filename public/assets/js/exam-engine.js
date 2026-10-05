@@ -533,7 +533,8 @@
             ? h('p', { class: 'meta', text: 'ไม่ได้ตอบ' })
             : h('p', { class: it.pick === q.a ? 'review-right' : 'review-you', text: (it.pick === q.a ? '✓ ' : '✗ ') + 'คุณตอบ: ' + q.c[it.pick] }),
           it.pick !== q.a && h('p', { class: 'review-right', text: '✓ เฉลย: ' + q.c[q.a] }),
-          h('p', { class: 'review-expl', 'data-tr': true }, rich(q.e)));
+          h('p', { class: 'review-expl', 'data-tr': true }, rich(q.e)),
+          window.CEFR.markup && window.CEFR.markup.block({ bank: it.src, key: q.n, q: q.q, answer: q.c[q.a] }));
       }
       const pass = passageOf(it);
       const filled = pass.text.replace(/\{(\d+)\}/g, (_, k) => '[' + pass.blanks[k - 1].c[pass.blanks[k - 1].a] + ']');

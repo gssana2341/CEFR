@@ -180,7 +180,14 @@
             h('span', { class: 'lesson-state' + (done ? ' done' : ''), text: done ? '✓ ' + p.score + '/' + p.total : l.level === focus ? 'แนะนำ' : '' }),
             h('span', { class: 'lesson-sub', text: l.minutes + ' นาที · แบบฝึกหัด ' + l.exercises.length + ' ข้อ' })));
         })),
-      ])
+      ]),
+      h('h2', { class: 'level-title' }, 'ตารางอ้างอิง', h('span', { class: 'meta', text: 'เปิดดูได้ตลอด' })),
+      h('ul', { class: 'lesson-list' },
+        h('li', {}, h('a', { class: 'lesson-link', href: 'tenses.html' },
+          h('span', { class: 'lesson-no', text: '12' }),
+          h('span', { class: 'lesson-name' }, 'สรุป 12 Tenses ', h('span', { class: 'light', text: 'Tense summary' })),
+          h('span', { class: 'lesson-state' }),
+          h('span', { class: 'lesson-sub', text: 'ตารางสูตร กฎการใช้ และคำบอกเวลา · ในข้อสอบจะมีเส้นโยงชี้ว่าข้อไหนใช้ tense อะไร' }))))
     );
   }
 

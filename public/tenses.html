@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>สอบจำลอง — CEFR Quiz</title>
-  <meta name="description" content="ซ้อมสอบตามกติกาของ EF SET: จับเวลาแยกส่วน ย้อนกลับไม่ได้ ไม่มีเฉลยระหว่างทำ หรือเลือกแบบยืดหยุ่น พร้อมสรุปผลและเฉลยหลังส่ง">
+  <title>สรุป 12 Tenses — CEFR Quiz</title>
+  <meta name="description" content="ตารางสรุป 12 tenses ภาษาอังกฤษ พร้อมสูตรบอกเล่า ปฏิเสธ คำถาม กฎการใช้ คำบอกเวลา และตัวอย่าง">
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -19,18 +19,17 @@
     <header class="site-header">
       <a class="brand" href="index.html#home">CEFR Quiz</a>
       <div class="header-actions">
-        <!-- shown only when reviewing results: translation is off during the exam -->
-        <button class="tr-toggle" type="button" data-translate-toggle aria-pressed="true" hidden>แปล</button>
+        <button class="tr-toggle" type="button" data-translate-toggle aria-pressed="true">แปล</button>
         <button class="icon-btn" type="button" data-theme-toggle aria-label="สลับโหมดสว่าง/มืด"></button>
       </div>
     </header>
-    <nav class="tabs" data-section="test" aria-label="เมนูหลัก"></nav>
+    <nav class="tabs" data-section="learn" aria-label="เมนูหลัก"></nav>
 
-    <p class="eyebrow">Mock exam</p>
-    <h1 class="page-title">สอบจำลอง <span class="light">อ้างอิง EF SET</span></h1>
+    <p class="eyebrow">Reference</p>
+    <h1 class="page-title">สรุป 12 Tenses</h1>
 
     <main id="app">
-      <noscript><p class="lead">ต้องเปิด JavaScript เพื่อทำข้อสอบ</p></noscript>
+      <noscript><p class="lead">ต้องเปิด JavaScript เพื่อดูตาราง</p></noscript>
     </main>
 
     <footer class="site-footer">ความคืบหน้าบันทึกไว้ในเบราว์เซอร์ของคุณเท่านั้น</footer>
@@ -40,14 +39,6 @@
   <script src="assets/js/translate.js"></script>
   <script src="assets/data/tenses.js"></script>
   <script src="assets/js/markup.js"></script>
-  <script src="assets/data/clues-grammar.js"></script>
-  <script src="assets/data/clues-conversations.js"></script>
-  <script src="assets/data/clues-extra.js"></script>
-  <script src="assets/data/grammar.js"></script>
-  <script src="assets/data/conversations.js"></script>
-  <script src="assets/data/cloze.js"></script>
-  <script src="assets/data/extra.js"></script>
-  <script src="assets/data/exam.js"></script>
-  <script src="assets/js/exam-engine.js"></script>
+  <script src="assets/js/tenses-page.js"></script>
 </body>
 </html>

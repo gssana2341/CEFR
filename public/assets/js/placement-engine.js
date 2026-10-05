@@ -280,7 +280,8 @@
           h('p', { class: 'review-q', 'data-tr': true, text: '[' + q.level + '] ' + q.q }),
           h('p', { class: it.pick === null ? 'meta' : 'review-you', text: it.pick === null ? 'ไม่ได้ตอบ' : '✗ คุณตอบ: ' + q.c[it.pick] }),
           h('p', { class: 'review-right', text: '✓ เฉลย: ' + q.c[q.a] }),
-          h('p', { class: 'review-expl', 'data-tr': true }, rich(q.e)));
+          h('p', { class: 'review-expl', 'data-tr': true }, rich(q.e)),
+          window.CEFR.markup && window.CEFR.markup.block({ bank: 'placement', key: q.id, q: q.q, answer: q.c[q.a] }));
       }));
 
     setView(
