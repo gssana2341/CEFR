@@ -1,0 +1,13 @@
+{
+  "name": "cefr-quiz",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CEFR A1–B1 practice quizzes (Grammar, Conversations, Cloze) — static site for Vercel",
+  "scripts": {
+    "dev": "npx --yes serve public -l 3000",
+    "validate": "node scripts/validate-data.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

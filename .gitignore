@@ -1,0 +1,16 @@
+# dependencies / tooling
+node_modules/
+.vercel/
+.env
+.env.*
+!.env.example
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Claude Code local settings
+.claude/settings.local.json
