@@ -29,6 +29,14 @@
       intro: 'ข้อสอบใหม่นอกหนังสือ แบ่งตามหัวข้อ: Phrasal verbs, Collocations, Prepositions, Word forms, ภาษาพูดในชีวิตประจำวัน และข้อผิดพลาดที่พบบ่อย',
       labels: 'number',
     },
+    toeic5: {
+      id: 'toeic5',
+      kind: 'mcq',
+      dataKey: 'toeic5',
+      page: 'toeic5.html',
+      intro: 'ข้อสอบ TOEIC Part 5 เติมคำให้ถูกไวยากรณ์และความหมาย 4 ตัวเลือก (A–D) ตอบแล้วเห็นเฉลยพร้อมคำอธิบาย',
+      labels: 'letter',
+    },
     cloze: {
       id: 'cloze',
       kind: 'cloze',
@@ -173,6 +181,7 @@
     ['learn', 'เรียน', 'index.html#learn'],
     ['practice', 'ฝึก', 'index.html#practice'],
     ['test', 'ทดสอบ', 'index.html#test'],
+    ['toeic', 'TOEIC', 'index.html#toeic'],
   ];
 
   // (the membership page is reached from the account area in the header, not from the tab bar)

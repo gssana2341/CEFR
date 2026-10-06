@@ -10,7 +10,7 @@ const require = createRequire(import.meta.url);
 const bank = require('../api/_bank.js');
 
 const manifest = {
-  counts: { grammar: bank.bank('grammar').length, conversations: bank.bank('conversations').length, extra: bank.bank('extra').length },
+  counts: { grammar: bank.bank('grammar').length, conversations: bank.bank('conversations').length, extra: bank.bank('extra').length, toeic5: bank.bank('toeic5').length },
   cloze: bank.bank('cloze').map((p) => ({ topic: p.topic, blanks: p.blanks.length })),
   lessons: bank.lessons().map((l) => ({
     id: l.id, level: l.level, minutes: l.minutes, title: l.title, en: l.en, intro: l.intro, exerciseCount: l.exercises.length,

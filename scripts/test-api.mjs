@@ -403,6 +403,19 @@ await test('hitting the cap on 3 different days blocks members-only content (fre
   assert.equal((await call(content, { method: 'GET', query: { set: 'conversations' }, token })).code, 200, 'cleared by hand');
 });
 
+console.log('TOEIC');
+await test('TOEIC Part 5 is served like the other sets: no answers up front, the answer after a pick, every item has a source', async () => {
+  const r = await call(content, { method: 'GET', query: { set: 'toeic5' } });
+  assert.equal(r.code, 200);
+  assert.equal(r.body.questions.length, 30);
+  assert.ok(!hasKey(r.body, ['a', 'e', 'source', 'license']), 'toeic5 leaks answers');
+  assert.ok(r.body.questions.every((x) => x.c.length === 4));
+  const chk = await call(quiz, { body: { op: 'check', set: 'toeic5', items: [{ n: 1, pick: 0 }] } });
+  assert.equal(chk.body.results[1].a, bank.question('toeic5', 1).a);
+  assert.equal((await call(quiz, { body: { op: 'check', set: 'toeic5', items: [{ n: 1, pick: 4 }] } })).code, 400);
+  assert.ok(bank.bank('toeic5').every((q) => q.source === 'original' || q.license), 'every item states where it came from');
+});
+
 console.log('markup trial is counted on the server');
 await test('non-members get 3 free mark-ups a day, members always', async () => {
   const seen = [];

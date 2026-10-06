@@ -14,7 +14,7 @@
   const META = 'sync:meta';      // { key: t }  when each key last changed (here or in the cloud, the version we know)
   const DIRTY = 'sync:dirty';    // [key]       changed here and not sent yet
   const KEYS = [
-    /^(grammar|conversations|extra|cloze):(state|wrong|stats|count|best|order)$/,
+    /^(grammar|conversations|extra|cloze|toeic5):(state|wrong|stats|count|best|order)$/,
     /^placement:(state|last|history)$/,
     /^exam:history$/,
     /^learn:progress$/,

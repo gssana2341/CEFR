@@ -12,7 +12,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const DIR = path.join(__dirname, '..', 'content');
-const FILES = ['placement', 'grammar', 'conversations', 'extra', 'cloze', 'lessons', 'cat-bank',
+const FILES = ['placement', 'grammar', 'conversations', 'extra', 'toeic5', 'cloze', 'lessons', 'cat-bank',
   'clues-placement', 'clues-grammar', 'clues-conversations', 'clues-extra', 'clues-lessons'];
 
 let D = null;
@@ -26,7 +26,7 @@ function data() {
 }
 
 // sets that are plain multiple-choice lists keyed by `n`
-const MCQ = ['grammar', 'conversations', 'extra'];
+const MCQ = ['grammar', 'conversations', 'extra', 'toeic5'];
 const isMcq = (set) => MCQ.includes(set);
 
 const bank = (set) => data()[set] || [];

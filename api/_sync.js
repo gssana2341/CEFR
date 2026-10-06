@@ -15,7 +15,7 @@ const MAX_KEYS_PER_USER = 40;         // the allow-list below has about 30 keys
 
 // What may be stored. Everything else (translation cache, theme, membership token ...) stays on the device.
 const ALLOWED = [
-  /^(grammar|conversations|extra|cloze):(state|wrong|stats|count|best|order)$/,
+  /^(grammar|conversations|extra|cloze|toeic5):(state|wrong|stats|count|best|order)$/,
   /^placement:(state|last|history)$/,
   /^exam:history$/,
   /^learn:progress$/,

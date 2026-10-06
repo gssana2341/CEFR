@@ -77,10 +77,14 @@ a { color: inherit; }
 
 /* ---------- Layout ---------- */
 .container {
-  max-width: 640px;
+  max-width: 720px;
   margin: 0 auto;
   padding: 20px 20px 72px;
 }
+
+.container.wide { max-width: 1040px; }
+.container.wide .lead,
+.container.wide .tab-intro { max-width: 640px; }
 
 .site-header {
   display: flex;
@@ -1054,3 +1058,106 @@ body[data-view="intro"] .tr-toggle { display: none; }
 
 .free-tag { color: var(--muted); font-size: 0.8rem; font-weight: 500; }
 .focus-bar .tr-all { align-self: center; margin: 0; line-height: 1; min-height: 32px; }
+
+/* ---------- Colour: one accent per area (practice sets, placement, exam, lessons, TOEIC) ---------- */
+:root {
+  --acc-grammar: #2563eb;
+  --acc-conversations: #0f766e;
+  --acc-cloze: #4d7c0f;
+  --acc-extra: #7c3aed;
+  --acc-placement: #be185d;
+  --acc-exam: #c2410c;
+  --acc-learn: #0369a1;
+  --acc-toeic: #b45309;
+  --acc-ink: #ffffff;
+}
+:root[data-theme="dark"] {
+  --acc-grammar: #60a5fa;
+  --acc-conversations: #2dd4bf;
+  --acc-cloze: #a3e635;
+  --acc-extra: #a78bfa;
+  --acc-placement: #f472b6;
+  --acc-exam: #fb923c;
+  --acc-learn: #38bdf8;
+  --acc-toeic: #fbbf24;
+  --acc-ink: #0a0a0a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --acc-grammar: #60a5fa;
+    --acc-conversations: #2dd4bf;
+    --acc-cloze: #a3e635;
+    --acc-extra: #a78bfa;
+    --acc-placement: #f472b6;
+    --acc-exam: #fb923c;
+    --acc-learn: #38bdf8;
+    --acc-toeic: #fbbf24;
+    --acc-ink: #0a0a0a;
+  }
+}
+.acc-grammar { --acc: var(--acc-grammar); }
+.acc-conversations { --acc: var(--acc-conversations); }
+.acc-cloze { --acc: var(--acc-cloze); }
+.acc-extra { --acc: var(--acc-extra); }
+.acc-placement { --acc: var(--acc-placement); }
+.acc-exam { --acc: var(--acc-exam); }
+.acc-learn { --acc: var(--acc-learn); }
+.acc-toeic { --acc: var(--acc-toeic); }
+
+.btn-acc { background: var(--acc); border-color: var(--acc); color: var(--acc-ink); }
+.btn-acc:hover:not(:disabled) { opacity: 0.88; }
+.free-tag { padding: 1px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; color: var(--acc, var(--muted)); background: color-mix(in srgb, var(--acc, var(--muted)) 14%, transparent); }
+
+/* question pages: the area's colour on the progress bar, the keys and the chosen answer */
+body[class*="acc-"] .eyebrow { color: var(--acc); font-weight: 600; }
+body[class*="acc-"] .progress-fill { background: var(--acc); }
+body[class*="acc-"] .choice.selected { border-color: var(--acc); box-shadow: inset 0 0 0 1px var(--acc); }
+body[class*="acc-"] .choice-key { color: var(--acc); }
+body[class*="acc-"] .focus-exit:hover { color: var(--acc); }
+
+/* hub: tiles instead of plain rows, each with its colour */
+.list-rows.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; border-top: 0; }
+.tiles > li { display: flex; }
+.tiles .list-row, .tiles .soon-row {
+  flex: 1; align-items: center; gap: 12px;
+  padding: 18px 20px;
+  border: 1px solid var(--border); border-left: 4px solid var(--acc, var(--border)); border-radius: 12px;
+  background: color-mix(in srgb, var(--acc, transparent) 5%, var(--bg));
+  transition: border-color 0.15s;
+}
+.tiles .list-row:hover { border-color: var(--acc, var(--fg)); }
+.tiles .list-row::after { content: none; }
+.soon-row { display: flex; color: inherit; opacity: 0.75; }
+.list-row-side.chip-acc { color: var(--acc); background: color-mix(in srgb, var(--acc) 14%, transparent); padding: 1px 12px; border-radius: 999px; font-weight: 600; }
+
+/* home: next step in its colour */
+.next-card.acc-placement, .next-card.acc-learn, .next-card.acc-grammar, .next-card.acc-exam {
+  border-color: var(--acc); border-left-width: 5px;
+  background: color-mix(in srgb, var(--acc) 6%, var(--bg));
+}
+.next-label { color: var(--acc, var(--muted)); font-weight: 600; }
+.step-mark { border-color: color-mix(in srgb, var(--acc, var(--border)) 60%, var(--border)); color: var(--acc, var(--muted)); }
+.step-mark.done { color: var(--ok); border-color: var(--ok); }
+.level-fold { --acc: var(--acc-learn); }
+.level-fold > summary .level-name { color: var(--fg); }
+.level-fold[open] > summary { color: var(--acc); }
+.level-fold > summary::before { color: var(--acc); }
+
+.home-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 0 40px; align-items: start; }
+.home-grid .path-compact { margin-top: 0; }
+.home-side-title { color: var(--muted); font-size: 0.85rem; font-weight: 500; margin: 0 0 8px; }
+@media (max-width: 860px) { .home-grid { grid-template-columns: minmax(0, 1fr); } }
+
+@media (min-width: 900px) {
+  .container.wide .level-fold .lesson-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px; }
+}
+
+/* ---------- TOEIC ---------- */
+.stat-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 0 0 8px; }
+.stat-tile { border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+.stat-tile strong { display: block; font-size: 1.6rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.stat-tile span { display: block; margin-top: 4px; color: var(--muted); font-size: 0.85rem; }
+.part-group { margin: 28px 0 10px; display: flex; align-items: baseline; gap: 10px; }
+.part-group h2 { margin: 0; font-size: 1rem; color: var(--acc-toeic); }
+.part-group .meta { margin: 0; }
+.part-no { flex: none; display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 8px; background: color-mix(in srgb, var(--acc) 16%, transparent); color: var(--acc); font-weight: 600; font-size: 0.9rem; font-variant-numeric: tabular-nums; }

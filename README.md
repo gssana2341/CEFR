@@ -262,6 +262,14 @@ push เข้า `main` = deploy production อัตโนมัติ · bran
 5. **ตัวเล่นเสียง** — ใน `quiz-engine.js` (ฟังก์ชัน `renderQuiz`) และ `exam-engine.js` (`renderExam`) เพิ่มก่อนโจทย์: `q.audio && h('audio', { controls: true, preload: 'none', src: q.audio })`
 6. **หน้าหลัก** — เพิ่มรายการใน `PRACTICE` ที่ต้น `hub.js` (คัดลอกรายการ Extra: `id`, `title`, `thai`, `desc`, `href`) จะได้การ์ดในแท็บฝึกและการ์ด "ทำต่อ" ให้เอง และถ้าต้องการให้อยู่ในสอบจำลอง ให้ใส่ `parts: [{ id: 'listening', title: 'Listening', type: 'mcq', source: 'listening', count: 20 }]` แล้วลบ `comingSoon: true` ออกจากส่วน Listening ของแบบ EF SET ใน `exam.js` (ส่วนนี้จะมีนาฬิกา 25 นาทีของตัวเองต่อจาก Reading โดยอัตโนมัติ) พร้อมทั้ง: เพิ่ม `<script src="assets/data/listening.js">` ใน `exam.html` และเพิ่ม `'listening'` ในรายการ `source` ที่ตัวตรวจ (`scripts/validate-data.mjs`) อนุญาต ถ้าอยากให้เหมือน EF SET ให้จำกัดการเล่นเสียงไม่เกิน 2 รอบต่อไฟล์
 
+## TOEIC
+
+แท็บ **TOEIC** (`#toeic` ในหน้าแรก) แสดงโครงข้อสอบจริงทั้ง 7 Part: Part 5 เปิดใช้แล้ว (`content/toeic5.js` 30 ข้อ เขียนใหม่ในรูปแบบข้อสอบจริง หน้า `toeic5.html`) ส่วน Part 1–4 (Listening ต้องมีไฟล์เสียง), Part 6, 7, คลังข้อสอบเก่า และชุดจำลอง 200 ข้อ ยังเป็นช่อง "เร็วๆ นี้"
+
+- **เพิ่มข้อ Part 5:** เพิ่มใน `content/toeic5.js` (`n, level: 'Part 5', topic, source, q, c[4], a, e`) แล้วรัน `npm run manifest && npm run validate`
+- **ข้อสอบเก่า / ข้อสอบจากแหล่งอื่น:** ทุกข้อต้องมี `source` (เช่น ชื่อชุด/ปี/ลิงก์ต้นทาง) และถ้าไม่ใช่ `'original'` ต้องมี `license` (ใบอนุญาตหรือหลักฐานว่าใช้ได้) ตัวตรวจ `npm run validate` ปฏิเสธข้อที่ไม่มี · ข้อสอบจริงของ ETS มีลิขสิทธิ์ ไม่ควรนำมาลงโดยไม่ได้รับอนุญาต ชุดที่เผยแพร่ซ้ำไม่ได้ให้ทำเป็นการ์ดลิงก์ไปต้นทางแทน
+- **Part ใหม่ (ชุดตัวเลือกล้วน):** เพิ่มชื่อชุดใน `FILES`/`MCQ` ของ `api/_bank.js`, `QUIZZES` ของ `common.js`, regex ของ `api/_sync.js` + `sync.js`, `counts` ใน `scripts/build-manifest.mjs`, แถวใน `TOEIC_PARTS` ของ `hub.js` และคัดลอก `toeic5.html`
+
 ## ความปลอดภัย
 
 - **เนื้อหาไม่อยู่ในหน้าเว็บ:** ข้อสอบ เฉลย คำอธิบาย บทเรียน และเส้นโยงอยู่ใน `content/` เบราว์เซอร์ได้ "ข้อสอบที่ไม่มีเฉลย" จาก `/api/content` แล้วขอเฉลยทีละข้อจาก `/api/quiz` หลังเลือกคำตอบ · เปิด DevTools ก็ไม่เห็นเฉลยล่วงหน้า · ชุดของสมาชิกถูกปฏิเสธ (401 ยังไม่ล็อกอิน / 402 ไม่ใช่สมาชิก) ก่อนอ่านข้อมูล

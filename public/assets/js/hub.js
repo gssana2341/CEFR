@@ -9,8 +9,8 @@
   const root = document.getElementById('app');
   const nav = document.querySelector('nav.tabs');
 
-  const TABS = ['home', 'learn', 'practice', 'test'];
-  const TITLES = { home: 'CEFR Quiz — เรียน ฝึก และวัดระดับภาษาอังกฤษ', learn: 'เรียน — CEFR Quiz', practice: 'ฝึก — CEFR Quiz', test: 'ทดสอบ — CEFR Quiz' };
+  const TABS = ['home', 'learn', 'practice', 'test', 'toeic'];
+  const TITLES = { home: 'CEFR Quiz — เรียน ฝึก และวัดระดับภาษาอังกฤษ', learn: 'เรียน — CEFR Quiz', practice: 'ฝึก — CEFR Quiz', test: 'ทดสอบ — CEFR Quiz', toeic: 'TOEIC — CEFR Quiz' };
   const LEVEL_NAMES = { A1: ['A1', 'เริ่มต้น'], A2: ['A2', 'พื้นฐาน'], B1: ['B1', 'กลาง'], B2: ['B2', 'กลางค่อนสูง'] };
   const PASS_RATIO = 0.7;
 
@@ -18,6 +18,7 @@
   const clock = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
   const levelName = (l) => (l === 'pre-A1' ? 'ต่ำกว่า A1' : l === 'B2+' ? 'B2 ขึ้นไป' : l);
   const btn = (text, href, primary) => h('a', { class: 'btn' + (primary ? '' : ' btn-outline'), href, text });
+  const accBtn = (text, href) => h('a', { class: 'btn btn-acc', href, text });   // button in the colour of its area
   // members-only feature that this visitor has not unlocked → show the "สมาชิก" tag
   const billingOn = () => !!((window.CEFR_DATA.billing || {}).enabled);
   const lockedFor = (feature) => { const p = window.CEFR.pass; return !!(p && p.members(feature) && !p.active()); };
@@ -127,13 +128,16 @@
     return line;
   }
 
-  // a plain row: the whole row is the link (practice list, test list)
-  function listRow(href, title, thai, sub, side) {
-    return h('li', {}, h('a', { class: 'list-row', href },
+  // a tile: the whole tile is the link (practice, test, TOEIC); without an href it is shown as "coming soon"
+  function listRow(href, title, thai, sub, side, acc, chip, lead) {
+    const inner = [
+      lead,
       h('span', { class: 'list-row-main' },
         h('span', { class: 'list-row-title' }, title, thai && [' ', h('span', { class: 'light', text: thai })]),
         sub && h('span', { class: 'list-row-sub', text: sub })),
-      side && h('span', { class: 'list-row-side', text: side })));
+      side && h('span', { class: 'list-row-side' + (chip ? ' chip-acc' : ''), text: side })];
+    return h('li', { class: acc ? 'acc-' + acc : null },
+      href ? h('a', { class: 'list-row', href }, inner) : h('div', { class: 'list-row soon-row' }, inner));
   }
 
   function homePanel() {
@@ -150,38 +154,43 @@
 
     const placeRunning = placementRunning();
     const steps = [
-      { title: 'วัดระดับของคุณ', desc: 'ทำแบบทดสอบ 15 นาที เพื่อรู้ว่าอยู่ระดับไหน และควรเริ่มเรียนจากบทไหน',
+      { acc: 'placement', title: 'วัดระดับของคุณ', desc: 'ทำแบบทดสอบ 15 นาที เพื่อรู้ว่าอยู่ระดับไหน และควรเริ่มเรียนจากบทไหน',
         meta: last ? 'ผลล่าสุด: ระดับ ' + levelName(last.level) + ' (' + dateTh(last.at) + ')' : 'ปรับความยากอัตโนมัติ · ประมาณ 20–25 ข้อ',
         status: last ? 'ระดับ ' + levelName(last.level) : '', href: 'placement.html', cta: placeRunning ? 'ทำต่อ' : last ? 'ทำอีกครั้ง' : 'เริ่มทดสอบ', done: !!last },
-      { title: 'เรียนไวยากรณ์', desc: 'บทเรียนภาษาไทย ' + D.lessons.length + ' บท ครบทั้ง 12 tenses มีตัวอย่างและแบบฝึกหัดท้ายบท',
+      { acc: 'learn', title: 'เรียนไวยากรณ์', desc: 'บทเรียนภาษาไทย ' + D.lessons.length + ' บท ครบทั้ง 12 tenses มีตัวอย่างและแบบฝึกหัดท้ายบท',
         meta: 'เรียนแล้ว ' + done + '/' + D.lessons.length + ' บท' + (nl ? ' · บทถัดไป: ' + nl.title : ''),
         status: done + '/' + D.lessons.length + ' บท', href: nl ? 'learn.html#' + nl.id : 'index.html#learn', cta: done ? 'เรียนต่อ' : 'เริ่มเรียน', done: done === D.lessons.length },
-      { title: 'ฝึกทำข้อสอบ', desc: 'แบบฝึกหัด ' + questions + ' ข้อ ใน 4 ชุด ตอบแล้วเห็นเฉลยพร้อมคำอธิบายทันที',
+      { acc: 'grammar', title: 'ฝึกทำข้อสอบ', desc: 'แบบฝึกหัด ' + questions + ' ข้อ ใน 4 ชุด ตอบแล้วเห็นเฉลยพร้อมคำอธิบายทันที',
         meta: wrongTotal ? 'มีข้อที่ยังไม่แม่น ' + wrongTotal + ' ข้อ รอทบทวน' : null,
         status: wrongTotal ? 'ยังไม่แม่น ' + wrongTotal + ' ข้อ' : '', href: 'index.html#practice', cta: 'เลือกชุดฝึก', done: false },
-      { title: 'ซ้อมสอบจริง', desc: 'สอบจำลองตามกติกา EF SET จับเวลาแยกส่วน (' + examSectionNames() + ' ' + examMinutes() + ' นาที) ย้อนกลับไม่ได้',
+      { acc: 'exam', title: 'ซ้อมสอบจริง', desc: 'สอบจำลองตามกติกา EF SET จับเวลาแยกส่วน (' + examSectionNames() + ' ' + examMinutes() + ' นาที) ย้อนกลับไม่ได้',
         meta: hist.length ? 'ผลล่าสุด ' + pct(hist[0].score, hist[0].total) + '% (' + dateTh(hist[0].at) + ')' : null,
         status: hist.length ? pct(hist[0].score, hist[0].total) + '%' : '', href: 'exam.html', cta: examRunning() ? 'กลับไปสอบ' : 'เริ่มสอบจำลอง', done: hist.length > 0 },
     ];
     const next = rec ? steps[rec - 1] : null;
 
+    const others = steps.map((st, i) => (next && i === rec - 1 ? null : h('li', { class: 'acc-' + st.acc },
+      h('a', { class: 'step-row', href: st.href },
+        h('span', { class: 'step-mark' + (st.done ? ' done' : ''), 'aria-hidden': 'true', text: st.done ? '✓' : String(i + 1) }),
+        h('span', { class: 'step-row-title', text: st.title }),
+        h('span', { class: 'step-row-status', text: st.status })))));
+
     return h('div', {},
       h('h1', { class: 'page-title', text: 'เรียน ฝึก และวัดระดับ CEFR' }),
       h('p', { class: 'lead', text: 'ภาษาอังกฤษระดับ A1–B2 อธิบายเป็นภาษาไทย ตอบแล้วเห็นเฉลยทันที คลิกคำเพื่อดูคำแปลได้ทุกหน้า' }),
       noticeLine(),
-      continueCard(),
-      next && h('section', { class: 'next-card' },
-        h('p', { class: 'next-label', text: 'ขั้นต่อไป · ขั้นที่ ' + rec + ' จาก 4' }),
-        h('h2', { class: 'next-title', text: next.title }),
-        h('p', { class: 'next-desc', text: next.desc }),
-        next.meta && h('p', { class: 'next-meta', text: next.meta }),
-        h('div', { class: 'next-actions' }, btn(next.cta, next.href, true))),
-      h('ol', { class: 'path-compact', 'aria-label': 'ขั้นตอนที่แนะนำ' },
-        steps.map((st, i) => (next && i === rec - 1 ? null : h('li', {},
-          h('a', { class: 'step-row', href: st.href },
-            h('span', { class: 'step-mark' + (st.done ? ' done' : ''), 'aria-hidden': 'true', text: st.done ? '✓' : String(i + 1) }),
-            h('span', { class: 'step-row-title', text: st.title }),
-            h('span', { class: 'step-row-status', text: st.status })))))));
+      h('div', { class: 'home-grid' },
+        h('div', {},
+          continueCard(),
+          next && h('section', { class: 'next-card acc-' + next.acc },
+            h('p', { class: 'next-label', text: 'ขั้นต่อไป · ขั้นที่ ' + rec + ' จาก 4' }),
+            h('h2', { class: 'next-title', text: next.title }),
+            h('p', { class: 'next-desc', text: next.desc }),
+            next.meta && h('p', { class: 'next-meta', text: next.meta }),
+            h('div', { class: 'next-actions' }, accBtn(next.cta, next.href)))),
+        h('div', {},
+          h('p', { class: 'home-side-title', text: next ? 'ขั้นตอนอื่นๆ' : 'ขั้นตอนทั้งหมด' }),
+          h('ol', { class: 'path-compact', 'aria-label': 'ขั้นตอนที่แนะนำ' }, others))));
   }
 
   function learnPanel() {
@@ -214,20 +223,20 @@
               h('span', { class: 'lesson-state' + (isDone ? ' done' : ''), text: state })));
           })));
       }),
-      h('ul', { class: 'list-rows', style: { marginTop: '28px' } },
-        listRow('tenses.html', 'สรุป 12 Tenses', 'Tense summary', 'ตารางสูตร กฎการใช้ และคำบอกเวลา', 'เปิดดู')));
+      h('ul', { class: 'list-rows tiles', style: { marginTop: '28px' } },
+        listRow('tenses.html', 'สรุป 12 Tenses', 'Tense summary', 'ตารางสูตร กฎการใช้ และคำบอกเวลา', 'เปิดดู', 'learn')));
   }
 
   function practicePanel() {
     return h('div', {},
       h('h1', { class: 'page-title', text: 'ฝึกทำข้อสอบ' }),
       h('p', { class: 'tab-intro', text: 'ตอบแล้วเห็นเฉลยพร้อมคำอธิบายทันที ข้อที่ผิดจะถูกเก็บไว้ให้ทบทวนภายหลัง' }),
-      h('ul', { class: 'list-rows' }, PRACTICE.map((p) => {
+      h('ul', { class: 'list-rows tiles' }, PRACTICE.map((p) => {
         const info = practiceInfo(p.id);
         const locked = lockedFor('practice:' + p.id);
+        const side = locked ? 'สมาชิก' : info.resume ? 'ทำต่อ' : 'เริ่มทำ';
         return listRow(locked ? 'pricing.html?need=practice:' + p.id : p.href, p.title, p.thai,
-          [...info.meta, info.resume && 'ค้างอยู่: ' + info.resume].filter(Boolean).join(' · '),
-          locked ? 'สมาชิก' : info.resume ? 'ทำต่อ' : '');
+          [...info.meta, info.resume && 'ค้างอยู่: ' + info.resume].filter(Boolean).join(' · '), side, p.id, !locked);
       })));
   }
 
@@ -239,13 +248,59 @@
     return h('div', {},
       h('h1', { class: 'page-title', text: 'ทดสอบ' }),
       h('p', { class: 'tab-intro', text: 'ไม่แน่ใจว่าจะเริ่มตรงไหน ให้ทดสอบระดับก่อน แล้วค่อยซ้อมสอบจริงเมื่อฝึกมาพอสมควร' }),
-      h('ul', { class: 'list-rows' },
+      h('ul', { class: 'list-rows tiles' },
         listRow('placement.html', 'ทดสอบระดับ', 'Placement test',
           ['ปรับความยากอัตโนมัติ · ประมาณ 20–25 ข้อ', last && 'ผลล่าสุด: ' + levelName(last.level) + ' (' + dateTh(last.at) + ')'].filter(Boolean).join(' · '),
-          placementRunning() ? 'ทำต่อ' : ''),
+          placementRunning() ? 'ทำต่อ' : last ? 'ทำอีกครั้ง' : 'เริ่มทดสอบ', 'placement', true),
         listRow(examLocked && !running ? 'pricing.html?need=exam' : 'exam.html', 'สอบจำลอง', 'Mock exam',
           ['แบบ EF SET ' + examMinutes() + ' นาที · แบบยืดหยุ่น ' + D.exam.profiles[1].sections[0].minutes + ' นาที', hist.length && 'ผลล่าสุด ' + pct(hist[0].score, hist[0].total) + '% (' + dateTh(hist[0].at) + ')', running && 'กำลังสอบอยู่ · ' + examLeft(running)].filter(Boolean).join(' · '),
-          examLocked ? 'สมาชิก' : running ? 'กลับไปสอบ' : '')));
+          examLocked ? 'สมาชิก' : running ? 'กลับไปสอบ' : 'เริ่มสอบ', 'exam', !examLocked)));
+  }
+
+  // ---------- TOEIC ----------
+  // The seven parts of the real test. A part with a `set` is available now; the others are listed so the whole
+  // structure is visible (Listening needs audio, see the plan in README).
+  const TOEIC_PARTS = [
+    { part: 1, title: 'Photographs', thai: 'ภาพถ่าย', group: 'Listening', q: 6 },
+    { part: 2, title: 'Question–Response', thai: 'ถาม–ตอบสั้น', group: 'Listening', q: 25 },
+    { part: 3, title: 'Conversations', thai: 'บทสนทนา', group: 'Listening', q: 39 },
+    { part: 4, title: 'Talks', thai: 'บทพูดสั้น', group: 'Listening', q: 30 },
+    { part: 5, title: 'Incomplete Sentences', thai: 'เติมประโยค', group: 'Reading', q: 30, set: 'toeic5', href: 'toeic5.html' },
+    { part: 6, title: 'Text Completion', thai: 'เติมข้อความ', group: 'Reading', q: 16 },
+    { part: 7, title: 'Reading Comprehension', thai: 'อ่านจับใจความ', group: 'Reading', q: 54 },
+  ];
+
+  function toeicPanel() {
+    const tile = (big, small) => h('div', { class: 'stat-tile' }, h('strong', { text: big }), h('span', { text: small }));
+    const partRow = (p) => {
+      const lead = h('span', { class: 'part-no', text: String(p.part) });
+      if (!p.set) return listRow(null, p.title, p.thai, 'ข้อสอบจริง ' + p.q + ' ข้อ', 'เร็วๆ นี้', 'toeic', false, lead);
+      const info = practiceInfo(p.set);
+      return listRow(p.href, p.title, p.thai, [...info.meta, info.resume && 'ค้างอยู่: ' + info.resume].filter(Boolean).join(' · '),
+        info.resume ? 'ทำต่อ' : 'เริ่มทำ', 'toeic', true, lead);
+    };
+    const parts = (group) => TOEIC_PARTS.filter((p) => p.group === group);
+    return h('div', { class: 'acc-toeic' },
+      h('h1', { class: 'page-title' }, 'TOEIC ', h('span', { class: 'light', text: 'ฝึก · เรียน · ซ้อมสอบ' })),
+      h('p', { class: 'tab-intro', text: 'ที่รวมสำหรับเตรียมสอบ TOEIC: ฝึกตาม Part ข้อสอบเก่าและชุดจำลอง และแนวทางทำข้อสอบ ตอนนี้เปิด Part 5 แล้ว ส่วนที่เหลือทยอยเพิ่ม' }),
+      h('div', { class: 'stat-tiles' },
+        tile('200 ข้อ', 'ข้อสอบจริง 2 ชั่วโมง'),
+        tile('Listening', '100 ข้อ · 45 นาที · Part 1–4'),
+        tile('Reading', '100 ข้อ · 75 นาที · Part 5–7'),
+        tile('10–990', 'ช่วงคะแนนรวม')),
+      h('div', { class: 'part-group' }, h('h2', { text: 'Listening' }), h('p', { class: 'meta', text: 'ต้องใช้ไฟล์เสียง กำลังเตรียมระบบ' })),
+      h('ul', { class: 'list-rows tiles' }, parts('Listening').map(partRow)),
+      h('div', { class: 'part-group' }, h('h2', { text: 'Reading' }), h('p', { class: 'meta', text: 'ฝึกได้ทีละ Part' })),
+      h('ul', { class: 'list-rows tiles' }, parts('Reading').map(partRow)),
+      h('div', { class: 'part-group' }, h('h2', { text: 'ข้อสอบเก่าและชุดจำลอง' })),
+      h('ul', { class: 'list-rows tiles' },
+        listRow(null, 'คลังข้อสอบเก่า', null, 'รวบรวมชุดที่ใช้ได้อย่างถูกลิขสิทธิ์ แสดงที่มาของทุกชุด', 'เร็วๆ นี้', 'toeic'),
+        listRow(null, 'ชุดจำลอง 200 ข้อ', null, 'จับเวลาเหมือนจริง พร้อมคะแนนประมาณ 10–990', 'เร็วๆ นี้', 'toeic')),
+      h('div', { class: 'part-group' }, h('h2', { text: 'เรียนเพื่อ TOEIC' })),
+      h('ul', { class: 'list-rows tiles' },
+        listRow('index.html#learn', 'ไวยากรณ์ที่ออกบ่อย', null, 'tense, preposition, word form — ใช้บทเรียนในแท็บเรียนได้เลย', 'ไปที่บทเรียน', 'toeic', true),
+        listRow(null, 'กลยุทธ์ทำแต่ละ Part', null, 'เทคนิคและกับดักที่พบบ่อย', 'เร็วๆ นี้', 'toeic'),
+        listRow(null, 'ศัพท์ธุรกิจที่ออกบ่อย', null, 'จัดตามหัวข้อ: สำนักงาน การเงิน การเดินทาง', 'เร็วๆ นี้', 'toeic')));
   }
 
   // ---------- Tabs ----------
@@ -255,6 +310,7 @@
     panels.learn = h('section', { class: 'tab-panel', id: 'tab-learn' }, learnPanel());
     panels.practice = h('section', { class: 'tab-panel', id: 'tab-practice' }, practicePanel());
     panels.test = h('section', { class: 'tab-panel', id: 'tab-test' }, testPanel());
+    panels.toeic = h('section', { class: 'tab-panel', id: 'tab-toeic' }, toeicPanel());
     root.replaceChildren(...TABS.map((t) => panels[t]));
   }
 

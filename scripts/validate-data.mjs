@@ -16,7 +16,7 @@ const contentDir = join(root, 'content');                    // question banks, 
 const sandbox = { window: {} };
 vm.createContext(sandbox);
 for (const [dir, file] of [...['grammar', 'conversations', 'cloze', 'extra', 'placement', 'lessons', 'cat-bank',
-  'clues-grammar', 'clues-conversations', 'clues-extra', 'clues-placement', 'clues-lessons'].map((f) => [contentDir, f]),
+  'clues-grammar', 'clues-conversations', 'clues-extra', 'clues-placement', 'clues-lessons', 'toeic5'].map((f) => [contentDir, f]),
 ...['exam', 'glossary', 'billing', 'tenses'].map((f) => [dataDir, f])]) {
   vm.runInContext(readFileSync(join(dir, file + '.js'), 'utf8'), sandbox, { filename: file + '.js' });
 }
@@ -46,7 +46,7 @@ function checkQuestion(where, q) {
 }
 
 // --- Numbered multiple-choice sets (book questions + extra practice) ---
-for (const key of ['grammar', 'conversations', 'extra']) {
+for (const key of ['grammar', 'conversations', 'extra', 'toeic5']) {
   const list = D[key];
   if (!Array.isArray(list) || !list.length) { err(key, 'missing or empty'); continue; }
   const seen = new Set();
@@ -59,6 +59,13 @@ for (const key of ['grammar', 'conversations', 'extra']) {
     if (key === 'extra') {
       if (!LEVELS.includes(q.level)) err(where, `level must be one of ${LEVELS.join(', ')}`);
       if (!isStr(q.topic)) err(where, 'topic is empty');
+    }
+    if (key === 'toeic5') {
+      if (!isStr(q.level)) err(where, 'level (e.g. "Part 5") is empty');
+      if (!isStr(q.topic)) err(where, 'topic is empty');
+      if (q.c.length !== 4) err(where, 'TOEIC questions have exactly 4 choices');
+      if (!isStr(q.source)) err(where, 'source is empty (use "original" for questions written for this site)');
+      if (q.source !== 'original' && !isStr(q.license)) err(where, 'license is required for questions that are not original');
     }
   });
 }
