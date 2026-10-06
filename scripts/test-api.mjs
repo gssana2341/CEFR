@@ -34,6 +34,8 @@ const passApi = require('../api/pass.js');
 const checkout = require('../api/checkout.js');
 const claim = require('../api/claim.js');
 const translate = require('../api/translate.js');
+const wm = require('../api/_watermark.js');
+const abuse = require('../api/_abuse.js');
 const { writeChanges } = require('../api/_sync.js');
 
 let failed = 0;
@@ -321,6 +323,84 @@ await test('sync: odd change sets never reach the database', async () => {
   assert.deepEqual(written, []);
   assert.deepEqual((await writeChanges(fakeDb, 0, 'u1', { 'grammar:state': { v: '{"ok":1}', t: 5 } })).applied, ['grammar:state']);
   assert.deepEqual(written, ['grammar~state']);
+});
+
+console.log('copying: watermark, daily cap, blocking');
+const INVISIBLE = /[\u200b\u200c\u2060]/g;
+await test('signed-in readers get their own invisible tag; anonymous readers none; ids and choices stay clean', async () => {
+  const a1 = bank.lessons().find((l) => l.level === 'A1');
+  const mine = await call(content, { method: 'GET', query: { set: 'lesson', id: a1.id }, token: 'mock-reader-a' });
+  const other = await call(content, { method: 'GET', query: { set: 'lesson', id: a1.id }, token: 'mock-reader-b' });
+  const anon = await call(content, { method: 'GET', query: { set: 'lesson', id: a1.id } });
+  const text = JSON.stringify(mine.body.lesson);
+  const tagsA = wm.decode(text);
+  assert.ok(tagsA.length >= 5, 'tag appears in many places');
+  assert.ok(tagsA.every((t) => t === wm.tagOf('reader-a')), 'every copy is the reader\'s tag');
+  assert.ok(wm.decode(JSON.stringify(other.body.lesson)).every((t) => t === wm.tagOf('reader-b')));
+  assert.notEqual(wm.tagOf('reader-a'), wm.tagOf('reader-b'));
+  assert.equal(wm.decode(JSON.stringify(anon.body.lesson)).length, 0);
+  // removing the invisible characters gives back exactly the original lesson (nothing visible changed)
+  assert.deepEqual(JSON.parse(text.replace(INVISIBLE, '')), JSON.parse(JSON.stringify(a1)));
+  assert.equal(mine.body.lesson.id, a1.id);
+  assert.equal(JSON.stringify(mine.body.lesson.exercises.map((e) => e.c)), JSON.stringify(a1.exercises.map((e) => e.c)));
+});
+await test('question lists, explanations and cloze text carry the tag for signed-in readers only', async () => {
+  const q = await call(content, { method: 'GET', query: { set: 'grammar' }, token: 'mock-reader-a' });
+  assert.ok(q.body.questions.every((x) => wm.decode(x.q)[0] === wm.tagOf('reader-a')));
+  assert.equal(q.body.questions[0].q.replace(INVISIBLE, ''), bank.question('grammar', 1).q);
+  const anon = await call(content, { method: 'GET', query: { set: 'grammar' } });
+  assert.ok(anon.body.questions.every((x) => wm.decode(x.q).length === 0));
+  const c = await call(content, { method: 'GET', query: { set: 'cloze' }, token: MEMBER });
+  assert.equal(wm.decode(c.body.passages[0].text)[0], wm.tagOf('member-user'));
+  const chk = await call(quiz, { token: 'mock-reader-a', body: { op: 'check', set: 'grammar', items: [{ n: 2, pick: 0 }] } });
+  assert.equal(wm.decode(chk.body.results[2].e)[0], wm.tagOf('reader-a'));
+  assert.equal(chk.body.results[2].e.replace(INVISIBLE, ''), bank.question('grammar', 2).e);
+  const chkAnon = await call(quiz, { body: { op: 'check', set: 'grammar', items: [{ n: 2, pick: 0 }] } });
+  assert.equal(chkAnon.body.results[2].e, bank.question('grammar', 2).e);
+});
+await test('the tag can be traced back to an account and cannot be forged without the secret', () => {
+  const found = wm.decode('copied text ' + wm.encode(wm.tagOf('victim')) + ' more');
+  assert.deepEqual(found, [wm.tagOf('victim')]);
+  assert.equal(wm.tagOf('victim').length, 10);
+  const saved = process.env.PASS_SECRET;
+  process.env.PASS_SECRET = 'another-secret';
+  const other = wm.tagOf('victim');
+  if (saved === undefined) delete process.env.PASS_SECRET; else process.env.PASS_SECRET = saved;
+  assert.notEqual(other, wm.tagOf('victim'), 'a different secret gives a different tag');
+});
+await test('at most 15 different lessons a day per account; reopening one is free; a 429 is not the end of the world', async () => {
+  const ids = bank.lessons().map((l) => l.id);
+  const token = 'mock-copier-1';
+  await setUserPass('copier-1', { exp: Date.now() + 86_400_000, plan: 'd1', sid: 'cp1' });
+  const codes = [];
+  for (const id of ids.slice(0, 17)) codes.push((await call(content, { method: 'GET', query: { set: 'lesson', id }, token })).code);
+  assert.deepEqual(codes.slice(0, 15), Array(15).fill(200));
+  assert.deepEqual(codes.slice(15), [429, 429]);
+  assert.equal((await call(content, { method: 'GET', query: { set: 'lesson', id: ids[0] }, token })).code, 200, 'a lesson already opened today');
+  assert.equal((await call(content, { method: 'GET', query: { set: 'grammar' }, token })).code, 200, 'other content is unaffected');
+});
+await test('hitting the cap on 3 different days blocks members-only content (free content stays), until cleared by hand', async () => {
+  const RealDate = Date;
+  const at = async (days, fn) => {
+    globalThis.Date = class extends RealDate {
+      constructor(...a) { if (a.length) super(...a); else super(RealDate.now() + days * 86_400_000); }
+      static now() { return RealDate.now() + days * 86_400_000; }
+    };
+    try { return await fn(); } finally { globalThis.Date = RealDate; }
+  };
+  await setUserPass('copier-2', { exp: Date.now() + 10 * 86_400_000, plan: 'd7', sid: 'cp2' });
+  const token = 'mock-copier-2';
+  assert.equal((await call(content, { method: 'GET', query: { set: 'conversations' }, token })).code, 200);
+  assert.equal(await abuse.strike('copier-2'), false);
+  await at(1, async () => { assert.equal(await abuse.strike('copier-2'), false); });
+  await at(2, async () => { assert.equal(await abuse.strike('copier-2'), true); });
+  assert.equal((await call(content, { method: 'GET', query: { set: 'conversations' }, token })).code, 403);
+  assert.equal((await call(content, { method: 'GET', query: { set: 'conversations' }, token })).body.error, 'account_blocked');
+  assert.equal((await call(quiz, { token, body: { op: 'check', set: 'extra', items: [{ n: 1, pick: 0 }] } })).code, 403);
+  assert.equal((await call(content, { method: 'GET', query: { set: 'grammar' }, token })).code, 200, 'free content still works');
+  assert.equal((await call(passApi, { method: 'GET', token })).body.valid, true, 'the payment itself is untouched');
+  await db.collection('users').doc('copier-2').set({ contentBlocked: false }, { merge: true });
+  assert.equal((await call(content, { method: 'GET', query: { set: 'conversations' }, token })).code, 200, 'cleared by hand');
 });
 
 console.log('markup trial is counted on the server');

@@ -29,21 +29,25 @@ function members(feature) {
   return f === 'exam' || f === 'markup' ? Boolean(PREMIUM[f]) : false;
 }
 
-// → { user: {uid,email}|null, active: boolean, ident: string }
+// → { user: {uid,email}|null, active: boolean, blocked: boolean, ident: string }
 // `ident` names the caller for counters: the account when signed in, otherwise the address (hashed, never used as a path as is).
 async function who(req) {
   const user = await verifyAuth(req);
   let active = false;
+  let blocked = false;
   if (user) {
     const pass = await getUserPass(user.uid);
     active = Boolean(pass && pass.exp > Date.now());
+    blocked = Boolean(pass && pass.contentBlocked);        // set by _abuse.js after repeated bulk-copying; cleared by hand
   }
-  return { user, active, ident: user ? 'u:' + user.uid : 'ip:' + clientIp(req) };
+  return { user, active, blocked, ident: user ? 'u:' + user.uid : 'ip:' + clientIp(req) };
 }
 
 // → null when allowed, otherwise { status, error } to send back
 function deny(ctx, feature) {
-  if (!members(feature) || ctx.active) return null;
+  if (!members(feature)) return null;
+  if (ctx.blocked) return { status: 403, error: 'account_blocked', feature };
+  if (ctx.active) return null;
   return ctx.user ? { status: 402, error: 'members_only', feature } : { status: 401, error: 'login_required', feature };
 }
 

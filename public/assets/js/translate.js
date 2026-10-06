@@ -108,6 +108,7 @@
 
   // → { source: 'dict'|'api', translation, alts[], lemma?, note?, derived?, auto? }
   async function lookup(text) {
+    text = String(text).replace(/[​‌⁠]/g, '');   // invisible per-account tags in the lesson text (see api/_watermark.js)
     if (isWord(text)) {
       const dict = await getDictionary();
       const hit = dict && dict.lookup(text);
@@ -253,7 +254,7 @@
     if (!sel || sel.isCollapsed || !sel.rangeCount) return;
     const range = sel.getRangeAt(0);
     if (!regionOf(range.startContainer) || !regionOf(range.endContainer)) return;
-    const text = sel.toString().replace(/\s+/g, ' ').trim();
+    const text = sel.toString().replace(/[​‌⁠]/g, '').replace(/\s+/g, ' ').trim();
     if (!text || !isEnglish(text)) return;
     if (text.length > MAX_CHARS) {
       close();

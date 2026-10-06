@@ -100,5 +100,12 @@
     }
   }
 
-  window.CEFR.content = { load, lesson, reveal, post, setClue, ApiError };
+  // a Thai message for the errors that need more than "try again" (null for any other error)
+  function special(e) {
+    if (e && e.code === 'account_blocked') return 'บัญชีนี้ถูกระงับการเข้าถึงเนื้อหาสำหรับสมาชิกชั่วคราว เพราะมีการดึงเนื้อหาผิดปกติ หากเข้าใจผิด กรุณาติดต่อผู้ดูแล';
+    if (e && e.code === 'daily_limit') return 'วันนี้เปิดบทเรียนครบโควตาแล้ว (บทใหม่ได้ไม่เกิน 15 บทต่อวัน บทที่เปิดไปแล้วเปิดซ้ำได้) กลับมาใหม่พรุ่งนี้';
+    return null;
+  }
+
+  window.CEFR.content = { load, lesson, reveal, post, setClue, special, ApiError };
 })();

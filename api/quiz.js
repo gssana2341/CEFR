@@ -15,6 +15,10 @@ const { limited } = require('./_ratelimit');
 const { who, deny, clueFor } = require('./_entitlements');
 const { db } = require('./_firebase');
 const bank = require('./_bank');
+const { stampText } = require('./_watermark');
+
+// explanations carry the signed-in reader's invisible tag too (see _watermark.js)
+const tagged = (ctx, text) => (ctx.user ? stampText(text, ctx.user.uid) : text);
 
 const MAX_CHECK_ITEMS = 10;       // one practice answer at a time in practice; a few at once when a saved round is reopened
 const MAX_EXAM_ITEMS = 120;
@@ -36,7 +40,7 @@ async function opCheck(ctx, body) {
   for (const it of items) {
     const q = it && bank.question(set, it.n);
     if (!q || !isInt(it.pick, 0, q.c.length - 1)) return { status: 400, body: { error: 'bad_items' } };
-    results[it.n] = { a: q.a, e: q.e, clue: await clueFor(ctx, bank.clues(set)[it.n], set, it.n) };
+    results[it.n] = { a: q.a, e: tagged(ctx, q.e), clue: await clueFor(ctx, bank.clues(set)[it.n], set, it.n) };
   }
   return { status: 200, body: { results }, cost: items.length };
 }
@@ -53,7 +57,7 @@ async function opCloze(ctx, body) {
   if (refused) return { status: refused.status, body: { error: refused.error, feature: refused.feature } };
   const p = isInt(body.idx, 0, 1000) ? bank.bank('cloze')[body.idx] : null;
   if (!p || !validClozePicks(p, body.picks) || body.picks.some((v) => v === null)) return { status: 400, body: { error: 'bad_items' } };
-  return { status: 200, body: { blanks: gradeCloze(p, body.picks).map(({ a, e }) => ({ a, e })) }, cost: p.blanks.length };
+  return { status: 200, body: { blanks: gradeCloze(p, body.picks).map(({ a, e }) => ({ a, e: tagged(ctx, e) })) }, cost: p.blanks.length };
 }
 
 // ---------- mock exam ----------
@@ -70,13 +74,13 @@ async function opExam(ctx, body) {
     const q = bank.isMcq(src) ? bank.question(src, it.n) : null;
     // an unanswered question has no pick: it is graded as skipped but still shown in the review
     if (!q || !(it.pick === null || isInt(it.pick, 0, q.c.length - 1))) return { status: 400, body: { error: 'bad_items' } };
-    results[src + ':' + it.n] = { a: q.a, e: q.e, clue: await clueFor(ctx, bank.clues(src)[it.n], src, it.n) };
+    results[src + ':' + it.n] = { a: q.a, e: tagged(ctx, q.e), clue: await clueFor(ctx, bank.clues(src)[it.n], src, it.n) };
   }
   const passages = {};
   for (const c of cloze) {
     const p = c && isInt(c.idx, 0, 1000) ? bank.bank('cloze')[c.idx] : null;
     if (!p || !validClozePicks(p, c.picks)) return { status: 400, body: { error: 'bad_items' } };
-    passages[c.idx] = p.blanks.map((b) => ({ a: b.a, e: b.e }));
+    passages[c.idx] = p.blanks.map((b) => ({ a: b.a, e: tagged(ctx, b.e) }));
   }
   return { status: 200, body: { results, cloze: passages }, cost: items.length + cloze.length * 5 };
 }
@@ -123,7 +127,7 @@ async function placementResult(ctx, answers) {
     const it = byKey.get(a.key);
     if (a.pick === it.q.a) continue;
     review.push({
-      level: it.level, q: it.q.q, c: it.q.c, pick: a.pick, a: it.q.a, e: it.q.e,
+      level: it.level, q: it.q.q, c: it.q.c, pick: a.pick, a: it.q.a, e: tagged(ctx, it.q.e),
       bank: it.src, key: it.id, clue: await clueFor(ctx, bank.clues(it.src)[it.id], it.src, it.id),
     });
   }

@@ -268,13 +268,17 @@ push เข้า `main` = deploy production อัตโนมัติ · bran
 - **ทดสอบระดับ (adaptive) รันที่เซิร์ฟเวอร์:** เซสชันเก็บใน Firestore (`placement/{sid}`) แต่ละข้อตอบได้ครั้งเดียว จึงลองเปลี่ยนคำตอบเพื่อดูว่าข้อถัดไปยากขึ้นหรือไม่ไม่ได้
 - **ไม่มี SQL** ระบบใช้ Firestore (NoSQL) · id ที่ใช้เป็นชื่อเอกสารมาจากโทเคน Firebase ที่ตรวจแล้ว, `session_id` ที่ตรวจรูปแบบ, คีย์ซิงก์ที่อยู่ใน allow-list และค่าที่แฮชแล้ว (ตัวจำกัดการเรียก) · `npm test` มีเคสโจมตีด้วย input แปลก ๆ
 - **จำกัดการเรียก:** ในหน่วยความจำ + ตัวนับร่วมใน Firestore (`api/_ratelimit.js`) นับตามบัญชี (ถ้าล็อกอิน) หรือ IP · ดึงเฉลยได้วันละ 1,500 ข้อต่อบัญชี/IP · ดึงเนื้อหาวันละ 300 ครั้ง · เส้นโยงฟรีวันละ 3 ข้อนับที่เซิร์ฟเวอร์ (`trial/{hash}`)
+- **กันการก๊อปเนื้อหา:** อะไรที่คนมีสิทธิ์อ่านก็ก๊อปได้เสมอ เลยทำให้ยากขึ้นและตามตัวได้แทน
+  - *ลายน้ำล่องหน* (`api/_watermark.js`): ข้อความบทเรียน/โจทย์/คำอธิบายที่ส่งให้คนล็อกอินลงท้ายด้วยรหัส 40 บิตของบัญชีนั้นเป็นตัวอักษรความกว้างศูนย์ (มองไม่เห็น ก๊อปติดไปด้วย) ถ้าเจอเนื้อหาหลุด เอาข้อความที่ก๊อปมาไปรัน `node scripts/trace-watermark.mjs leaked.txt --firestore` จะบอกว่าบัญชีไหน · รหัสคำนวณด้วย HMAC กับความลับของเซิร์ฟเวอร์ คนอื่นปลอมรหัสของคนอื่นไม่ได้ · **ต้องตั้ง `WATERMARK_SECRET` (ข้อความสุ่มยาวๆ) ใน Vercel และใน `.env` ของเครื่องที่รันสคริปต์ให้ตรงกัน** และห้ามเปลี่ยนภายหลัง ไม่งั้นตามรอยย้อนหลังไม่ได้ · คนที่รู้เรื่องนี้ลบอักขระศูนย์ความกว้างออกได้ จึงเป็นตัวยับยั้งและตัวจับคนแชร์ ไม่ใช่กุญแจ
+  - *จำกัดต่อบัญชี* (`api/_abuse.js`): เปิดบทเรียน **ต่างบท** ได้ไม่เกิน 15 บทต่อวันต่อบัญชี/IP (เปิดบทเดิมซ้ำฟรี) เกินแล้วได้ 429 · ถ้าชนเพดานใน 3 วันที่ต่างกัน บัญชีจะถูกใส่ `contentBlocked` ใน `users/{uid}` เข้าเนื้อหาสมาชิกไม่ได้ (403) แต่เนื้อหาฟรีและสิทธิ์ที่จ่ายไว้ไม่หาย · **ปลดล็อกด้วยมือ:** Firestore → `users` → บัญชีนั้น → ลบฟิลด์ `contentBlocked` (หรือตั้งเป็น false) · ปรับเลขได้ที่ `LESSONS_PER_DAY` ใน `api/content.js` และ `STRIKE_DAYS` ใน `api/_abuse.js`
 - **Header:** HSTS, X-Frame-Options, CSP แบบไม่มี `unsafe-inline` สำหรับสคริปต์, COOP `same-origin-allow-popups` (ให้ล็อกอิน Google popup ทำงาน)
 - **ต้องทำเองที่คอนโซล (โค้ดทำแทนไม่ได้):**
   1. deploy กฎปิดทุกอย่างของ Firestore/Storage: `firebase deploy --only firestore:rules,storage` (ไฟล์ `firestore.rules`, `storage.rules`) — ถ้า Firestore ยังเป็น "test mode" ใครก็แก้ `users/{uid}.exp` ของตัวเองให้เป็นสมาชิกได้
-  2. Firestore → TTL policies: เปิดที่ฟิลด์ `expireAt` ของคอลเลกชัน `ratelimit`, `trial`, `placement` เพื่อลบเอกสารเก่าอัตโนมัติ
+  2. Firestore → TTL policies: เปิดที่ฟิลด์ `expireAt` ของคอลเลกชัน `ratelimit`, `trial`, `placement`, `seen` เพื่อลบเอกสารเก่าอัตโนมัติ
   3. Authentication → Sign-in method: ปิด Email/Password ถ้าไม่ได้ใช้ (หน้าเว็บมีแค่ Google แต่ API key เป็นสาธารณะ ใครก็เรียกสมัครผ่าน REST ได้) · เปิด email enumeration protection · เหลือโดเมนจริงใน Authorized domains
   4. Google Cloud → Credentials: จำกัด API key ของเว็บด้วย HTTP referrer และ API restrictions · ตั้ง budget alert ที่ Billing
-  5. ตรวจว่า Vercel ไม่ได้ตั้ง `PAY_MODE=mock` (โค้ดไม่ยอมเปิดโหมดจำลองบน Vercel อยู่แล้ว)
+  5. ตรวจว่า Vercel ไม่ได้ตั้ง `PAY_MODE=mock`
+  6. Vercel → Environment Variables: เพิ่ม `WATERMARK_SECRET` (ข้อความสุ่มยาวๆ) แล้ว Redeploy (โค้ดไม่ยอมเปิดโหมดจำลองบน Vercel อยู่แล้ว)
 
 ## หมายเหตุ
 

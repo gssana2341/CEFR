@@ -125,7 +125,7 @@
     } catch (e) {
       if (location.hash.slice(1) !== meta.id) return;
       if (pass && (e.status === 401 || e.status === 402)) { setView(top(), lockBox()); return; }
-      setView(top(), h('p', { class: 'meta', text: e.status === 429 ? 'โหลดบ่อยเกินไป รอสักครู่แล้วลองใหม่' : 'โหลดบทเรียนไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่' }),
+      setView(top(), h('p', { class: 'meta', text: window.CEFR.content.special(e) || (e.status === 429 ? 'โหลดบ่อยเกินไป รอสักครู่แล้วลองใหม่' : 'โหลดบทเรียนไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่') }),
         h('button', { class: 'btn', type: 'button', text: 'ลองอีกครั้ง', onclick: () => renderLesson(meta) }));
       return;
     }

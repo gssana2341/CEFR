@@ -9,6 +9,10 @@ const { send, rateLimited } = require('./_pay');
 const { limited } = require('./_ratelimit');
 const { who, deny, members } = require('./_entitlements');
 const bank = require('./_bank');
+const { seenToday, strike } = require('./_abuse');
+const { stamp, stampText } = require('./_watermark');
+
+const LESSONS_PER_DAY = 15;        // different lessons one account / address may open in a day (opening the same one again is free)
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') return send(res, 405, { error: 'method_not_allowed' });
@@ -37,11 +41,20 @@ module.exports = async function handler(req, res) {
   // one account may not pull the whole library over and over (a member can still copy what they are shown)
   if (await limited(req, 'content-day', 300, { uid: ctx.user && ctx.user.uid, windowMs: 86_400_000 })) return send(res, 429, { error: 'rate_limited' });
 
+  // signed-in readers get text carrying their invisible tag (see _watermark.js)
+  const uid = ctx.user && ctx.user.uid;
   if (set === 'lesson') {
+    const seen = await seenToday(ctx.ident, 'lesson', lesson.id, LESSONS_PER_DAY);
+    if (!seen.ok) {
+      if (members(feature)) await strike(uid);
+      return send(res, 429, { error: 'daily_limit' });
+    }
     // the sentence mark-up of the exercises is part of the members' mark-up feature
     const clues = ctx.active || !members('markup') ? bank.clues('lessons')[lesson.id] : undefined;
-    return send(res, 200, { lesson, clues });
+    return send(res, 200, { lesson: uid ? stamp(lesson, uid) : lesson, clues });
   }
-  if (set === 'cloze') return send(res, 200, { set, passages: bank.bank('cloze').map(bank.publicPassage) });
-  return send(res, 200, { set, questions: bank.bank(set).map(bank.publicQuestion) });
+  if (set === 'cloze') {
+    return send(res, 200, { set, passages: bank.bank('cloze').map(bank.publicPassage).map((p) => (uid ? { ...p, text: stampText(p.text, uid) } : p)) });
+  }
+  return send(res, 200, { set, questions: bank.bank(set).map(bank.publicQuestion).map((q) => (uid ? { ...q, q: stampText(q.q, uid) } : q)) });
 };

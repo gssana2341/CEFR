@@ -225,7 +225,7 @@
       } catch (e) {
         cur.checking = false;
         submitBtn.disabled = false;
-        msg.textContent = e.status === 401 || e.status === 402 ? 'ชุดนี้สำหรับสมาชิก — เข้าสู่ระบบหรือเลือกแพ็กเกจก่อน'
+        msg.textContent = window.CEFR.content.special(e) ? window.CEFR.content.special(e) : e.status === 401 || e.status === 402 ? 'ชุดนี้สำหรับสมาชิก — เข้าสู่ระบบหรือเลือกแพ็กเกจก่อน'
           : e.status === 429 ? 'ส่งบ่อยเกินไป รอสักครู่แล้วลองใหม่' : 'ส่งคำตอบไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วกดส่งอีกครั้ง';
         msg.hidden = false;
         return;
@@ -381,7 +381,7 @@
       isMounted = false;
       if (pass && (e.status === 401 || e.status === 402)) { lock(); return; }
       root.replaceChildren(h('section', { class: 'panel' },
-        h('p', { class: 'meta', role: 'alert', text: e.status === 429 ? 'โหลดบ่อยเกินไป รอสักครู่แล้วลองใหม่' : 'โหลดบทความไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่' }),
+        h('p', { class: 'meta', role: 'alert', text: window.CEFR.content.special(e) || (e.status === 429 ? 'โหลดบ่อยเกินไป รอสักครู่แล้วลองใหม่' : 'โหลดบทความไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่') }),
         h('button', { class: 'btn', type: 'button', text: 'ลองอีกครั้ง', onclick: begin })));
       return;
     }

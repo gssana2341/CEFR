@@ -38,7 +38,7 @@
   // ---------- Question sets from the server ----------
   const setsOf = (profile) => [...new Set(activeSections(profile).flatMap((sec) => sec.parts.map((pt) => pt.source)))];
   const loadSets = (profile) => Promise.all(setsOf(profile).map((src) => window.CEFR.content.load(src)));
-  const loadMessage = (e) => (e.status === 401 || e.status === 402 ? 'สอบจำลองสำหรับสมาชิก — เข้าสู่ระบบหรือเลือกแพ็กเกจก่อน'
+  const loadMessage = (e) => (window.CEFR.content.special(e) ? window.CEFR.content.special(e) : e.status === 401 || e.status === 402 ? 'สอบจำลองสำหรับสมาชิก — เข้าสู่ระบบหรือเลือกแพ็กเกจก่อน'
     : e.status === 429 ? 'โหลดบ่อยเกินไป รอสักครู่แล้วลองใหม่' : 'โหลดข้อสอบไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
 
   // The answers are not in the page. When the exam is submitted the server grades every pick and sends the right answer,

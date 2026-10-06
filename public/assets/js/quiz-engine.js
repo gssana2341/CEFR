@@ -130,7 +130,8 @@
     }
 
     function showError(e, retry) {
-      const msg = e.status === 401 || e.status === 402 ? 'ชุดนี้สำหรับสมาชิก — เข้าสู่ระบบหรือเลือกแพ็กเกจเพื่อดูเฉลย'
+      const msg = window.CEFR.content.special(e) ? window.CEFR.content.special(e)
+        : e.status === 401 || e.status === 402 ? 'ชุดนี้สำหรับสมาชิก — เข้าสู่ระบบหรือเลือกแพ็กเกจเพื่อดูเฉลย'
         : e.status === 429 ? 'ตอบเร็วหรือบ่อยเกินไป รอสักครู่แล้วลองใหม่'
           : 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่';
       setView(h('section', { class: 'panel' },
@@ -435,7 +436,7 @@
       isMounted = false;
       if (pass && (e.status === 401 || e.status === 402)) { lock(); return; }
       root.replaceChildren(h('section', { class: 'panel' },
-        h('p', { class: 'meta', role: 'alert', text: e.status === 429 ? 'โหลดบ่อยเกินไป รอสักครู่แล้วลองใหม่' : 'โหลดข้อสอบไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่' }),
+        h('p', { class: 'meta', role: 'alert', text: window.CEFR.content.special(e) || (e.status === 429 ? 'โหลดบ่อยเกินไป รอสักครู่แล้วลองใหม่' : 'โหลดข้อสอบไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่') }),
         h('button', { class: 'btn', type: 'button', text: 'ลองอีกครั้ง', onclick: begin })));
       return;
     }
