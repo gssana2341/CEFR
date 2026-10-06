@@ -461,12 +461,12 @@
       const t = list.find((x) => x.group === grp && x.kind === kind);
       if (!t) return h('td');
       const inner = [h('strong', { text: t.short })];
-      return h('td', { class: 'tg-cell' + (t.id === activeId ? ' on' : '') },
+      return h('td', { class: 'tg-cell g-' + grp + (t.id === activeId ? ' on' : '') },
         linkCells ? h('a', { href: 'tenses.html#' + t.id, title: t.en + ' · ' + t.th }, inner) : h('span', { title: t.en + ' · ' + t.th }, inner));
     };
     return h('div', { class: 'table-wrap' },
       h('table', { class: 'table tgrid' },
-        h('thead', {}, h('tr', {}, h('th', { text: '' }), GROUPS.map(([, th]) => h('th', { text: th })))),
+        h('thead', {}, h('tr', {}, h('th', { text: '' }), GROUPS.map(([g, th]) => h('th', { class: 'g-' + g, text: th })))),
         h('tbody', {}, KINDS.map(([kind, label]) => h('tr', {},
           h('th', { text: label }),
           GROUPS.map(([grp]) => cell(grp, kind)))))));
@@ -474,11 +474,11 @@
 
   function tenseDetail(t) {
     return h('div', { class: 'tense-body' },
-      h('table', { class: 'table tform' },
-        h('tbody', {},
-          h('tr', {}, h('th', { text: 'บอกเล่า (+)' }), h('td', { text: t.form.aff })),
-          h('tr', {}, h('th', { text: 'ปฏิเสธ (−)' }), h('td', { text: t.form.neg })),
-          h('tr', {}, h('th', { text: 'คำถาม (?)' }), h('td', { text: t.form.q })))),
+      h('div', { class: 'formula-rows' }, [['+', 'บอกเล่า', t.form.aff], ['−', 'ปฏิเสธ', t.form.neg], ['?', 'คำถาม', t.form.q]].map(([sym, label, text]) =>
+        h('div', { class: 'formula-row' },
+          h('span', { class: 'formula-sym', 'aria-hidden': 'true', text: sym }),
+          h('span', { class: 'formula-label', text: label }),
+          h('span', { class: 'formula-text', text })))),
       h('p', { class: 'tense-h', text: 'ใช้เมื่อ' }),
       h('ul', { class: 'tense-use', 'data-tr': true }, t.use.map((u) => h('li', { text: u }))),
       h('p', { class: 'tense-h', text: 'คำบอกเวลาที่มักเจอ (signal words)' }),
@@ -486,7 +486,7 @@
       h('p', { class: 'tense-tip', 'data-tr': true }, h('strong', { text: 'จำไว้ · ' }), t.tip),
       h('ul', { class: 'examples' }, t.examples.map(([en, th]) => h('li', {},
         h('span', { class: 'ex-en', 'data-tr': true, text: en }), h('span', { class: 'ex-th', text: th })))),
-      lessonExists(lessonOf(t.id)) && h('p', { class: 'tense-links' }, h('a', { class: 'link-btn', href: 'learn.html#' + lessonOf(t.id), text: 'เรียนบทนี้พร้อมแบบฝึกหัด →' })));
+      lessonExists(lessonOf(t.id)) && h('a', { class: 'btn btn-acc tense-cta', href: 'learn.html#' + lessonOf(t.id), text: 'เรียนบทนี้พร้อมแบบฝึกหัด →' }));
   }
 
   // the lesson that teaches a tense (most share the tense's id)
@@ -548,5 +548,5 @@
     return fold;
   }
 
-  window.CEFR.markup = { block, annotation, plan, tenseGrid, tenseDetail, tenseCard };
+  window.CEFR.markup = { block, annotation, plan, tenseGrid, tenseDetail, tenseCard, GROUPS };
 })();

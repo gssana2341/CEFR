@@ -1,21 +1,23 @@
-// /tenses — the 12 tenses on one page: summary grid (3 × 4) + formula, rules and signal words for each.
+// /tenses — the 12 tenses on one page: summary grid (3 × 4) first, then every tense as a card grouped by time (past, present, future).
 (function () {
   'use strict';
 
   const { h } = window.CEFR;
-  const { tenseGrid, tenseDetail } = window.CEFR.markup;
+  const { tenseGrid, tenseDetail, GROUPS } = window.CEFR.markup;
   const list = window.CEFR_DATA.tenses;
   const root = document.getElementById('app');
+  const EN = { past: 'Past', present: 'Present', future: 'Future' };
 
   root.replaceChildren(
-    h('p', { class: 'lead', text: 'สรุป 12 tenses พร้อมสูตร (บอกเล่า / ปฏิเสธ / คำถาม) กฎการใช้ และคำบอกเวลาที่ช่วยให้ตอบข้อสอบได้ไว คลิกช่องในตารางเพื่อไปที่ tense นั้น' }),
-    h('p', { class: 'fine-print', style: { marginTop: '-16px', marginBottom: '20px' }, text: 'คลิกคำภาษาอังกฤษหรือลากคลุมข้อความเพื่อดูคำแปลได้ (ปุ่ม "แปล" มุมขวาบนใช้เปิด/ปิด)' }),
-    h('h2', { class: 'section-title', style: { marginTop: '0' }, text: 'ตารางสรุป' }),
+    h('p', { class: 'lead', text: 'สูตร กฎการใช้ และคำบอกเวลาของทั้ง 12 tenses คลิกช่องในตารางเพื่อไปที่ tense นั้น หรือคลิกคำภาษาอังกฤษเพื่อดูคำแปล' }),
     tenseGrid(null, true),
-    h('h2', { class: 'section-title', text: 'รายละเอียดแต่ละ tense' }),
-    h('div', { class: 'tense-list' }, list.map((t) => h('article', { class: 'tense-section', id: t.id },
-      h('h2', {}, t.en + ' ', h('span', { class: 'light', text: t.th })),
-      tenseDetail(t))))
+    ...GROUPS.map(([grp, th]) => h('section', { class: 'tense-group g-' + grp },
+      h('h2', { class: 'group-title' }, th, ' ', h('span', { class: 'light', text: EN[grp] })),
+      h('div', { class: 'tense-list' }, list.filter((t) => t.group === grp).map((t) => h('article', { class: 'tense-section g-' + grp, id: t.id },
+        h('header', { class: 'tense-head' },
+          h('h3', {}, t.en, ' ', h('span', { class: 'light', text: t.th })),
+          h('span', { class: 'tense-formula', text: t.short })),
+        tenseDetail(t))))))
   );
 
   // scroll to the tense in the URL hash (the grid cells and the feedback card link here)

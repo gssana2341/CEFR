@@ -1182,3 +1182,42 @@ body[class*="acc-"] .focus-exit:hover { color: var(--acc); }
 .container.wide .plan { flex-direction: column; align-items: stretch; text-align: left; }
 .container.wide .plan .btn { width: 100%; }
 body.acc-learn .eyebrow { color: var(--acc); font-weight: 600; }
+
+/* ---------- Tenses page: one colour per time (past / present / future) ---------- */
+.g-past { --acc: var(--acc-extra); }
+.g-present { --acc: var(--acc-conversations); }
+.g-future { --acc: var(--acc-exam); }
+
+.tgrid thead th.g-past, .tgrid thead th.g-present, .tgrid thead th.g-future { color: var(--acc); font-weight: 600; border-bottom: 2px solid var(--acc); }
+.tgrid .tg-cell { background: color-mix(in srgb, var(--acc) 7%, transparent); }
+.tgrid .tg-cell a:hover { color: var(--acc); }
+.tgrid .tg-cell.on { background: var(--acc); color: var(--acc-ink); }
+.tgrid tbody th { color: var(--muted); }
+
+.tense-group { margin-top: 40px; }
+.group-title { display: flex; align-items: baseline; gap: 10px; margin: 0 0 16px; padding-bottom: 10px; font-size: 1.25rem; color: var(--acc); border-bottom: 2px solid var(--acc); }
+.group-title .light { color: var(--muted); font-size: 0.9rem; font-weight: 400; }
+
+.tense-list .tense-section { padding: 20px 22px 22px; border: 1px solid var(--border); border-top: 4px solid var(--acc); border-left: 1px solid var(--border); border-radius: 12px; background: var(--bg); display: flex; flex-direction: column; }
+.tense-list .tense-section:target { border-color: var(--acc); box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 35%, transparent); }
+.tense-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.tense-head h3 { margin: 0; font-size: 1.1rem; }
+.tense-head h3 .light { display: block; color: var(--muted); font-size: 0.9rem; font-weight: 400; }
+.tense-formula { flex: none; padding: 2px 12px; border-radius: 999px; background: color-mix(in srgb, var(--acc) 14%, transparent); color: var(--acc); font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
+
+.tense-body { display: flex; flex-direction: column; flex: 1; }
+.formula-rows { display: grid; gap: 8px; padding: 12px 14px; border-radius: 10px; background: color-mix(in srgb, var(--acc) 6%, var(--bg)); }
+.formula-row { display: grid; grid-template-columns: 1.5rem 3.6rem 1fr; align-items: baseline; gap: 8px; }
+.formula-sym { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--acc); color: var(--acc-ink); font-size: 0.85rem; font-weight: 700; line-height: 1; }
+.formula-label { color: var(--muted); font-size: 0.8rem; }
+.formula-text { font-weight: 600; }
+.tense-list .tense-h { color: var(--acc); }
+.tense-list .sig { border-color: color-mix(in srgb, var(--acc) 45%, var(--border)); }
+.tense-list .tense-tip { border-left: 3px solid var(--acc); border-radius: 0 8px 8px 0; background: color-mix(in srgb, var(--acc) 6%, var(--bg)); }
+.tense-list .examples li { border-left-color: var(--acc); }
+.tense-cta { margin-top: auto; align-self: stretch; }
+.tense-body > .tense-cta { margin-top: 18px; }
+
+.tense-list { align-items: stretch; }
+.tense-body > .tense-cta { margin-top: auto; }
+.tense-body > .tense-tip + .examples, .tense-body > .examples { margin-bottom: 18px; }
