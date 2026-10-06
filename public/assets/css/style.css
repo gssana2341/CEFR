@@ -1161,3 +1161,13 @@ body[class*="acc-"] .focus-exit:hover { color: var(--acc); }
 .part-group h2 { margin: 0; font-size: 1rem; color: var(--acc-toeic); }
 .part-group .meta { margin: 0; }
 .part-no { flex: none; display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 8px; background: color-mix(in srgb, var(--acc) 16%, transparent); color: var(--acc); font-weight: 600; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+
+/* 12-tense summary shortcut (top of the lessons tab) */
+.ref-card { margin: 0 0 28px; padding: 18px 20px; border: 1px solid var(--border); border-left: 4px solid var(--acc); border-radius: 12px; background: color-mix(in srgb, var(--acc) 5%, var(--bg)); }
+.ref-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 20px; }
+.ref-title { margin: 0; font-size: 1.1rem; }
+.ref-title .light { color: var(--muted); font-weight: 400; }
+.ref-desc { margin: 2px 0 0; color: var(--muted); font-size: 0.9rem; }
+.ref-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.ref-chip { padding: 3px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); color: var(--fg); font-size: 0.85rem; text-decoration: none; }
+.ref-chip:hover { border-color: var(--acc); color: var(--acc); }

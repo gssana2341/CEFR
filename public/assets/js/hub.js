@@ -205,6 +205,7 @@
     return h('div', {},
       h('h1', { class: 'page-title', text: 'บทเรียนไวยากรณ์' }),
       h('p', { class: 'tab-intro', text: 'เรียนแล้ว ' + lessonsDone() + '/' + D.lessons.length + ' บท · เลือกบท อ่านคำอธิบาย แล้วทำแบบฝึกหัดท้ายบท' }),
+      tenseReference(),
       last && h('p', { class: 'card-meta', style: { marginTop: '-12px', marginBottom: '20px' }, text: focus ? 'จากผลวัดระดับ (' + levelName(last.level) + ') แนะนำให้เริ่มที่บทระดับ ' + focus : 'คุณผ่านทุกระดับในการวัดระดับแล้ว เรียนทบทวนบทไหนก็ได้' }),
       levels.map((lv) => {
         const list = D.lessons.filter((l) => l.level === lv);
@@ -222,9 +223,19 @@
               h('span', { class: 'lesson-name' }, l.title + ' ', h('span', { class: 'light', text: l.en })),
               h('span', { class: 'lesson-state' + (isDone ? ' done' : ''), text: state })));
           })));
-      }),
-      h('ul', { class: 'list-rows tiles', style: { marginTop: '28px' } },
-        listRow('tenses.html', 'สรุป 12 Tenses', 'Tense summary', 'ตารางสูตร กฎการใช้ และคำบอกเวลา', 'เปิดดู', 'learn')));
+      }));
+  }
+
+  // the 12-tense summary page, kept at the top of the lessons tab with a shortcut to each tense
+  function tenseReference() {
+    const tenses = D.tenses || [];
+    return h('section', { class: 'ref-card acc-learn' },
+      h('div', { class: 'ref-head' },
+        h('div', {},
+          h('h2', { class: 'ref-title' }, 'สรุป 12 Tenses ', h('span', { class: 'light', text: 'Tense summary' })),
+          h('p', { class: 'ref-desc', text: 'สูตร กฎการใช้ และคำบอกเวลาของทั้ง 12 tenses ในหน้าเดียว เปิดดูได้ตลอด' })),
+        accBtn('เปิดดูทั้งหมด', 'tenses.html')),
+      tenses.length > 0 && h('div', { class: 'ref-chips' }, tenses.map((t) => h('a', { class: 'ref-chip', href: 'tenses.html#' + t.id, text: t.en }))));
   }
 
   function practicePanel() {
