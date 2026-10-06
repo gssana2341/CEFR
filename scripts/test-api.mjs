@@ -1,0 +1,258 @@
+// Security checks for the content and quiz endpoints, run against an in-memory Firestore (no network, no Firebase key).
+// Usage: node scripts/test-api.mjs   (exit code 1 on failure)
+//
+//   - who may get which question set / lesson (not signed in · signed in · member)
+//   - the answers and explanations are NOT in anything sent before a pick
+//   - bad input is refused: out-of-range picks, wrong types, oversize batches, odd set names
+//   - the adaptive placement test runs on the server and a step can only be answered once
+//   - the fake-payment mode can never switch on where Vercel runs
+//   - the browser-side billing.js and the server-side entitlements say the same thing
+//   - nothing answer-bearing is left under public/
+process.env.PAY_MODE = 'mock';
+delete process.env.VERCEL;
+delete process.env.VERCEL_ENV;
+delete process.env.FIREBASE_PRIVATE_KEY;
+
+import { createRequire } from 'node:module';
+import assert from 'node:assert/strict';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
+
+const require = createRequire(import.meta.url);
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const content = require('../api/content.js');
+const quiz = require('../api/quiz.js');
+const pay = require('../api/_pay.js');
+const ent = require('../api/_entitlements.js');
+const bank = require('../api/_bank.js');
+const { db, setUserPass } = require('../api/_firebase.js');
+const { isSyncKey } = require('../api/_sync.js');
+const { limited } = require('../api/_ratelimit.js');
+
+let failed = 0;
+async function test(name, fn) {
+  try { await fn(); console.log('  ✓ ' + name); } catch (e) { failed++; console.log('  ✗ ' + name + '\n      ' + (e.stack || e).toString().split('\n').slice(0, 4).join('\n      ')); }
+}
+
+let ipCounter = 0;
+// one request → { code, body }; every call comes from a fresh address so the limits do not interfere
+function call(handler, { method = 'POST', body, query, token, ip } = {}) {
+  return new Promise((resolve) => {
+    const req = { method, body, query, headers: { 'x-real-ip': ip || '10.0.' + Math.floor(++ipCounter / 250) + '.' + (ipCounter % 250), ...(token ? { authorization: 'Bearer ' + token } : {}) }, socket: {} };
+    const res = { setHeader() {}, status(c) { this.code = c; return this; }, send(b) { resolve({ code: this.code, body: JSON.parse(b) }); } };
+    Promise.resolve(handler(req, res)).catch((e) => resolve({ code: 500, body: { error: String(e) } }));
+  });
+}
+
+const FREE = 'mock-free-user';
+const MEMBER = 'mock-member-user';
+await setUserPass('member-user', { exp: Date.now() + 86_400_000, plan: 'd1', sid: 'test' });
+await setUserPass('expired-user', { exp: Date.now() - 1000, plan: 'd1', sid: 'old' });
+const EXPIRED = 'mock-expired-user';
+
+const hasKey = (v, keys) => {
+  if (Array.isArray(v)) return v.some((x) => hasKey(x, keys));
+  if (v && typeof v === 'object') return Object.entries(v).some(([k, x]) => keys.includes(k) || hasKey(x, keys));
+  return false;
+};
+
+console.log('who may get what');
+for (const set of ['conversations', 'extra', 'cloze']) {
+  await test(set + ': not signed in → 401, signed in but not a member → 402, expired → 402, member → 200', async () => {
+    assert.equal((await call(content, { method: 'GET', query: { set } })).code, 401);
+    assert.equal((await call(content, { method: 'GET', query: { set }, token: FREE })).code, 402);
+    assert.equal((await call(content, { method: 'GET', query: { set }, token: EXPIRED })).code, 402);
+    assert.equal((await call(content, { method: 'GET', query: { set }, token: MEMBER })).code, 200);
+  });
+}
+await test('grammar is free for everyone', async () => {
+  assert.equal((await call(content, { method: 'GET', query: { set: 'grammar' } })).code, 200);
+});
+await test('lessons: A1 free, A2 and above need a membership', async () => {
+  const a1 = bank.lessons().find((l) => l.level === 'A1').id;
+  const b1 = bank.lessons().find((l) => l.level === 'B1').id;
+  assert.equal((await call(content, { method: 'GET', query: { set: 'lesson', id: a1 } })).code, 200);
+  assert.equal((await call(content, { method: 'GET', query: { set: 'lesson', id: b1 } })).code, 401);
+  assert.equal((await call(content, { method: 'GET', query: { set: 'lesson', id: b1 }, token: FREE })).code, 402);
+  const ok = await call(content, { method: 'GET', query: { set: 'lesson', id: b1 }, token: MEMBER });
+  assert.equal(ok.code, 200);
+  assert.ok(ok.body.lesson.sections.length > 0 && ok.body.lesson.exercises.length > 0);
+});
+await test('a forged / garbage token is the same as no token', async () => {
+  for (const t of ['mock-', 'garbage', 'Bearer x', 'x'.repeat(5000)]) {
+    assert.equal((await call(content, { method: 'GET', query: { set: 'conversations' }, token: t })).code, 401);
+  }
+});
+
+console.log('answers stay on the server');
+await test('question lists carry no answer, explanation or mark-up', async () => {
+  for (const set of ['grammar', 'conversations', 'extra']) {
+    const r = await call(content, { method: 'GET', query: { set }, token: MEMBER });
+    assert.ok(r.body.questions.length > 40);
+    assert.ok(!hasKey(r.body, ['a', 'e', 'clue', 'clues']), set + ' leaks a/e');
+  }
+  const c = await call(content, { method: 'GET', query: { set: 'cloze' }, token: MEMBER });
+  assert.ok(!hasKey(c.body, ['a', 'e']), 'cloze leaks a/e');
+});
+await test('the answer comes back only for a valid pick, with its explanation', async () => {
+  const q = bank.question('grammar', 1);
+  const r = await call(quiz, { body: { op: 'check', set: 'grammar', items: [{ n: 1, pick: 0 }] } });
+  assert.equal(r.code, 200);
+  assert.equal(r.body.results[1].a, q.a);
+  assert.equal(r.body.results[1].e, q.e);
+});
+await test('public/ holds no question bank, answer or lesson text', () => {
+  const dir = join(root, 'public', 'assets', 'data');
+  for (const f of ['grammar', 'conversations', 'extra', 'cloze', 'lessons', 'placement', 'cat-bank']) {
+    assert.ok(!existsSync(join(dir, f + '.js')), f + '.js is still public');
+  }
+  for (const f of readdirSync(dir)) assert.ok(!/^clues-/.test(f), f + ' is public');
+  const manifest = readFileSync(join(dir, 'manifest.js'), 'utf8');
+  assert.ok(!/"(a|e|sections|exercises|c)":/.test(manifest), 'manifest carries answers or lesson text');
+});
+
+console.log('bad input is refused');
+await test('/api/quiz check validates everything', async () => {
+  const bad = [
+    { op: 'check', set: 'grammar', items: [{ n: 1, pick: 99 }] },
+    { op: 'check', set: 'grammar', items: [{ n: 1, pick: -1 }] },
+    { op: 'check', set: 'grammar', items: [{ n: 1, pick: '0' }] },
+    { op: 'check', set: 'grammar', items: [{ n: 1.5, pick: 0 }] },
+    { op: 'check', set: 'grammar', items: [{ n: 99999, pick: 0 }] },
+    { op: 'check', set: 'grammar', items: [{ n: '__proto__', pick: 0 }] },
+    { op: 'check', set: 'grammar', items: [] },
+    { op: 'check', set: 'grammar', items: 'x' },
+    { op: 'check', set: 'grammar', items: Array.from({ length: 11 }, () => ({ n: 1, pick: 0 })) },
+    { op: 'check', set: 'grammar' },
+    { op: 'check', set: '__proto__', items: [{ n: 1, pick: 0 }] },
+    { op: 'check', set: 'constructor', items: [{ n: 1, pick: 0 }] },
+    { op: 'check', set: 'cloze', items: [{ n: 1, pick: 0 }] },
+    { op: 'check', set: ['grammar'], items: [{ n: 1, pick: 0 }] },
+    { op: 'nope' },
+    { op: ['check'] },
+    {},
+  ];
+  for (const body of bad) {
+    const r = await call(quiz, { body });
+    assert.ok(r.code === 400, JSON.stringify(body).slice(0, 80) + ' → ' + r.code);
+  }
+});
+await test('a members-only check / cloze / exam is refused for non-members', async () => {
+  assert.equal((await call(quiz, { body: { op: 'check', set: 'conversations', items: [{ n: 1, pick: 0 }] } })).code, 401);
+  assert.equal((await call(quiz, { token: FREE, body: { op: 'check', set: 'conversations', items: [{ n: 1, pick: 0 }] } })).code, 402);
+  assert.equal((await call(quiz, { token: FREE, body: { op: 'cloze', idx: 0, picks: [0, 0, 0, 0, 0, 0, 0] } })).code, 402);
+  assert.equal((await call(quiz, { token: FREE, body: { op: 'exam', items: [{ src: 'grammar', n: 1, pick: 0 }], cloze: [] } })).code, 402);
+  assert.equal((await call(quiz, { body: { op: 'exam', items: [{ src: 'grammar', n: 1, pick: 0 }], cloze: [] } })).code, 401);
+});
+await test('exam grading: members get answers; bad items are refused', async () => {
+  const ok = await call(quiz, { token: MEMBER, body: { op: 'exam', items: [{ src: 'grammar', n: 1, pick: 0 }, { src: 'conversations', n: 1, pick: null }], cloze: [{ idx: 0, picks: Array(bank.bank('cloze')[0].blanks.length).fill(0) }] } });
+  assert.equal(ok.code, 200);
+  assert.equal(ok.body.results['grammar:1'].a, bank.question('grammar', 1).a);
+  assert.equal(ok.body.cloze[0].length, bank.bank('cloze')[0].blanks.length);
+  for (const body of [
+    { op: 'exam', items: [{ src: 'cloze', n: 1, pick: 0 }] },
+    { op: 'exam', items: [{ src: '__proto__', n: 1, pick: 0 }] },
+    { op: 'exam', items: [{ src: 'grammar', n: 1, pick: 50 }] },
+    { op: 'exam', items: [], cloze: [] },
+    { op: 'exam', items: [], cloze: [{ idx: 0, picks: [0] }] },
+    { op: 'exam', items: Array.from({ length: 121 }, () => ({ src: 'grammar', n: 1, pick: 0 })) },
+  ]) assert.equal((await call(quiz, { token: MEMBER, body })).code, 400, JSON.stringify(body).slice(0, 70));
+});
+await test('content: unknown sets, odd ids and non-string params are rejected', async () => {
+  for (const query of [{ set: '../content/lessons' }, { set: 'lessons' }, { set: '__proto__' }, { set: ['grammar', 'extra'] }, {}, { set: 'lesson' }, { set: 'lesson', id: '../../etc/passwd' }, { set: 'lesson', id: '__proto__' }]) {
+    const r = await call(content, { method: 'GET', query, token: MEMBER });
+    assert.ok(r.code === 400 || r.code === 404, JSON.stringify(query) + ' → ' + r.code);
+  }
+  assert.equal((await call(content, { method: 'POST', query: { set: 'grammar' } })).code, 405);
+});
+await test('sync keys: only the allow-listed progress keys pass (no paths, no prototype keys)', () => {
+  for (const k of ['__proto__', 'constructor', 'a/b', '../x', 'users/other/data/x', 'grammar:state/..', 'grammar:state\n', '', null, 5, {}, 'x'.repeat(100)]) assert.equal(isSyncKey(k), false, String(k));
+  assert.equal(isSyncKey('grammar:state'), true);
+});
+
+console.log('placement runs on the server');
+await test('a full run ends with a level and a review; a step can be answered only once', async () => {
+  let r = await call(quiz, { body: { op: 'placement' } });
+  assert.equal(r.code, 200);
+  assert.ok(!hasKey(r.body, ['a', 'e']), 'question carries the answer');
+  const sid = r.body.sid;
+  const first = r.body;
+  // answer step 0, then try to answer step 0 again with another pick: refused (the session has moved on)
+  r = await call(quiz, { body: { op: 'placement', sid, step: 0, pick: 0 } });
+  assert.equal(r.body.step, 1);
+  const replay = await call(quiz, { body: { op: 'placement', sid, step: 0, pick: 1 } });
+  assert.equal(replay.body.stale, true);
+  assert.equal(replay.body.step, 1, 'replay must not advance the test');
+  assert.notEqual(replay.body.question.key, first.question.key);
+  let guard = 0;
+  while (!r.body.done && guard++ < 40) r = await call(quiz, { body: { op: 'placement', sid, step: r.body.step, pick: 0 } });
+  assert.equal(r.body.done, true);
+  assert.ok(['pre-A1', 'A1', 'A2', 'B1', 'B2', 'B2+'].includes(r.body.result.level));
+  assert.ok(r.body.result.n >= 12 && r.body.result.n <= 25);
+  assert.ok(r.body.result.review.every((x) => Number.isInteger(x.a) && x.e));
+});
+await test('placement refuses bad session ids, picks and steps', async () => {
+  for (const body of [
+    { op: 'placement', sid: '../x' }, { op: 'placement', sid: 'short' }, { op: 'placement', sid: { a: 1 } },
+    { op: 'placement', sid: 'a'.repeat(22) + '/..' }, { op: 'placement', sid: ['x'.repeat(22)] },
+  ]) assert.equal((await call(quiz, { body })).code, 400, JSON.stringify(body).slice(0, 60));
+  assert.equal((await call(quiz, { body: { op: 'placement', sid: 'AAAAAAAAAAAAAAAAAAAAAA', step: 0, pick: 0 } })).code, 404);
+  const s = await call(quiz, { body: { op: 'placement' } });
+  for (const pick of [99, -1, 1.5, '1', null, {}]) {
+    assert.equal((await call(quiz, { body: { op: 'placement', sid: s.body.sid, step: 0, pick } })).code, 400, 'pick ' + JSON.stringify(pick));
+  }
+  const after = await call(quiz, { body: { op: 'placement', sid: s.body.sid } });
+  assert.equal(after.body.step, 0, 'rejected picks must not advance the test');
+});
+
+console.log('payments and limits');
+await test('fake payment mode never switches on where Vercel runs', () => {
+  assert.equal(pay.isMock(), true);
+  process.env.VERCEL = '1';
+  assert.equal(pay.isMock(), false);
+  delete process.env.VERCEL;
+  process.env.VERCEL_ENV = 'preview';
+  assert.equal(pay.isMock(), false);
+  delete process.env.VERCEL_ENV;
+});
+await test('rate limiter counts per account and is shared through the store', async () => {
+  const req = { headers: { 'x-real-ip': '7.7.7.7' }, socket: {} };
+  const got = [];
+  for (let i = 0; i < 5; i++) got.push(await limited(req, 'test-bucket', 3, { uid: 'rl-user' }));
+  assert.deepEqual(got, [false, false, false, true, true]);
+  assert.equal(await limited(req, 'test-bucket', 3, { uid: 'someone-else' }), false);
+});
+await test('the client address cannot be chosen by the client', () => {
+  assert.equal(pay.clientIp({ headers: { 'x-vercel-forwarded-for': '1.1.1.1', 'x-forwarded-for': '6.6.6.6' } }), '1.1.1.1');
+  assert.equal(pay.clientIp({ headers: { 'x-real-ip': '2.2.2.2', 'x-forwarded-for': '6.6.6.6' } }), '2.2.2.2');
+});
+await test('billing.js (shown in the page) and _entitlements.js (enforced) agree', () => {
+  const sandbox = { window: {}, location: { search: '' }, sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} }, URLSearchParams };
+  vm.createContext(sandbox);
+  vm.runInContext(readFileSync(join(root, 'public', 'assets', 'data', 'billing.js'), 'utf8'), sandbox);
+  const b = sandbox.window.CEFR_DATA.billing;
+  assert.equal(b.enabled, ent.BILLING_ENABLED);
+  assert.deepEqual(JSON.parse(JSON.stringify(b.premium)), ent.PREMIUM);
+});
+
+console.log('markup trial is counted on the server');
+await test('non-members get 3 free mark-ups a day, members always', async () => {
+  const seen = [];
+  const ip = '55.55.55.55';
+  for (let n = 1; n <= 5; n++) {
+    const r = await call(quiz, { ip, body: { op: 'check', set: 'grammar', items: [{ n, pick: 0 }] } });
+    seen.push(r.body.results[n].clue && r.body.results[n].clue.locked ? 'locked' : r.body.results[n].clue ? 'ok' : 'none');
+  }
+  assert.deepEqual(seen, ['ok', 'ok', 'ok', 'locked', 'locked']);
+  const again = await call(quiz, { ip, body: { op: 'check', set: 'grammar', items: [{ n: 1, pick: 0 }] } });
+  assert.ok(again.body.results[1].clue.links, 'looking at the same question again is free');
+  for (let n = 1; n <= 5; n++) {
+    const m = await call(quiz, { token: MEMBER, body: { op: 'check', set: 'grammar', items: [{ n, pick: 0 }] } });
+    assert.ok(m.body.results[n].clue && !m.body.results[n].clue.locked);
+  }
+});
+
+console.log(failed ? '\n' + failed + ' failed' : '\nall passed');
+process.exit(failed ? 1 : 0);

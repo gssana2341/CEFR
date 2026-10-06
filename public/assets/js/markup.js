@@ -520,17 +520,14 @@
   function block(opts) {
     const ann = annotation(opts.bank, opts.key);
     if (!ann) return null;
-    const pass = window.CEFR.pass;
-    let trial = null;                       // free look for non-members: { left }
-    if (pass && !pass.allows('markup')) {
-      trial = pass.trial(opts.bank + ':' + opts.key);
-      if (!trial.ok) {
-        return h('div', { class: 'clue-box' },
-          h('p', { class: 'clue-title', text: 'ดูตรงนี้' }),
-          h('p', { class: 'notice' }, 'วันนี้ดูเส้นโยงฟรีครบแล้ว — สมาชิกดูได้ไม่จำกัด · ',
-            h('a', { class: 'link-btn', href: 'pricing.html?need=markup', text: 'ดูแพ็กเกจ →' })));
-      }
+    // the server decides who sees mark-up: members always, everybody else a few questions a day (ann.trialLeft counts what is left)
+    if (ann.locked) {
+      return h('div', { class: 'clue-box' },
+        h('p', { class: 'clue-title', text: 'ดูตรงนี้' }),
+        h('p', { class: 'notice' }, 'วันนี้ดูเส้นโยงฟรีครบแล้ว — สมาชิกดูได้ไม่จำกัด · ',
+          h('a', { class: 'link-btn', href: 'pricing.html?need=markup', text: 'ดูแพ็กเกจ →' })));
     }
+    const trial = typeof ann.trialLeft === 'number' ? { left: ann.trialLeft } : null;
     const box = h('div', { class: 'clue-box' }, h('p', { class: 'clue-title', text: 'ดูตรงนี้' }));
     if ((ann.links && ann.links.length) || (ann.tags && ann.tags.length)) box.append(diagram(opts.q, opts.answer, ann));
     if (ann.tip) {

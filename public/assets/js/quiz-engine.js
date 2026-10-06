@@ -87,10 +87,23 @@
     }
 
     // ---------- Actions ----------
-    function answer(displayIdx) {
+    // The right answer is not in the page: it comes from the server once a pick is made (so it can not be read in advance).
+    let busy = false;
+    async function answer(displayIdx) {
       const it = round.items[round.index];
-      if (it.pick !== null || displayIdx >= it.order.length) return;
-      it.pick = it.order[displayIdx];
+      if (busy || it.pick !== null || displayIdx >= it.order.length) return;
+      const pick = it.order[displayIdx];
+      busy = true;
+      try {
+        await window.CEFR.content.reveal(meta.dataKey, [{ n: it.n, pick }]);
+      } catch (e) {
+        busy = false;
+        showError(e, () => renderQuiz());
+        return;
+      }
+      busy = false;
+      if (!round || round.items[round.index] !== it) return;
+      it.pick = pick;
 
       // Wrong bank: add on a miss, clear once answered correctly (so it shrinks as you learn)
       const wrong = new Set(getWrong());
@@ -99,6 +112,32 @@
       store.set(K.state, round);
 
       renderQuiz({ focusNext: true });
+    }
+
+    // Questions picked earlier (a round reopened after a reload) have no answer in memory yet: fetch them first.
+    // Resolves true when every picked question in the list has its answer.
+    async function ensureRevealed(items, retry) {
+      const todo = items.filter((it) => it.pick !== null && byN.get(it.n).a === undefined);
+      if (!todo.length) return true;
+      setView(h('p', { class: 'meta', text: 'กำลังโหลดเฉลย…' }));
+      try {
+        await window.CEFR.content.reveal(meta.dataKey, todo.map((it) => ({ n: it.n, pick: it.pick })));
+        return true;
+      } catch (e) {
+        showError(e, retry);
+        return false;
+      }
+    }
+
+    function showError(e, retry) {
+      const msg = e.status === 401 || e.status === 402 ? 'ชุดนี้สำหรับสมาชิก — เข้าสู่ระบบหรือเลือกแพ็กเกจเพื่อดูเฉลย'
+        : e.status === 429 ? 'ตอบเร็วหรือบ่อยเกินไป รอสักครู่แล้วลองใหม่'
+          : 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่';
+      setView(h('section', { class: 'panel' },
+        h('p', { class: 'meta', role: 'alert', text: msg }),
+        h('div', { class: 'btn-row' },
+          h('button', { class: 'btn', type: 'button', text: 'ลองอีกครั้ง', onclick: retry }),
+          h('button', { class: 'btn btn-outline', type: 'button', text: 'กลับหน้าแรก', onclick: goHome }))));
     }
 
     function next() {
@@ -115,7 +154,8 @@
       }
     }
 
-    function finish() {
+    async function finish() {
+      if (!(await ensureRevealed(round.items, finish))) return;
       finished = round;
       round = null;
       store.remove(K.state);
@@ -157,8 +197,9 @@
     const setView = (...nodes) => root.replaceChildren(...nodes.filter(Boolean));
 
     function render() {
-      if (view === 'quiz' && round) renderQuiz();
-      else if (view === 'summary' && finished) renderSummary();
+      if (view === 'quiz' && round) {
+        ensureRevealed([round.items[round.index]], render).then((ok) => { if (ok && view === 'quiz' && round) renderQuiz(); });
+      } else if (view === 'summary' && finished) renderSummary();
       else { view = 'home'; renderHome(); }
     }
 
@@ -383,14 +424,29 @@
   const feature = 'practice:' + root.dataset.quiz;
   let isMounted = false;
 
+  const lock = () => root.replaceChildren(pass.lockPanel(feature, { freeHref: 'grammar.html', freeText: 'ไปทำ Grammar (ฟรี)' }));
+
+  async function begin() {
+    isMounted = true;
+    root.replaceChildren(h('p', { class: 'meta', text: 'กำลังโหลดข้อสอบ…' }));
+    try {
+      await window.CEFR.content.load(root.dataset.quiz);
+    } catch (e) {
+      isMounted = false;
+      if (pass && (e.status === 401 || e.status === 402)) { lock(); return; }
+      root.replaceChildren(h('section', { class: 'panel' },
+        h('p', { class: 'meta', role: 'alert', text: e.status === 429 ? 'โหลดบ่อยเกินไป รอสักครู่แล้วลองใหม่' : 'โหลดข้อสอบไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่' }),
+        h('button', { class: 'btn', type: 'button', text: 'ลองอีกครั้ง', onclick: begin })));
+      return;
+    }
+    mount(root);
+  }
+
   function checkPass() {
     if (pass && !pass.allows(feature)) {
-      root.replaceChildren(pass.lockPanel(feature, { freeHref: 'grammar.html', freeText: 'ไปทำ Grammar (ฟรี)' }));
-    } else {
-      if (!isMounted) {
-        isMounted = true;
-        mount(root);
-      }
+      lock();
+    } else if (!isMounted) {
+      begin();
     }
   }
 

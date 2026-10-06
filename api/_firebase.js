@@ -47,7 +47,7 @@ async function verifyAuth(req) {
   if (!hdr.startsWith('Bearer ')) return null;
   const idToken = hdr.slice(7);
   if (!idToken || idToken.length > 4000) return null;
-  if (useMem) return idToken.startsWith('mock-') ? { uid: idToken.slice(5), email: null } : null;
+  if (useMem) return /^mock-[A-Za-z0-9_-]{1,100}$/.test(idToken) ? { uid: idToken.slice(5), email: null } : null;
   try {
     const decoded = await getAuth().verifyIdToken(idToken);
     return { uid: decoded.uid, email: decoded.email || null, name: decoded.name || null };

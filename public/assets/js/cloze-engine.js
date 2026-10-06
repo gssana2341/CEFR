@@ -5,14 +5,15 @@
   const { QUIZZES, store, shuffle, pct, h, rich, confirmDialog, dialogOpen } = window.CEFR;
 
   const meta = QUIZZES.cloze;
-  const data = window.CEFR_DATA.cloze;
   const root = document.getElementById('app');
-  const totalBlanks = data.reduce((sum, p) => sum + p.blanks.length, 0);
+  // The passages (text + the options of each blank, no answers) are fetched from the server; see begin() at the bottom.
+  let data = [];
+  let totalBlanks = 0;
 
   const K = { state: 'cloze:state', best: 'cloze:best', stats: 'cloze:stats', order: 'cloze:order' };
 
   let view = 'home';              // 'home' | 'quiz' | 'summary'
-  let session = loadSession();    // unfinished round restored from storage
+  let session = null;             // unfinished round restored from storage (loaded once the passages are here)
   let finished = null;            // last finished round (summary screen)
   let cur = null;                 // passage currently on screen (in memory only)
   let orderMode = store.get(K.order, 'random');
@@ -57,8 +58,8 @@
     cur = {
       pos,
       idx,
-      // shuffled options per blank; correctness by index so duplicate words can't confuse it
-      opts: data[idx].blanks.map((b) => shuffle(b.c.map((text, j) => ({ text, isCorrect: j === b.a })))),
+      // shuffled options per blank; j = the option's original index, which is what the server grades
+      opts: data[idx].blanks.map((b) => shuffle(b.c.map((text, j) => ({ text, j })))),
       submitted: false,
       last: pos === session.order.length - 1,
     };
@@ -203,8 +204,8 @@
     const feedback = h('div', { class: 'feedback', 'aria-live': 'polite', hidden: true });
     const submitBtn = h('button', { class: 'btn btn-block', type: 'button', text: 'ส่งคำตอบ', onclick: submit });
 
-    function submit() {
-      if (cur.submitted) return;
+    async function submit() {
+      if (cur.submitted || cur.checking) return;
       const missing = selects.filter((s) => s.value === '');
       if (missing.length) {
         selects.forEach((s) => s.classList.toggle('is-missing', s.value === ''));
@@ -214,24 +215,40 @@
         return;
       }
       msg.hidden = true;
+
+      // ask the server for the right answers (they are not in the page)
+      cur.checking = true;
+      submitBtn.disabled = true;
+      let graded;
+      try {
+        graded = (await window.CEFR.content.post({ op: 'cloze', idx: cur.idx, picks: selects.map((sel, i) => cur.opts[i][Number(sel.value)].j) })).blanks;
+      } catch (e) {
+        cur.checking = false;
+        submitBtn.disabled = false;
+        msg.textContent = e.status === 401 || e.status === 402 ? 'ชุดนี้สำหรับสมาชิก — เข้าสู่ระบบหรือเลือกแพ็กเกจก่อน'
+          : e.status === 429 ? 'ส่งบ่อยเกินไป รอสักครู่แล้วลองใหม่' : 'ส่งคำตอบไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วกดส่งอีกครั้ง';
+        msg.hidden = false;
+        return;
+      }
+      cur.checking = false;
       cur.submitted = true;
 
       let score = 0;
       const wrong = [];
       const items = [];
       selects.forEach((select, i) => {
-        const b = p.blanks[i];
+        const b = graded[i];
         const picked = cur.opts[i][Number(select.value)];
-        const right = cur.opts[i].find((o) => o.isCorrect);
+        const right = cur.opts[i].find((o) => o.j === b.a);
         select.disabled = true;
-        if (picked.isCorrect) {
+        if (picked.j === b.a) {
           score++;
           select.classList.add('is-correct');
           items.push(h('li', {}, h('strong', { class: 'ok', text: '✓ ข้อ ' + (i + 1) + ': ' }), rich(b.e)));
         } else {
           select.classList.add('is-wrong');
           select.after(h('span', { class: 'fix', text: '✓ ' + right.text }));
-          wrong.push({ i, pick: picked.text });
+          wrong.push({ i, pick: picked.text, right: right.text, e: b.e });
           items.push(h('li', {}, h('strong', { class: 'bad', text: '✗ ข้อ ' + (i + 1) + ': ' }), '(ผิด ที่ถูกคือ ', h('strong', { text: right.text }), ') — ', rich(b.e)));
         }
       });
@@ -314,16 +331,10 @@
       const r = finished.results[idx];
       const detail = r.wrong.length === 0
         ? h('p', { text: 'ถูกทุกช่อง' })
-        : r.wrong.map((w) => {
-          const b = pass.blanks[w.i];
-          return h('p', {},
-            h('strong', { text: '(' + (w.i + 1) + ') ' }),
-            h('span', { class: 'review-you', text: '✗ ' + w.pick }),
-            ' → ',
-            h('span', { class: 'review-right', text: '✓ ' + b.c[b.a] }),
-            h('br'),
-            rich(b.e));
-        });
+        : r.wrong.map((w) => h('p', {},
+          h('strong', { text: '(' + (w.i + 1) + ') ' }),
+          h('span', { class: 'review-you', text: '✗ ' + w.pick }),
+          w.right && [' → ', h('span', { class: 'review-right', text: '✓ ' + w.right }), h('br'), rich(w.e || '')]));
       return h('li', {},
         h('details', {},
           h('summary', {}, h('span', { text: pass.topic }), h('span', { text: r.score + '/' + r.total })),
@@ -359,14 +370,31 @@
   const pass = window.CEFR.pass;
   let isMounted = false;
 
+  const lock = () => root.replaceChildren(pass.lockPanel('practice:cloze', { freeHref: 'grammar.html', freeText: 'ไปทำ Grammar (ฟรี)' }));
+
+  async function begin() {
+    isMounted = true;
+    root.replaceChildren(h('p', { class: 'meta', text: 'กำลังโหลดบทความ…' }));
+    try {
+      data = await window.CEFR.content.load('cloze');
+    } catch (e) {
+      isMounted = false;
+      if (pass && (e.status === 401 || e.status === 402)) { lock(); return; }
+      root.replaceChildren(h('section', { class: 'panel' },
+        h('p', { class: 'meta', role: 'alert', text: e.status === 429 ? 'โหลดบ่อยเกินไป รอสักครู่แล้วลองใหม่' : 'โหลดบทความไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่' }),
+        h('button', { class: 'btn', type: 'button', text: 'ลองอีกครั้ง', onclick: begin })));
+      return;
+    }
+    totalBlanks = data.reduce((sum, p) => sum + p.blanks.length, 0);
+    session = loadSession();
+    render();
+  }
+
   function checkPass() {
     if (pass && !pass.allows('practice:cloze')) {
-      root.replaceChildren(pass.lockPanel('practice:cloze', { freeHref: 'grammar.html', freeText: 'ไปทำ Grammar (ฟรี)' }));
-    } else {
-      if (!isMounted) {
-        isMounted = true;
-        render();
-      }
+      lock();
+    } else if (!isMounted) {
+      begin();
     }
   }
 

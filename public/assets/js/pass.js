@@ -9,17 +9,16 @@
 //   CEFR.pass.allows(f)    true when billing is off, the feature is free, or the pass is active
 //   CEFR.pass.members(f)   true when the feature is for members (shows the "สมาชิก" tag)
 //   CEFR.pass.lockPanel(f) a ready-made "members only" box
-//   CEFR.pass.trial(key)   a few free looks per day at the sentence mark-up
 //   CEFR.pass.setToken(t)  store a legacy pass and re-check it (backward compat)
-// Note: this only hides the features in the page. The question files are plain static files, so it is a
-// "soft" lock - to lock content for real it has to be served from an API instead.
+// Note: this only decides what the page SHOWS (lock boxes, "สมาชิก" tags). The lessons, questions and answers are not in the
+// page at all: /api/content and /api/quiz hand them out only after checking the account's pass on the server
+// (api/_entitlements.js is the real list of what needs a membership; keep billing.js in step with it).
 (function () {
   'use strict';
 
   const { h } = window.CEFR;
   const KEY = 'cefr:pass';          // the signed pass (legacy)
   const EXP = 'cefr:pass:exp';      // last expiry the server confirmed (ms) - used while offline / checking
-  const TRIAL = 'cefr:markup:free'; // { day, keys[] } the free mark-up looks used today
   const PENDING = 'cefr:pending';   // checkouts started on this browser: [{ id, at }] - lets us find a payment whose page was closed
   const cfg = () => (window.CEFR_DATA && window.CEFR_DATA.billing) || {};
   const read = (k) => { try { return localStorage.getItem(k) || ''; } catch { return ''; } };
@@ -219,17 +218,6 @@
     return root;
   }
 
-  // ---------- a few free looks at the mark-up each day ----------
-  const today = () => new Date().toISOString().slice(0, 10);
-  function trialState() {
-    try {
-      const s = JSON.parse(read(TRIAL) || 'null');
-      if (s && s.day === today() && Array.isArray(s.keys)) return s;
-    } catch { /* corrupted: start over */ }
-    return { day: today(), keys: [] };
-  }
-  const trialLimit = () => Math.max(0, Number((cfg().premium || {}).markupFreePerDay) || 0);
-
   window.CEFR.pass = {
     allows,
     members,
@@ -240,18 +228,8 @@
     active,
     daysLeft: () => Math.max(0, Math.ceil((exp - Date.now()) / 86_400_000)),
     async setToken(t) { token = String(t || '').trim(); write(KEY, token); await check(); return exp > Date.now(); },
-    // → { ok, left }: may this question's mark-up be shown for free? (looking again at the same one costs nothing)
-    trial(key) {
-      const s = trialState();
-      if (s.keys.includes(key)) return { ok: true, left: trialLimit() - s.keys.length };
-      if (s.keys.length >= trialLimit()) return { ok: false, left: 0 };
-      s.keys.push(key);
-      write(TRIAL, JSON.stringify(s));
-      return { ok: true, left: trialLimit() - s.keys.length };
-    },
     addPending,
     clearPending,
-    trialLeft() { return Math.max(0, trialLimit() - trialState().keys.length); },
     // Re-check pass (called after login/logout)
     recheck: check,
   };

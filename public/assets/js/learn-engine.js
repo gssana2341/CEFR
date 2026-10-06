@@ -44,7 +44,7 @@
       const score = correct;
       progress[lesson.id] = { done: true, score: prev && prev.score > score ? prev.score : score, total: lesson.exercises.length, at: Date.now() };
       store.set('learn:progress', progress);
-      const idx = lessons.indexOf(lesson);
+      const idx = lessons.findIndex((l) => l.id === lesson.id);
       const next = lessons[idx + 1];
       box.append(h('div', { class: 'ex-done' },
         h('strong', { text: 'ได้ ' + correct + ' / ' + lesson.exercises.length + ' ข้อ' }),
@@ -95,26 +95,41 @@
     return box;
   }
 
-  function renderLesson(lesson) {
-    document.title = lesson.title + ' (' + lesson.en + ') — บทเรียน — CEFR Quiz';
-    const idx = lessons.indexOf(lesson);
+  // meta = the entry of the public lesson list (title, level, intro); the lesson text and exercises come from the server
+  async function renderLesson(meta) {
+    document.title = meta.title + ' (' + meta.en + ') — บทเรียน — CEFR Quiz';
+    const idx = lessons.findIndex((l) => l.id === meta.id);
     const prev = lessons[idx - 1];
     const next = lessons[idx + 1];
 
+    const top = () => [
+      h('a', { class: 'back-link', href: 'index.html#learn', text: '← บทเรียนทั้งหมด' }),
+      h('p', { class: 'eyebrow lesson-eyebrow', text: 'บทเรียน · ' + meta.level + ' · ' + meta.minutes + ' นาที' }),
+      h('h1', { class: 'page-title' }, meta.title + ' ', h('span', { class: 'light', text: meta.en })),
+      h('p', { class: 'lead', 'data-tr': true }, rich(meta.intro)),
+    ];
     const pass = window.CEFR.pass;
-    if (pass && !pass.allows('lesson:' + lesson.level)) {
-      setView(
-        h('a', { class: 'back-link', href: 'index.html#learn', text: '← บทเรียนทั้งหมด' }),
-        h('p', { class: 'eyebrow lesson-eyebrow', text: 'บทเรียน · ' + lesson.level + ' · ' + lesson.minutes + ' นาที' }),
-        h('h1', { class: 'page-title' }, lesson.title + ' ', h('span', { class: 'light', text: lesson.en })),
-        h('p', { class: 'lead', 'data-tr': true }, rich(lesson.intro)),
-        pass.lockPanel('lesson:' + lesson.level, {
-          title: 'บทเรียนระดับ ' + lesson.level + ' สำหรับสมาชิก',
-          text: 'บทเรียนระดับ A1 อ่านได้ฟรี ตั้งแต่ A2 ขึ้นไปเป็นของสมาชิก เลือกแพ็กเกจตั้งแต่ 1 วัน (20 บาท)',
-          freeHref: 'index.html#learn', freeText: 'กลับไปบทเรียนฟรี',
-        }));
+    const lockBox = () => pass.lockPanel('lesson:' + meta.level, {
+      title: 'บทเรียนระดับ ' + meta.level + ' สำหรับสมาชิก',
+      text: 'บทเรียนระดับ A1 อ่านได้ฟรี ตั้งแต่ A2 ขึ้นไปเป็นของสมาชิก เลือกแพ็กเกจตั้งแต่ 1 วัน (20 บาท)',
+      freeHref: 'index.html#learn', freeText: 'กลับไปบทเรียนฟรี',
+    });
+
+    // the browser's own idea of membership only decides what to show first; the server decides what it hands out
+    if (pass && !pass.allows('lesson:' + meta.level)) { setView(top(), lockBox()); return; }
+
+    setView(top(), h('p', { class: 'meta', text: 'กำลังโหลดบทเรียน…' }));
+    let lesson;
+    try {
+      lesson = { ...meta, ...(await window.CEFR.content.lesson(meta.id)) };
+    } catch (e) {
+      if (location.hash.slice(1) !== meta.id) return;
+      if (pass && (e.status === 401 || e.status === 402)) { setView(top(), lockBox()); return; }
+      setView(top(), h('p', { class: 'meta', text: e.status === 429 ? 'โหลดบ่อยเกินไป รอสักครู่แล้วลองใหม่' : 'โหลดบทเรียนไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่' }),
+        h('button', { class: 'btn', type: 'button', text: 'ลองอีกครั้ง', onclick: () => renderLesson(meta) }));
       return;
     }
+    if (location.hash.slice(1) !== meta.id) return;     // the reader moved on while it was loading
 
     setView(
       h('a', { class: 'back-link', href: 'index.html#learn', text: '← บทเรียนทั้งหมด' }),

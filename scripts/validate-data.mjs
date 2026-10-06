@@ -7,15 +7,18 @@ import vm from 'node:vm';
 import { createRequire } from 'node:module';
 
 const { createDictionary } = createRequire(import.meta.url)('../public/assets/js/dictionary.js');
-const { create: createCat } = createRequire(import.meta.url)('../public/assets/js/cat.js');
-const dataDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'assets', 'data');
+const { create: createCat } = createRequire(import.meta.url)('../api/_cat.js');
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const dataDir = join(root, 'public', 'assets', 'data');      // what the browser may download (config, glossary, tenses, manifest)
+const contentDir = join(root, 'content');                    // question banks, lessons, answers: served only by the API
 
 // The data files are plain browser scripts: they assign to window.CEFR_DATA.
 const sandbox = { window: {} };
 vm.createContext(sandbox);
-for (const file of ['grammar', 'conversations', 'cloze', 'extra', 'placement', 'lessons', 'exam', 'glossary',
-  'cat-bank', 'billing', 'tenses', 'clues-grammar', 'clues-conversations', 'clues-extra', 'clues-placement', 'clues-lessons']) {
-  vm.runInContext(readFileSync(join(dataDir, file + '.js'), 'utf8'), sandbox, { filename: file + '.js' });
+for (const [dir, file] of [...['grammar', 'conversations', 'cloze', 'extra', 'placement', 'lessons', 'cat-bank',
+  'clues-grammar', 'clues-conversations', 'clues-extra', 'clues-placement', 'clues-lessons'].map((f) => [contentDir, f]),
+...['exam', 'glossary', 'billing', 'tenses'].map((f) => [dataDir, f])]) {
+  vm.runInContext(readFileSync(join(dir, file + '.js'), 'utf8'), sandbox, { filename: file + '.js' });
 }
 // markup.js is a browser script; only its pure helpers (plan) are used here
 sandbox.window.CEFR = { h() {} };

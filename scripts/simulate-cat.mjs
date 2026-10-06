@@ -8,8 +8,8 @@ import vm from 'node:vm';
 import { createRequire } from 'node:module';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const dataDir = join(here, '..', 'public', 'assets', 'data');
-const { create } = createRequire(import.meta.url)('../public/assets/js/cat.js');
+const dataDir = join(here, '..', 'content');
+const { create } = createRequire(import.meta.url)('../api/_cat.js');
 
 const sandbox = { window: {} };
 vm.createContext(sandbox);
