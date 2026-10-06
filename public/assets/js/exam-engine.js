@@ -27,11 +27,45 @@
   const mcqCache = {};
   const lookupMcq = (src) => (mcqCache[src] = mcqCache[src] || new Map(D[src].map((q) => [q.n, q])));
 
-  let state = loadState();     // exam in progress (persisted)
+  let state = null;            // exam in progress (persisted; restored in init() once its questions have been loaded)
+  let introNote = '';          // a message for the start screen (e.g. the questions could not be loaded)
+  let submitting = false;
   let finished = null;         // result of the exam just submitted
   let view = 'intro';          // 'intro' | 'exam' | 'result'
   let timerId = 0;
   let filter = 'all';
+
+  // ---------- Question sets from the server ----------
+  const setsOf = (profile) => [...new Set(activeSections(profile).flatMap((sec) => sec.parts.map((pt) => pt.source)))];
+  const loadSets = (profile) => Promise.all(setsOf(profile).map((src) => window.CEFR.content.load(src)));
+  const loadMessage = (e) => (e.status === 401 || e.status === 402 ? 'สอบจำลองสำหรับสมาชิก — เข้าสู่ระบบหรือเลือกแพ็กเกจก่อน'
+    : e.status === 429 ? 'โหลดบ่อยเกินไป รอสักครู่แล้วลองใหม่' : 'โหลดข้อสอบไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
+
+  // The answers are not in the page. When the exam is submitted the server grades every pick and sends the right answer,
+  // the explanation and (for members) the sentence mark-up; they are written onto the question objects so the
+  // scoring and the review below work as before.
+  async function gradeAll() {
+    const mcq = state.items.filter((it) => it.kind === 'mcq');
+    const cloze = state.items.filter((it) => it.kind === 'cloze');
+    const d = await window.CEFR.content.post({
+      op: 'exam',
+      items: mcq.map((it) => ({ src: it.src, n: it.n, pick: it.pick })),
+      cloze: cloze.map((it) => ({ idx: it.idx, picks: it.picks })),
+    });
+    for (const it of mcq) {
+      const r = d.results[it.src + ':' + it.n];
+      const q = questionOf(it);
+      if (!r) throw new Error('bad_answer');
+      q.a = r.a;
+      q.e = r.e;
+      window.CEFR.content.setClue(it.src, it.n, r.clue);
+    }
+    for (const it of cloze) {
+      const blanks = d.cloze[it.idx];
+      if (!blanks) throw new Error('bad_answer');
+      passageOf(it).blanks.forEach((b, i) => { b.a = blanks[i].a; b.e = blanks[i].e; });
+    }
+  }
 
   // ---------- Items ----------
   const questionOf = (it) => lookupMcq(it.src).get(it.n);
@@ -120,6 +154,15 @@
       if (!ok) return;
     }
     const profile = profileById.get(profileId);
+    try {
+      await loadSets(profile);
+    } catch (e) {
+      introNote = loadMessage(e);
+      view = 'intro';
+      render();
+      return;
+    }
+    introNote = '';
     const now = Date.now();
     state = {
       v: 2, profile: profileId, secIndex: 0, startedAt: now, secStartedAt: now,
@@ -155,7 +198,7 @@
   function endSection(auto) {
     const sec = curSec();
     const now = Date.now();
-    state.secLog.push({ id: sec.id, usedMs: Math.min(now, state.secEndsAt) - state.secStartedAt, auto: !!auto });
+    if (!state.secLog.some((l) => l.id === sec.id)) state.secLog.push({ id: sec.id, usedMs: Math.min(now, state.secEndsAt) - state.secStartedAt, auto: !!auto });
     if (state.secIndex < secs().length - 1) {
       state.secIndex++;
       state.between = true;
@@ -196,10 +239,23 @@
     if (await confirmDialog(msg, { okText: last ? 'ส่งข้อสอบ' : 'จบส่วนนี้', cancelText: 'กลับไปทำต่อ' })) endSection(false);
   }
 
-  function submit(auto) {
-    if (!state) return;
+  async function submit(auto) {
+    if (!state || submitting) return;
+    submitting = true;
     clearInterval(timerId);
     window.removeEventListener('beforeunload', warnLeave);
+    setView(h('p', { class: 'meta', text: 'กำลังตรวจคำตอบ…' }));
+    for (;;) {
+      try {
+        await gradeAll();
+        break;
+      } catch (e) {
+        // the answers are saved on this device, so nothing is lost: try again or come back later
+        const again = await confirmDialog(loadMessage(e) + ' — คำตอบของคุณยังอยู่ในเครื่องนี้ ลองส่งอีกครั้งหรือไม่?', { okText: 'ลองอีกครั้ง', cancelText: 'ไว้ทีหลัง' });
+        if (!again) { submitting = false; goIntro(); return; }
+      }
+    }
+    submitting = false;
     const profile = prof();
     const now = Date.now();
     const sections = activeSections(profile).map((sec) => {
@@ -348,6 +404,7 @@
           h('button', { class: 'btn', type: 'button', text: 'กลับไปสอบต่อ', onclick: () => { if (!state.between && remaining() <= 0) endSection(true); else enterExam(); } }),
           h('button', { class: 'btn btn-outline', type: 'button', text: 'ละทิ้ง', onclick: discard }))
       ),
+      introNote && h('p', { class: 'meta', role: 'alert', text: introNote }),
       h('p', { class: 'lead', text: 'ซ้อมสอบแบบจับเวลา ไม่มีเฉลยระหว่างทำ และปิดระบบแปลไว้เหมือนข้อสอบจริง (เปิด "ช่วยแปลโจทย์" เองได้ใต้ข้อ) ส่งแล้วจึงเห็นคะแนนและเฉลยทุกข้อ เลือกรูปแบบที่ต้องการ' }),
       h('div', { class: 'stack' }, profiles.map(profileCard)),
       rulesBox(),
@@ -588,12 +645,26 @@
   });
 
   // ---------- Init ----------
-  if (state && !state.between && remaining() <= 0) { view = 'exam'; endSection(true); }   // time ran out while the tab was closed
-  else render();
+  async function init() {
+    setView(h('p', { class: 'meta', text: 'กำลังโหลด…' }));
+    const saved = store.get(K.state, null);
+    const savedProfile = saved && profileById.get(saved.profile);
+    if (savedProfile) {
+      try {
+        await loadSets(savedProfile);
+        state = loadState();
+      } catch (e) {
+        introNote = 'โหลดข้อสอบที่ค้างอยู่ไม่สำเร็จ — ' + loadMessage(e);
+      }
+    }
+    if (state && !state.between && remaining() <= 0) { view = 'exam'; endSection(true); }   // time ran out while the tab was closed
+    else render();
+  }
+  init();
 
   if (window.CEFR.pass) {
     document.addEventListener('cefr:pass', () => {
-      if (view === 'intro') render();
+      if (view === 'intro' && !submitting) render();
     });
   }
 })();

@@ -10,8 +10,8 @@
 'use strict';
 
 const MAX_KEYS_PER_REQUEST = 40;
-const MAX_VALUE_CHARS = 200_000;      // one key; a Firestore document may hold 1 MiB
-const MAX_KEYS_PER_USER = 80;
+const MAX_VALUE_CHARS = 60_000;       // one key (real values are a few KB); a Firestore document may hold 1 MiB
+const MAX_KEYS_PER_USER = 40;         // the allow-list below has about 30 keys
 
 // What may be stored. Everything else (translation cache, theme, membership token ...) stays on the device.
 const ALLOWED = [
@@ -48,6 +48,7 @@ async function writeChanges(db, stamp, uid, changes) {
   if (entries.length > MAX_KEYS_PER_REQUEST) throw new Error('too_many_keys');
 
   const col = db.collection('users').doc(uid).collection('data');
+  let stored = null;                    // how many keys the user has: asked once per request, only if a new key is being added
   for (const [key, c] of entries) {
     if (!isSyncKey(key)) { skipped[key] = 'not_allowed'; continue; }
     if (!c || !Number.isFinite(c.t)) { skipped[key] = 'bad_time'; continue; }
@@ -58,7 +59,11 @@ async function writeChanges(db, stamp, uid, changes) {
     const ref = col.doc(docId(key));
     const old = await ref.get();
     if (old.exists && Number.isFinite(old.data().t) && old.data().t >= c.t) { skipped[key] = 'older'; continue; }
-    if (!old.exists && (await col.get()).size >= MAX_KEYS_PER_USER) { skipped[key] = 'too_many_keys'; continue; }
+    if (!old.exists) {
+      if (stored === null) stored = (await col.get()).size;
+      if (stored >= MAX_KEYS_PER_USER) { skipped[key] = 'too_many_keys'; continue; }
+      stored++;
+    }
     await ref.set({ v: c.v, t: c.t, updatedAt: stamp });
     applied.push(key);
   }

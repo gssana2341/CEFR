@@ -1,8 +1,8 @@
 // POST /api/checkout  { plan: 'd7' }  →  { url }  (send the browser there to pay)
-// Requires Firebase Auth: Authorization: Bearer <idToken>
-// Also supports legacy: { plan, token? } without Firebase Auth (backward compat)
+// Requires Firebase Auth: Authorization: Bearer <idToken> - the payment is tied to that account, so a paid session id
+// that leaks is of no use to anybody else.
 'use strict';
-const { PLANS, isMock, send, readJson, verify, stripe, siteUrl, rateLimited } = require('./_pay');
+const { PLANS, isMock, send, readJson, stripe, siteUrl, rateLimited } = require('./_pay');
 const { verifyAuth, getUserPass } = require('./_firebase');
 
 module.exports = async function handler(req, res) {
@@ -13,26 +13,19 @@ module.exports = async function handler(req, res) {
   const plan = PLANS.find((p) => p.id === body.plan);
   if (!plan) return send(res, 400, { error: 'bad_plan' });
 
-  // --- Identify the user (Firebase Auth or legacy token) ---
-  let uid = null;
+  // --- Who is paying? (signed in, not disabled / signed out since the token was issued, address confirmed) ---
+  const authUser = await verifyAuth(req, { checkRevoked: true });
+  if (!authUser) return send(res, 401, { error: 'login_required' });
+  if (!authUser.verified) return send(res, 403, { error: 'email_not_verified' });
+  const uid = authUser.uid;
   let prevExp = 0;
-
-  const authUser = await verifyAuth(req);
-  if (authUser) {
-    uid = authUser.uid;
-    // check existing pass in Firestore
-    const existing = await getUserPass(uid);
-    if (existing && existing.exp > Date.now()) prevExp = existing.exp;
-  } else {
-    // legacy: signed token in the request body
-    const current = verify(body.token);
-    prevExp = current && current.exp > Date.now() ? current.exp : 0;
-  }
+  const existing = await getUserPass(uid);
+  if (existing && existing.exp > Date.now()) prevExp = existing.exp;
 
   const origin = siteUrl(req);
 
   if (isMock()) {
-    const id = `mock_${plan.id}_${prevExp}_${uid || 'anon'}`;
+    const id = `mock_${plan.id}_${prevExp}_${uid}`;
     return send(res, 200, { url: `${origin}/pricing?session_id=${id}`, id });
   }
 
@@ -44,7 +37,7 @@ module.exports = async function handler(req, res) {
       'metadata[prev_exp]': String(prevExp),
     };
     // store UID so /api/claim can save the pass to the right Firestore doc
-    if (uid) metadata['metadata[uid]'] = uid;
+    metadata['metadata[uid]'] = uid;
 
     const session = await stripe('checkout/sessions', {
       mode: 'payment',
@@ -58,6 +51,7 @@ module.exports = async function handler(req, res) {
     });
     return send(res, 200, { url: session.url, id: session.id });
   } catch (e) {
-    return send(res, 502, { error: 'payment_provider_error', detail: String(e.message).slice(0, 200) });
+    console.error('[checkout] stripe failed:', e.message);   // the reason stays in the server log, not in the response
+    return send(res, 502, { error: 'payment_provider_error' });
   }
 };

@@ -42,15 +42,19 @@ const db = useMem ? createMemDb() : getFirestore();
 const serverStamp = () => (useMem ? Date.now() : FieldValue.serverTimestamp());
 
 // Verify the Firebase ID token sent as "Authorization: Bearer <token>"
-async function verifyAuth(req) {
+// → { uid, email, name, verified } or null.  { checkRevoked: true } also asks Firebase whether the account was disabled or
+// signed out everywhere since the token was issued (one extra round trip: used where money changes hands).
+// verified = Google sign-in, or an e-mail address the owner has confirmed.
+async function verifyAuth(req, opts) {
   const hdr = String(req.headers.authorization || '');
   if (!hdr.startsWith('Bearer ')) return null;
   const idToken = hdr.slice(7);
   if (!idToken || idToken.length > 4000) return null;
-  if (useMem) return idToken.startsWith('mock-') ? { uid: idToken.slice(5), email: null } : null;
+  if (useMem) return /^mock-[A-Za-z0-9_-]{1,100}$/.test(idToken) ? { uid: idToken.slice(5), email: null, verified: true } : null;
   try {
-    const decoded = await getAuth().verifyIdToken(idToken);
-    return { uid: decoded.uid, email: decoded.email || null, name: decoded.name || null };
+    const decoded = await getAuth().verifyIdToken(idToken, Boolean(opts && opts.checkRevoked));
+    const google = decoded.firebase && decoded.firebase.sign_in_provider === 'google.com';
+    return { uid: decoded.uid, email: decoded.email || null, name: decoded.name || null, verified: Boolean(google || decoded.email_verified) };
   } catch {
     return null;
   }

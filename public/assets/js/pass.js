@@ -1,25 +1,24 @@
 // Membership pass on the browser side – Firebase Auth version.
 //
-// Now uses Firebase Auth: the pass is stored in Firestore (server-side).
-// When logged in, /api/pass is called with the Firebase ID token.
-// Legacy signed tokens are still supported for backward compatibility and migration.
+// The pass is stored in Firestore (server-side) against the Firebase account; /api/pass is called with the ID token.
+// An old signed pass (a code in localStorage / a ?code= link from before accounts existed) is only used to move
+// the membership into the signed-in account once (/api/migrate); it is not a way to be a member by itself any more.
 //
 // Features are named strings. Which ones need a membership is set in assets/data/billing.js:
 //   'exam' · 'markup' · 'practice:<set id>' · 'lesson:<A1|A2|B1|B2>'
 //   CEFR.pass.allows(f)    true when billing is off, the feature is free, or the pass is active
 //   CEFR.pass.members(f)   true when the feature is for members (shows the "สมาชิก" tag)
 //   CEFR.pass.lockPanel(f) a ready-made "members only" box
-//   CEFR.pass.trial(key)   a few free looks per day at the sentence mark-up
-//   CEFR.pass.setToken(t)  store a legacy pass and re-check it (backward compat)
-// Note: this only hides the features in the page. The question files are plain static files, so it is a
-// "soft" lock - to lock content for real it has to be served from an API instead.
+//   CEFR.pass.setToken(t)  move an old pass code into the signed-in account (false when not signed in / not valid)
+// Note: this only decides what the page SHOWS (lock boxes, "สมาชิก" tags). The lessons, questions and answers are not in the
+// page at all: /api/content and /api/quiz hand them out only after checking the account's pass on the server
+// (api/_entitlements.js is the real list of what needs a membership; keep billing.js in step with it).
 (function () {
   'use strict';
 
   const { h } = window.CEFR;
   const KEY = 'cefr:pass';          // the signed pass (legacy)
   const EXP = 'cefr:pass:exp';      // last expiry the server confirmed (ms) - used while offline / checking
-  const TRIAL = 'cefr:markup:free'; // { day, keys[] } the free mark-up looks used today
   const PENDING = 'cefr:pending';   // checkouts started on this browser: [{ id, at }] - lets us find a payment whose page was closed
   const cfg = () => (window.CEFR_DATA && window.CEFR_DATA.billing) || {};
   const read = (k) => { try { return localStorage.getItem(k) || ''; } catch { return ''; } };
@@ -57,16 +56,6 @@
           headers: { Authorization: 'Bearer ' + idToken },
           signal: AbortSignal.timeout(6000),
         });
-        if (r.ok) {
-          const d = await r.json();
-          exp = d.valid ? d.exp : 0;
-          write(EXP, String(exp));
-        }
-      } catch { /* offline or slow: keep the last confirmed expiry */ }
-    } else if (token) {
-      // Legacy path: check via query parameter
-      try {
-        const r = await fetch('/api/pass?token=' + encodeURIComponent(token), { cache: 'no-store', signal: AbortSignal.timeout(4000) });
         if (r.ok) {
           const d = await r.json();
           exp = d.valid ? d.exp : 0;
@@ -164,7 +153,7 @@
         });
         if (r.ok) {
           const d = await r.json();
-          if (d.exp > exp) { token = d.token; exp = d.exp; write(KEY, token); write(EXP, String(exp)); got = true; }
+          if (d.exp > exp) { exp = d.exp; write(EXP, String(exp)); got = true; }
         } else if (r.status === 402 || r.status >= 500) keep.push(p);      // not paid yet / server busy: try again later
       } catch { keep.push(p); }
     }
@@ -219,17 +208,6 @@
     return root;
   }
 
-  // ---------- a few free looks at the mark-up each day ----------
-  const today = () => new Date().toISOString().slice(0, 10);
-  function trialState() {
-    try {
-      const s = JSON.parse(read(TRIAL) || 'null');
-      if (s && s.day === today() && Array.isArray(s.keys)) return s;
-    } catch { /* corrupted: start over */ }
-    return { day: today(), keys: [] };
-  }
-  const trialLimit = () => Math.max(0, Number((cfg().premium || {}).markupFreePerDay) || 0);
-
   window.CEFR.pass = {
     allows,
     members,
@@ -239,19 +217,18 @@
     exp: () => exp,
     active,
     daysLeft: () => Math.max(0, Math.ceil((exp - Date.now()) / 86_400_000)),
-    async setToken(t) { token = String(t || '').trim(); write(KEY, token); await check(); return exp > Date.now(); },
-    // → { ok, left }: may this question's mark-up be shown for free? (looking again at the same one costs nothing)
-    trial(key) {
-      const s = trialState();
-      if (s.keys.includes(key)) return { ok: true, left: trialLimit() - s.keys.length };
-      if (s.keys.length >= trialLimit()) return { ok: false, left: 0 };
-      s.keys.push(key);
-      write(TRIAL, JSON.stringify(s));
-      return { ok: true, left: trialLimit() - s.keys.length };
+    async setToken(t) {
+      token = String(t || '').trim();
+      write(KEY, token);
+      const a = window.CEFR.auth;
+      if (!token || !(a && a.user())) return false;      // the old code is kept and moved after the next sign-in (see autoMigrate)
+      await autoMigrate();
+      await check();
+      document.dispatchEvent(new CustomEvent('cefr:pass'));
+      return exp > Date.now();
     },
     addPending,
     clearPending,
-    trialLeft() { return Math.max(0, trialLimit() - trialState().keys.length); },
     // Re-check pass (called after login/logout)
     recheck: check,
   };

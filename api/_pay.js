@@ -35,13 +35,24 @@ const PLANS = [
   { id: 'd30', days: 30, baht: 550 },
 ];
 
-const isMock = () => process.env.PAY_MODE === 'mock' && process.env.VERCEL_ENV !== 'production';
+// Fake checkout is for a developer's own machine only: it must never switch on anywhere Vercel runs (production OR preview),
+// because a mock session id carries the account it credits (mock_<plan>_<exp>_<uid>) and anyone could forge one.
+const isMock = () => process.env.PAY_MODE === 'mock' && !process.env.VERCEL && !process.env.VERCEL_ENV;
 const secret = () => process.env.PASS_SECRET || (isMock() ? 'dev-only-secret' : '');
 
-// best-effort limit per IP and endpoint (memory of one server instance - enough to stop careless hammering)
+// The caller's address. On Vercel x-vercel-forwarded-for / x-real-ip are set by the platform; a browser can not choose them.
+// (x-forwarded-for is only a fallback for the local dev server: its first value can be written by the client.)
+function clientIp(req) {
+  const h = req.headers || {};
+  const raw = h['x-vercel-forwarded-for'] || h['x-real-ip'] || h['x-forwarded-for'] || (req.socket && req.socket.remoteAddress) || 'unknown';
+  return String(raw).split(',')[0].trim().slice(0, 64);
+}
+
+// best-effort limit per IP and endpoint (memory of one server instance - enough to stop careless hammering;
+// api/_ratelimit.js adds a limit shared by all instances for the endpoints that cost money)
 const hits = new Map();
 function rateLimited(req, bucket, max, windowMs = 60_000) {
-  const ip = String(req.headers['x-forwarded-for'] || (req.socket && req.socket.remoteAddress) || 'unknown').split(',')[0].trim();
+  const ip = clientIp(req);
   const key = bucket + ':' + ip;
   const now = Date.now();
   const rec = hits.get(key);
@@ -118,4 +129,4 @@ function siteUrl(req) {
   return proto + '://' + req.headers.host;
 }
 
-module.exports = { DAY, PLANS, isMock, secret, send, readJson, sign, verify, stripe, siteUrl, rateLimited };
+module.exports = { DAY, PLANS, isMock, secret, send, readJson, sign, verify, stripe, siteUrl, rateLimited, clientIp };

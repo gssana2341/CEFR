@@ -1,9 +1,8 @@
-// GET /api/claim?session_id=...  →  { token, exp, days }   (only if Stripe says the session is paid)
-// If the user is logged in (Authorization: Bearer <idToken>), the pass is saved to Firestore.
-// Also returns a legacy signed token for backward compatibility.
-// Same session → same answer, so reloading the success page never adds extra days.
+// GET /api/claim?session_id=...  →  { exp, days }   (only if Stripe says the session is paid)
+// The days are saved to the Firestore account the session was created for (users/{uid}); nothing that can be copied
+// to someone else is returned. Same session → same answer, so reloading the success page never adds extra days.
 'use strict';
-const { DAY, PLANS, isMock, send, sign, stripe, secret, rateLimited } = require('./_pay');
+const { DAY, PLANS, isMock, send, stripe, rateLimited } = require('./_pay');
 const { verifyAuth, redeemSession } = require('./_firebase');
 
 module.exports = async function handler(req, res) {
@@ -27,6 +26,12 @@ module.exports = async function handler(req, res) {
     try {
       const s = await stripe('checkout/sessions/' + encodeURIComponent(id));
       if (s.payment_status !== 'paid') return send(res, 402, { error: 'not_paid' });
+      // defense in depth: what was really charged must be what the plan costs (the plan id only comes from our own metadata)
+      const p = PLANS.find((x) => x.id === (s.metadata && s.metadata.plan));
+      if (!p || s.mode !== 'payment' || s.currency !== 'thb' || s.amount_total !== p.baht * 100) {
+        console.error('[claim] session does not match its plan:', id, s.mode, s.currency, s.amount_total);
+        return send(res, 400, { error: 'bad_session' });
+      }
       planId = s.metadata && s.metadata.plan;
       prevExp = Number(s.metadata && s.metadata.prev_exp) || 0;
       stripeUid = (s.metadata && s.metadata.uid) || null;
@@ -40,23 +45,20 @@ module.exports = async function handler(req, res) {
   if (!plan) return send(res, 400, { error: 'bad_plan' });
 
   // --- Which account gets the days? ---
-  // A session made while logged in belongs to that account whoever asks (so a leaked session id is useless to others);
-  // a session made without logging in goes to whoever claims it first while logged in.
-  const authUser = await verifyAuth(req);
-  const uid = stripeUid || (authUser && authUser.uid) || null;
+  // Checkout needs a login, so every session names its account (a leaked session id is useless to anybody else).
+  // A session that somehow has none (made before that rule) goes to whoever claims it first while signed in.
+  const stripeAccount = stripeUid;
+  const uid = stripeAccount || ((await verifyAuth(req, { checkRevoked: true })) || {}).uid || null;
+  if (!uid) return send(res, 401, { error: 'login_required' });
 
-  let exp = Math.max(created, prevExp) + plan.days * DAY;     // no account: the same answer every time
-  if (uid) {
-    try {
-      // once per payment: asking again returns the same expiry instead of adding days again
-      exp = (await redeemSession(uid, id, { created, prevExp, ms: plan.days * DAY, plan: plan.id })).exp;
-    } catch (e) {
-      if (e.message === 'claimed_by_other') return send(res, 409, { error: 'already_claimed' });
-      console.error('[claim] Firestore failed, answering without saving:', e.message);   // database down / not set up
-    }
+  let exp;
+  try {
+    // once per payment: asking again returns the same expiry instead of adding days again
+    exp = (await redeemSession(uid, id, { created, prevExp, ms: plan.days * DAY, plan: plan.id })).exp;
+  } catch (e) {
+    if (e.message === 'claimed_by_other') return send(res, 409, { error: 'already_claimed' });
+    console.error('[claim] Firestore failed:', e.message);
+    return send(res, 502, { error: 'database_error' });      // the learner has paid: say so, they can retry (same answer every time)
   }
-
-  // Always return a legacy signed token too (for offline/migration use)
-  const token = secret() ? sign({ exp, sid: id, plan: plan.id }) : '';
-  return send(res, 200, { token, exp, days: plan.days });
+  return send(res, 200, { exp, days: plan.days });
 };

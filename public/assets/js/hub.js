@@ -28,7 +28,7 @@
   const lessonProgress = () => store.get('learn:progress', {});
   const lessonsDone = () => D.lessons.filter((l) => (lessonProgress()[l.id] || {}).done).length;
   const placementLast = () => store.get('placement:last', null);
-  const placementRunning = () => { const s = store.get('placement:state', null); return !!(s && s.v === 2); };   // older test versions are discarded
+  const placementRunning = () => { const s = store.get('placement:state', null); return !!(s && s.v === 3); };   // older test versions are discarded
   const examHistory = () => store.get('exam:history', []);
 
   // An exam still in progress (current section's clock not yet run out, or waiting between sections).
@@ -63,8 +63,8 @@
   // Per practice set: { meta[], cta, resume: 'ตอบแล้ว 3/25' | null }
   function practiceInfo(id) {
     if (id === 'cloze') {
-      const passages = D.cloze;
-      const blanks = passages.reduce((s, p) => s + p.blanks.length, 0);
+      const passages = D.manifest.cloze;
+      const blanks = passages.reduce((s, p) => s + p.blanks, 0);
       const meta = [passages.length + ' บทความ', blanks + ' ช่องว่าง'];
       let resume = null;
       const st = store.get('cloze:state', null);
@@ -73,7 +73,7 @@
       if (done) meta.push('เคยทำแล้ว ' + done + '/' + passages.length + ' บท');
       return { meta, cta: resume ? 'ทำต่อ' : 'เริ่มทำ', resume };
     }
-    const meta = [D[id].length + ' ข้อ'];
+    const meta = [D.manifest.counts[id] + ' ข้อ'];
     let resume = null;
     const st = store.get(id + ':state', null);
     if (st && Array.isArray(st.items) && st.items.length) {
@@ -102,8 +102,8 @@
   function continueCard() {
     const items = [];
     const ps = placementRunning() ? store.get('placement:state', null) : null;
-    if (ps && ps.v === 2 && Array.isArray(ps.answers)) {
-      items.push({ title: 'ทดสอบระดับ CEFR', meta: 'ทำไปแล้ว ' + ps.answers.length + ' ข้อ', href: 'placement.html' });
+    if (ps && ps.v === 3 && Number.isInteger(ps.n)) {
+      items.push({ title: 'ทดสอบระดับ CEFR', meta: 'ทำไปแล้ว ' + (ps.n - 1) + ' ข้อ', href: 'placement.html' });
     }
     const ex = examRunning();
     if (ex) items.push({ title: 'สอบจำลอง', meta: examLeft(ex), href: 'exam.html' });
@@ -135,7 +135,7 @@
     const done = lessonsDone();
     const nl = nextLesson();
     const wrongTotal = PRACTICE.reduce((s, p) => s + ((store.get(p.id + ':wrong', []) || []).length || 0), 0);
-    const questions = PRACTICE.reduce((s, p) => s + (p.id === 'cloze' ? D.cloze.reduce((a, c) => a + c.blanks.length, 0) : D[p.id].length), 0);
+    const questions = PRACTICE.reduce((s, p) => s + (p.id === 'cloze' ? D.manifest.cloze.reduce((a, c) => a + c.blanks, 0) : D.manifest.counts[p.id]), 0);
 
     // Which step is next? The first one not yet finished: placement → all lessons → some practice → a mock exam.
     const finishedSteps = [!!last, done === D.lessons.length, practiceStarted(), hist.length > 0];
@@ -189,7 +189,7 @@
             h('span', { class: 'lesson-no', text: String(no).padStart(2, '0') }),
             h('span', { class: 'lesson-name' }, l.title + ' ', h('span', { class: 'light', text: l.en })),
             h('span', { class: 'lesson-state' + (done ? ' done' : ''), text: done ? '✓ ' + p.score + '/' + p.total : lockedFor('lesson:' + l.level) ? 'สมาชิก' : l.level === focus ? 'แนะนำ' : '' }),
-            h('span', { class: 'lesson-sub', text: l.minutes + ' นาที · แบบฝึกหัด ' + l.exercises.length + ' ข้อ' })));
+            h('span', { class: 'lesson-sub', text: l.minutes + ' นาที · แบบฝึกหัด ' + l.exerciseCount + ' ข้อ' })));
         })),
       ]),
       h('h2', { class: 'level-title' }, 'ตารางอ้างอิง', h('span', { class: 'meta', text: 'เปิดดูได้ตลอด' })),

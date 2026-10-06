@@ -29,6 +29,12 @@
 .
 ├── api/translate.js            Vercel Function: แปลวลี/ประโยค (EN→TH) + cache ที่ edge
 ├── api/plans · checkout · claim · pass .js   ระบบสมาชิก (ดูหัวข้อ "ระบบสมาชิก"); _pay.js = ตัวช่วยกลาง + ราคา
+├── api/content.js · quiz.js    ส่งข้อสอบ/บทเรียน (ไม่มีเฉลย) และตรวจคำตอบ — ตรวจสิทธิ์สมาชิกที่เซิร์ฟเวอร์ (ดูหัวข้อ "ความปลอดภัย")
+│   _bank.js · _cat.js · _entitlements.js · _ratelimit.js   โหลดคลังข้อสอบ · ตัว adaptive · รายการสิทธิ์ · ตัวจำกัดการเรียก
+├── content/                    ← คลังข้อสอบ เฉลย บทเรียน เส้นโยง (อยู่นอก public/ ดาวน์โหลดตรง ๆ ไม่ได้ ต้องผ่าน API)
+│   ├── grammar.js · conversations.js · cloze.js · extra.js · placement.js · lessons.js
+│   ├── cat-bank.js             กติกาและระดับความยากของข้อสอบวัดระดับ
+│   └── clues-*.js              เส้นโยงบนประโยค แยกไฟล์ต่อชุดข้อสอบ
 ├── public/                     ← โฟลเดอร์ที่ Vercel เสิร์ฟ
 │   ├── index.html              หน้าหลัก 4 แท็บ (#home #learn #practice #test) สร้างด้วย hub.js
 │   ├── learn.html · placement.html · exam.html · tenses.html · pricing.html
@@ -42,21 +48,22 @@
 │       │   ├── quiz-engine.js      ข้อสอบปรนัย (Grammar, Conversations, Extra)
 │       │   ├── cloze-engine.js     Cloze
 │       │   ├── learn-engine.js     หน้าบทเรียน (รายการบทเรียนอยู่ในแท็บเรียนของ hub.js)
-│       │   ├── cat.js              ตัวคำนวณข้อสอบ adaptive (ประมาณความสามารถ เลือกข้อถัดไป เกณฑ์หยุด)
-│       │   ├── placement-engine.js ทดสอบระดับ (หน้าจอ)
+│       │   ├── content.js          ดึงข้อสอบ/บทเรียนและเฉลยจาก /api/content และ /api/quiz
+│       │   ├── placement-engine.js ทดสอบระดับ (หน้าจอ — ตัวเลือกข้อถัดไปคำนวณที่เซิร์ฟเวอร์)
 │       │   ├── exam-engine.js      สอบจำลอง
 │       │   ├── markup.js           วาดเส้นโยงบนประโยค + การ์ด tense + ตาราง 12 tenses
 │       │   ├── tenses-page.js      หน้า /tenses
 │       │   └── hub.js · theme.js   hub.js = หน้าหลักและแท็บ
-│       └── data/               ← เนื้อหาทั้งหมดอยู่ที่นี่
-│           ├── grammar.js · conversations.js · cloze.js · extra.js
-│           ├── placement.js · lessons.js · exam.js
-│           ├── cat-bank.js     กติกาและระดับความยากของข้อสอบวัดระดับ
+│       └── data/               ← ข้อมูลที่เปิดให้เบราว์เซอร์ดาวน์โหลดได้ (ไม่มีข้อสอบ/เฉลย)
+│           ├── manifest.js     ชื่อบทเรียนและจำนวนข้อ สร้างอัตโนมัติด้วย npm run manifest
+│           ├── exam.js         ตั้งค่ารูปแบบสอบจำลอง (เวลา/จำนวนข้อ ไม่มีข้อสอบ)
+│           ├── billing.js      ตั้งค่าที่ใช้แสดงผลเรื่องสมาชิก (ตัวบังคับจริงอยู่ที่ api/_entitlements.js)
 │           ├── tenses.js       สูตร/กฎ/คำบอกเวลาของ 12 tenses
-│           ├── clues-*.js      เส้นโยงบนประโยค แยกไฟล์ต่อชุดข้อสอบ (ไม่ปนกับข้อสอบ)
 │           └── glossary.js     พจนานุกรมสำหรับระบบแปลคำเดี่ยว
 ├── scripts/
 │   ├── validate-data.mjs       ตรวจความถูกต้องของข้อมูลทั้งหมด
+│   ├── build-manifest.mjs      สร้าง public/assets/data/manifest.js จาก content/
+│   ├── test-api.mjs            ทดสอบความปลอดภัยของ API (สิทธิ์ เฉลยไม่รั่ว input ผิดปกติ)
 │   └── dev-server.mjs          เซิร์ฟเวอร์ทดสอบในเครื่อง (จำลอง Vercel รวม /api)
 ├── vercel.json · package.json
 ```
@@ -71,10 +78,12 @@ npm run dev
 
 ## เพิ่ม / แก้ไขเนื้อหา
 
-แก้ไฟล์ใน `public/assets/data/` แล้วรันตัวตรวจก่อน commit ทุกครั้ง:
+แก้ไฟล์ใน `content/` (ข้อสอบ เฉลย บทเรียน เส้นโยง) แล้วรันสองคำสั่งนี้ก่อน commit ทุกครั้ง (ไฟล์ `public/assets/data/glossary.js` และ `tenses.js` ยังแก้ที่เดิม):
 
 ```bash
+npm run manifest    # อัปเดตรายชื่อบทเรียน/จำนวนข้อที่หน้าเว็บใช้ (public/assets/data/manifest.js)
 npm run validate
+npm test
 ```
 
 ตัวตรวจจะเช็คเลขข้อซ้ำ เฉลยเกินช่วง placeholder ของ Cloze ไม่ตรง ตารางบทเรียนคอลัมน์ไม่เท่ากัน ฯลฯ และ **เตือนถ้ามีคำอังกฤษที่ยังไม่มีในพจนานุกรม**
@@ -204,7 +213,7 @@ push เข้า `main` = deploy production อัตโนมัติ · bran
 
 ราคาแก้ที่ `api/_pay.js` (`PLANS`) ที่เดียว · ตอนนี้ 1 วัน 20 / 3 วัน 60 / 7 วัน 120 / 30 วัน 550 บาท
 
-**อะไรฟรี อะไรต้องเป็นสมาชิก** (ตั้งที่ `public/assets/data/billing.js` ที่เดียว ไม่ได้ลิสต์ไว้ = ฟรี):
+**อะไรฟรี อะไรต้องเป็นสมาชิก** (ตัวบังคับจริงคือ `api/_entitlements.js` · `public/assets/data/billing.js` ใช้แสดงป้าย/ปุ่มอย่างเดียว ต้องแก้ให้ตรงกัน — `npm test` เช็คให้ · ไม่ได้ลิสต์ไว้ = ฟรี):
 
 | ฟรี | สมาชิก |
 |---|---|
@@ -212,11 +221,11 @@ push เข้า `main` = deploy production อัตโนมัติ · bran
 
 ปรับได้: `premium.practice` (ชุดฝึกที่ล็อก) · `premium.lessonLevels` (ระดับบทเรียนที่ล็อก) · `premium.exam` · `premium.markup` · `premium.markupFreePerDay` · **ดูหน้าตาแบบมีล็อกโดยไม่ต้องเปิดขาย:** ต่อท้าย URL ด้วย `?paywall=on` (ใช้ได้ในแท็บนั้น `?paywall=off` ปิด)
 
-**ทำงานยังไง (ไม่มีฐานข้อมูล ไม่ต้องสมัครบัญชี):** กด "ซื้อ" → ไปหน้าชำระเงินของ Stripe → กลับมาที่ `/pricing?session_id=…` → `/api/claim` ถาม Stripe ว่าจ่ายแล้วจริงไหม ถ้าจริงจะออก "รหัสสมาชิก" (ลงลายเซ็นด้วย `PASS_SECRET`) เก็บในเบราว์เซอร์ · ซื้อซ้ำตอนยังไม่หมดอายุ วันจะต่อท้ายให้ · เปลี่ยนเครื่องให้คัดลอกรหัสไปใส่ (ปุ่ม "ย้ายเครื่อง" ในหน้าสมาชิก)
+**ทำงานยังไง:** ต้องล็อกอิน (Google) ก่อนกด "ซื้อ" → ไปหน้าชำระเงินของ Stripe (ชื่อบัญชีติดไปกับ session) → กลับมาที่ `/pricing?session_id=…` → `/api/claim` ถาม Stripe ว่าจ่ายแล้วจริงไหม และยอดเงิน/สกุลเงิน/โหมดตรงกับแพ็กเกจหรือไม่ แล้วบันทึกวันหมดอายุลง Firestore ของบัญชีนั้น (ใช้ session เดียวได้ครั้งเดียว กับบัญชีเดียว) · ซื้อซ้ำตอนยังไม่หมดอายุ วันจะต่อท้ายให้ · เปลี่ยนเครื่องแค่ล็อกอินบัญชีเดิม · **รหัสสมาชิกแบบเก่า** (ลงลายเซ็นด้วย `PASS_SECRET` ของคนที่ซื้อก่อนมีบัญชี) ไม่ใช่สิทธิ์ในตัวเองอีกต่อไป ใช้ได้แค่ย้ายเข้าบัญชีที่ล็อกอินอยู่ครั้งเดียว (`/api/migrate`) จะลบโค้ดส่วนนี้เมื่อพ้นช่วงย้ายแล้วก็ได้
 
 **ทดสอบในเครื่องโดยไม่ใช้ Stripe:** `PAY_MODE=mock npm run dev` (ปุ่มซื้อจะข้ามหน้าจ่ายเงินและออกรหัสให้เลย — ใช้ไม่ได้บน Vercel production)
 
-**ข้อจำกัด (ตั้งใจให้เรียบง่าย):** ล็อกเฉพาะฝั่งหน้าเว็บ ไฟล์ข้อสอบเป็นไฟล์ธรรมดา คนที่เก่งเปิดดูได้ และรหัสสมาชิกคัดลอกให้คนอื่นใช้ได้ ถ้าต้องการกันจริงจังต้องย้ายข้อมูลไปไว้หลัง API และผูกกับบัญชีผู้ใช้ · ยังไม่มีคืนเงิน/ใบเสร็จ (Stripe ส่งใบเสร็จทางอีเมลให้ได้ถ้าเปิดไว้)
+**การล็อก:** ทำที่เซิร์ฟเวอร์จริง — บทเรียน A2–B2, Conversations, Cloze, ฝึกเพิ่มเติม และสอบจำลอง ไม่ได้อยู่ในไฟล์ที่หน้าเว็บโหลด ต้องผ่าน `/api/content` ที่ตรวจบัญชีและวันหมดอายุก่อนเสมอ (ดูหัวข้อ "ความปลอดภัย") · สมาชิกที่ได้ข้อสอบไปแล้วยังคัดลอกได้เหมือนเว็บทั่วไป (กันได้แค่การดึงทั้งคลังรวดเดียว) · ยังไม่มีคืนเงิน/ใบเสร็จ (Stripe ส่งใบเสร็จทางอีเมลให้ได้ถ้าเปิดไว้)
 
 ## เก็บความคืบหน้าบน Firebase
 
@@ -245,12 +254,27 @@ push เข้า `main` = deploy production อัตโนมัติ · bran
 
 ระบบเตรียมจุดต่อไว้แล้ว ขั้นตอนโดยสรุป:
 
+0. **หมายเหตุหลังย้ายคลังข้อสอบไปหลัง API:** ข้อมูลชุดใหม่ต้องวางที่ `content/` (ไม่ใช่ `public/assets/data/`) เพิ่มชื่อไฟล์ใน `FILES` และ `MCQ` ของ `api/_bank.js` เพิ่มชุดใน `api/content.js`/`api/quiz.js` (ชื่อ feature `practice:listening` ใน `api/_entitlements.js` และ `billing.js`) แล้วรัน `npm run manifest` · หน้าเว็บไม่ต้องใส่ `<script src>` ของข้อมูล ใส่ `content.js` แทน (ดู `extra.html`) · ไฟล์เสียงที่เป็นของสมาชิกควรเสิร์ฟผ่าน API เช่นกัน ไม่ใช่วางใน `public/`
 1. **ไฟล์เสียง** — วางที่ `public/assets/audio/` (เช่น `l1.mp3`) CSP `default-src 'self'` อนุญาตไฟล์เสียงจากโดเมนตัวเองอยู่แล้ว
 2. **ข้อมูล** — สร้าง `public/assets/data/listening.js` รูปแบบเดียวกับ `extra.js` (`n, q, c, a, e`) เพิ่มฟิลด์ `audio: 'assets/audio/l1.mp3'` และ `transcript` (ถ้ามี) แล้วเพิ่มชื่อ `'listening'` ในรายการไฟล์ที่ `scripts/validate-data.mjs` (ฟังก์ชัน vm ด้านบนและลูป `grammar/conversations/extra`)
 3. **หน้าเว็บ** — คัดลอก `extra.html` เป็น `listening.html` เปลี่ยน `data-quiz="listening"` และ `<script src="assets/data/listening.js">` (แท็บเมนู `<nav class="tabs" data-section="practice">` ติดมาด้วยแล้ว)
 4. **ทะเบียน** — เพิ่ม `listening: { id: 'listening', kind: 'mcq', dataKey: 'listening', page: 'listening.html', intro: '…', labels: 'number' }` ใน `QUIZZES` ที่ `common.js`
 5. **ตัวเล่นเสียง** — ใน `quiz-engine.js` (ฟังก์ชัน `renderQuiz`) และ `exam-engine.js` (`renderExam`) เพิ่มก่อนโจทย์: `q.audio && h('audio', { controls: true, preload: 'none', src: q.audio })`
 6. **หน้าหลัก** — เพิ่มรายการใน `PRACTICE` ที่ต้น `hub.js` (คัดลอกรายการ Extra: `id`, `title`, `thai`, `desc`, `href`) จะได้การ์ดในแท็บฝึกและการ์ด "ทำต่อ" ให้เอง และถ้าต้องการให้อยู่ในสอบจำลอง ให้ใส่ `parts: [{ id: 'listening', title: 'Listening', type: 'mcq', source: 'listening', count: 20 }]` แล้วลบ `comingSoon: true` ออกจากส่วน Listening ของแบบ EF SET ใน `exam.js` (ส่วนนี้จะมีนาฬิกา 25 นาทีของตัวเองต่อจาก Reading โดยอัตโนมัติ) พร้อมทั้ง: เพิ่ม `<script src="assets/data/listening.js">` ใน `exam.html` และเพิ่ม `'listening'` ในรายการ `source` ที่ตัวตรวจ (`scripts/validate-data.mjs`) อนุญาต ถ้าอยากให้เหมือน EF SET ให้จำกัดการเล่นเสียงไม่เกิน 2 รอบต่อไฟล์
+
+## ความปลอดภัย
+
+- **เนื้อหาไม่อยู่ในหน้าเว็บ:** ข้อสอบ เฉลย คำอธิบาย บทเรียน และเส้นโยงอยู่ใน `content/` เบราว์เซอร์ได้ "ข้อสอบที่ไม่มีเฉลย" จาก `/api/content` แล้วขอเฉลยทีละข้อจาก `/api/quiz` หลังเลือกคำตอบ · เปิด DevTools ก็ไม่เห็นเฉลยล่วงหน้า · ชุดของสมาชิกถูกปฏิเสธ (401 ยังไม่ล็อกอิน / 402 ไม่ใช่สมาชิก) ก่อนอ่านข้อมูล
+- **ทดสอบระดับ (adaptive) รันที่เซิร์ฟเวอร์:** เซสชันเก็บใน Firestore (`placement/{sid}`) แต่ละข้อตอบได้ครั้งเดียว จึงลองเปลี่ยนคำตอบเพื่อดูว่าข้อถัดไปยากขึ้นหรือไม่ไม่ได้
+- **ไม่มี SQL** ระบบใช้ Firestore (NoSQL) · id ที่ใช้เป็นชื่อเอกสารมาจากโทเคน Firebase ที่ตรวจแล้ว, `session_id` ที่ตรวจรูปแบบ, คีย์ซิงก์ที่อยู่ใน allow-list และค่าที่แฮชแล้ว (ตัวจำกัดการเรียก) · `npm test` มีเคสโจมตีด้วย input แปลก ๆ
+- **จำกัดการเรียก:** ในหน่วยความจำ + ตัวนับร่วมใน Firestore (`api/_ratelimit.js`) นับตามบัญชี (ถ้าล็อกอิน) หรือ IP · ดึงเฉลยได้วันละ 1,500 ข้อต่อบัญชี/IP · ดึงเนื้อหาวันละ 300 ครั้ง · เส้นโยงฟรีวันละ 3 ข้อนับที่เซิร์ฟเวอร์ (`trial/{hash}`)
+- **Header:** HSTS, X-Frame-Options, CSP แบบไม่มี `unsafe-inline` สำหรับสคริปต์, COOP `same-origin-allow-popups` (ให้ล็อกอิน Google popup ทำงาน)
+- **ต้องทำเองที่คอนโซล (โค้ดทำแทนไม่ได้):**
+  1. deploy กฎปิดทุกอย่างของ Firestore/Storage: `firebase deploy --only firestore:rules,storage` (ไฟล์ `firestore.rules`, `storage.rules`) — ถ้า Firestore ยังเป็น "test mode" ใครก็แก้ `users/{uid}.exp` ของตัวเองให้เป็นสมาชิกได้
+  2. Firestore → TTL policies: เปิดที่ฟิลด์ `expireAt` ของคอลเลกชัน `ratelimit`, `trial`, `placement` เพื่อลบเอกสารเก่าอัตโนมัติ
+  3. Authentication → Sign-in method: ปิด Email/Password ถ้าไม่ได้ใช้ (หน้าเว็บมีแค่ Google แต่ API key เป็นสาธารณะ ใครก็เรียกสมัครผ่าน REST ได้) · เปิด email enumeration protection · เหลือโดเมนจริงใน Authorized domains
+  4. Google Cloud → Credentials: จำกัด API key ของเว็บด้วย HTTP referrer และ API restrictions · ตั้ง budget alert ที่ Billing
+  5. ตรวจว่า Vercel ไม่ได้ตั้ง `PAY_MODE=mock` (โค้ดไม่ยอมเปิดโหมดจำลองบน Vercel อยู่แล้ว)
 
 ## หมายเหตุ
 

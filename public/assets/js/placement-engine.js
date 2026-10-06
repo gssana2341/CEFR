@@ -1,16 +1,14 @@
-// CEFR placement test - adaptive (assets/js/cat.js decides the next question, assets/data/cat-bank.js holds the rules).
-// Right answer → the next question is harder, wrong answer → easier, until the level is clear. No feedback while testing.
+// CEFR placement test - adaptive. Right answer → the next question is harder, wrong answer → easier, until the level is clear.
+// No feedback while testing. The questions, the answers and the choice of the next question all live on the server
+// (api/quiz.js, api/_cat.js): this page only shows the question it is given and sends the pick back.
 (function () {
   'use strict';
 
   const { store, shuffle, h, rich, confirmDialog, dialogOpen } = window.CEFR;
 
   const D = window.CEFR_DATA;
-  const cfg = D.cat;
-  const cat = window.CEFR.cat.create(D);
-  const pool = cat.buildPool();
-  const byKey = new Map(pool.map((it) => [it.key, it]));
   const lessons = D.lessons || [];
+  const LEVELS = ['A1', 'A2', 'B1', 'B2'];
   const root = document.getElementById('app');
   const trToggle = document.querySelector('[data-translate-toggle]');
 
@@ -30,22 +28,24 @@
   // lessons to read next: the level above the one you reached (A1 for beginners, B2 stays B2)
   const TARGET = { 'pre-A1': 'A1', A1: 'A2', A2: 'B1', B1: 'B2', B2: 'B2', 'B2+': 'B2' };
 
+  // run = { v: 3, sid, step, n, max, cur: { key, q, c, order, pick } } - the question on screen and the server session it belongs to
   let run = loadRun();     // unfinished run restored from storage
   let finished = null;     // result of the run just completed
   let view = 'intro';      // 'intro' | 'quiz' | 'result'
+  let busy = false;        // a request is on its way
+  let note = '';           // message for the intro screen
 
   // ---------- State ----------
-  // (function declarations on purpose: loadRun() below runs before this point in the file)
-  function validOrder(it, o) { return Array.isArray(o) && o.length === it.q.c.length && [...o].sort((a, b) => a - b).every((v, i) => v === i); }
-  function validEntry(e) {
-    const it = e && byKey.get(e.key);
-    return !!it && validOrder(it, e.order) && (e.pick === null || (Number.isInteger(e.pick) && e.pick >= 0 && e.pick < it.q.c.length));
+  // (function declarations on purpose: loadRun() above runs before this point in the file)
+  function validCur(c) {
+    return !!c && typeof c.key === 'string' && typeof c.q === 'string' && Array.isArray(c.c) && c.c.length >= 2
+      && Array.isArray(c.order) && c.order.length === c.c.length && [...c.order].sort((a, b) => a - b).every((v, i) => v === i)
+      && (c.pick === null || (Number.isInteger(c.pick) && c.pick >= 0 && c.pick < c.c.length));
   }
 
   function loadRun() {
     const r = store.get(K.state, null);
-    const ok = r && r.v === 2 && Array.isArray(r.answers) && r.answers.every(validEntry) && validEntry(r.cur)
-      && new Set([...r.answers.map((a) => a.key), r.cur.key]).size === r.answers.length + 1;
+    const ok = r && r.v === 3 && typeof r.sid === 'string' && Number.isInteger(r.step) && Number.isInteger(r.n) && Number.isInteger(r.max) && validCur(r.cur);
     if (!ok) {
       if (r) store.remove(K.state);
       return null;
@@ -56,63 +56,85 @@
   const save = () => store.set(K.state, run);
   const setView = (...nodes) => root.replaceChildren(...nodes.flat(Infinity).filter(Boolean));
   const showTranslateToggle = (on) => { if (trToggle) trToggle.hidden = !on; };
-  const answered = (list) => list.map((a) => { const it = byKey.get(a.key); return { it, right: a.pick === it.q.a }; });
 
-  function nextEntry(est, answers) {
-    const used = new Set(answers.map((a) => a.key));
-    const it = cat.pick(est.theta, pool, used, Math.random);
-    return it && { key: it.key, order: shuffle(it.q.c.map((_, i) => i)), pick: null };
+  // the server's answer to start / answer: the next question, or the final result
+  function apply(d) {
+    if (d.done) { finish(d.result); return; }
+    run = {
+      v: 3, sid: d.sid || run.sid, step: d.step, n: d.n, max: d.max,
+      cur: { key: d.question.key, q: d.question.q, c: d.question.c, order: shuffle(d.question.c.map((_, i) => i)), pick: null },
+    };
+    save();
+    view = 'quiz';
+    render();
+    window.scrollTo(0, 0);
+  }
+
+  function failed(e) {
+    busy = false;
+    if (e.status === 404) {                                   // the session expired on the server
+      store.remove(K.state);
+      run = null;
+      note = 'แบบทดสอบที่ค้างไว้หมดอายุแล้ว กรุณาเริ่มใหม่';
+      view = 'intro';
+      render();
+      return;
+    }
+    note = e.status === 429 ? 'ส่งบ่อยเกินไป รอสักครู่แล้วลองใหม่' : 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่';
+    if (run) { view = 'quiz'; renderQuiz(); } else render();
   }
 
   // ---------- Flow ----------
   async function start() {
+    if (busy) return;
     if (run) {
       const ok = await confirmDialog('มีแบบทดสอบที่ทำค้างไว้ ต้องการเริ่มใหม่และลบผลเดิมทิ้งหรือไม่?', {
         okText: 'เริ่มใหม่', cancelText: 'กลับไปทำต่อ', danger: true,
       });
       if (!ok) return;
     }
-    run = { v: 2, startedAt: Date.now(), answers: [], cur: nextEntry(cat.estimate([]), []) };
-    save();
-    view = 'quiz';
-    render();
+    busy = true;
+    note = '';
+    setView(h('p', { class: 'meta', text: 'กำลังเตรียมข้อสอบ…' }));
+    try {
+      const d = await window.CEFR.content.post({ op: 'placement' });
+      busy = false;
+      run = null;
+      store.remove(K.state);
+      apply(d);
+    } catch (e) {
+      failed(e);
+    }
   }
 
   function choose(displayIdx) {
     const e = run.cur;
-    if (displayIdx >= e.order.length) return;
+    if (busy || displayIdx >= e.order.length) return;
     e.pick = e.order[displayIdx];
     save();
     renderQuiz();
   }
 
-  function next() {
-    if (run.cur.pick === null) return;
-    run.answers.push(run.cur);
-    const est = cat.estimate(answered(run.answers));
-    const reason = cat.stop(run.answers.length, est);
-    const entry = reason ? null : nextEntry(est, run.answers);
-    if (!entry) { finish(est); return; }
-    run.cur = entry;
-    save();
-    renderQuiz();
-    window.scrollTo(0, 0);
+  async function next() {
+    if (busy || run.cur.pick === null) return;
+    busy = true;
+    note = '';
+    const btn = root.querySelector('.exam-actions .btn');
+    if (btn) btn.disabled = true;
+    try {
+      const d = await window.CEFR.content.post({ op: 'placement', sid: run.sid, step: run.step, pick: run.cur.pick });
+      busy = false;
+      apply(d);
+    } catch (e) {
+      failed(e);
+    }
   }
 
-  function finish(est) {
-    const list = answered(run.answers);
-    const level = cat.levelOf(est.theta);
-    const byLevel = {};
-    for (const lv of cat.LEVELS) {
-      const mine = list.filter((a) => a.it.level === lv);
-      byLevel[lv] = { right: mine.filter((a) => a.right).length, total: mine.length };
-    }
-    const probs = cat.levelProbs(est.post);
-    finished = {
-      level, theta: est.theta, se: est.se, score: cat.scoreOf(est.theta), n: list.length, at: Date.now(),
-      byLevel, probs, log: run.answers.slice(),
-    };
-    const summary = { v: 2, level, target: TARGET[level], score: finished.score, se: est.se, n: finished.n, at: finished.at, byLevel };
+  function finish(result) {
+    finished = { ...result, at: Date.now() };
+    const level = finished.level;
+    for (const r of finished.review) window.CEFR.content.setClue(r.bank, r.key, r.clue);
+    const summary = { v: 2, level, target: TARGET[level], score: finished.score, se: finished.se, n: finished.n, at: finished.at, byLevel: finished.byLevel };
     store.set(K.last, summary);
     const history = store.get(K.history, []);
     history.unshift(summary);
@@ -157,7 +179,7 @@
       h('ul', { class: 'rules' },
         h('li', { text: 'เริ่มจากข้อระดับ A2–B1 แล้วปรับตามคำตอบ: ถูก → ข้อต่อไปยากขึ้น · ผิด → ง่ายลง' }),
         h('li', { text: 'ทุกข้อมีค่าความยากตามระดับ CEFR ระบบคำนวณความสามารถของคุณใหม่ทุกครั้งที่ตอบ แล้วเลือกข้อที่บอกระดับคุณได้ชัดที่สุด (หลักการเดียวกับ Oxford Placement Test และ Linguaskill)' }),
-        h('li', { text: 'หยุดเมื่อมั่นใจในระดับ (≥ ' + Math.round(cfg.confidence * 100) + '%) หรือครบ ' + cfg.maxItems + ' ข้อ จึงทำไม่เท่ากันในแต่ละคน และข้อที่ถามอาจไม่ครบทุกระดับ' }),
+        h('li', { text: 'หยุดเมื่อมั่นใจในระดับ (≥ 85%) หรือครบ 25 ข้อ จึงทำไม่เท่ากันในแต่ละคน และข้อที่ถามอาจไม่ครบทุกระดับ' }),
         h('li', { text: 'ผลเป็นคะแนน 0–100 (ระดับละ 20 คะแนน) แล้วแปลงเป็นระดับ CEFR' })),
       h('table', { class: 'table' },
         h('thead', {}, h('tr', {}, h('th', { text: 'ระดับ' }), h('th', { text: 'คะแนน' }))),
@@ -168,9 +190,10 @@
   function renderIntro() {
     const last = store.get(K.last, null);
     setView(
+      note && h('p', { class: 'meta', role: 'alert', text: note }),
       run && h('div', { class: 'resume' },
-        h('p', { text: 'มีแบบทดสอบที่ทำค้างไว้ — ทำไปแล้ว ' + run.answers.length + ' ข้อ' }),
-        h('button', { class: 'btn', type: 'button', text: 'ทำต่อจากเดิม', onclick: () => { view = 'quiz'; render(); } })),
+        h('p', { text: 'มีแบบทดสอบที่ทำค้างไว้ — ทำไปแล้ว ' + (run.n - 1) + ' ข้อ' }),
+        h('button', { class: 'btn', type: 'button', text: 'ทำต่อจากเดิม', onclick: () => { note = ''; view = 'quiz'; render(); } })),
       h('p', { class: 'lead', text: 'วัดระดับไวยากรณ์และคำศัพท์ตามมาตรฐาน CEFR ข้อสอบจะปรับความยากตามคำตอบของคุณ ตอบถูกข้อต่อไปจะยากขึ้น ตอบผิดจะง่ายลง' }),
       last && h('p', { class: 'meta stat-line', text: 'ผลล่าสุด: ระดับ ' + lastName(last) + (last.score !== undefined ? ' (' + last.score + '/100)' : '') + ' · ' + fmtDate(last.at) }),
       h('ul', { class: 'rules' },
@@ -184,18 +207,17 @@
 
   function renderQuiz() {
     const e = run.cur;
-    const it = byKey.get(e.key);
-    const n = run.answers.length + 1;
+    const n = run.n;
 
     const bar = h('div', { class: 'progress', role: 'progressbar', 'aria-label': 'ความคืบหน้า',
-      'aria-valuemin': '0', 'aria-valuemax': String(cfg.maxItems), 'aria-valuenow': String(n - 1) },
-    h('div', { class: 'progress-fill', style: { width: Math.min(100, ((n - 1) / cfg.maxItems) * 100) + '%' } }));
+      'aria-valuemin': '0', 'aria-valuemax': String(run.max), 'aria-valuenow': String(n - 1) },
+    h('div', { class: 'progress-fill', style: { width: Math.min(100, ((n - 1) / run.max) * 100) + '%' } }));
 
     setView(
       h('section', { class: 'panel' },
         bar,
         h('div', { class: 'top-bar' }, h('span', { text: 'ข้อ ' + n })),
-        h('p', { class: 'question', 'data-tr': helpOn() ? true : null, text: it.q.q }),
+        h('p', { class: 'question', 'data-tr': helpOn() ? true : null, text: e.q }),
         h('div', { class: 'choices', role: 'group', 'aria-label': 'ตัวเลือก' },
           e.order.map((orig, i) => h('button', {
             class: 'choice' + (e.pick === orig ? ' selected' : ''),
@@ -204,7 +226,8 @@
             onclick: () => choose(i),
           },
           h('span', { class: 'choice-key', 'aria-hidden': 'true', text: KEYS[i] }),
-          h('span', { text: it.q.c[orig] })))),
+          h('span', { text: e.c[orig] })))),
+        note && h('p', { class: 'meta', role: 'alert', text: note }),
         h('div', { class: 'exam-actions' },
           h('button', { class: 'btn btn-block', type: 'button', disabled: e.pick === null, text: 'ถัดไป', onclick: next })),
         h('div', { class: 'quiz-footer' },
@@ -219,14 +242,9 @@
     const lo = Math.max(0, Math.round(f.score - (f.se * 100) / 6));
     const hi = Math.min(100, Math.round(f.score + (f.se * 100) / 6));
 
-    // next to a band edge? say so
-    const idx = cat.levelIndex(f.theta);
-    const names = cat.NAMES;
-    const near = [];
-    if (idx > 1 && f.probs[idx - 1] >= 0.25) near.push(names[idx - 1]);
-    if (idx < names.length - 1 && f.probs[idx + 1] >= 0.25) near.push(names[idx + 1]);
+    const near = f.near || [];
 
-    const rows = cat.LEVELS.map((lv) => {
+    const rows = LEVELS.map((lv) => {
       const r = f.byLevel[lv];
       return h('li', { class: 'stage-row' },
         h('span', { class: 'stage-lv', text: lv }),
@@ -238,19 +256,15 @@
     const target = TARGET[f.level];
     const recommended = lessons.filter((l) => l.level === target);
 
-    const wrong = f.log.filter((a) => a.pick !== byKey.get(a.key).q.a);
+    const wrong = f.review;
     const review = wrong.length > 0 && h('div', { class: 'review' },
       h('h3', { text: 'ข้อที่ตอบผิด (' + wrong.length + ')' }),
-      wrong.map((a) => {
-        const it = byKey.get(a.key);
-        const q = it.q;
-        return h('div', { class: 'review-item' },
-          h('p', { class: 'review-q', 'data-tr': true, text: '[' + it.level + '] ' + q.q }),
-          h('p', { class: a.pick === null ? 'meta' : 'review-you', text: a.pick === null ? 'ไม่ได้ตอบ' : '✗ คุณตอบ: ' + q.c[a.pick] }),
-          h('p', { class: 'review-right', text: '✓ เฉลย: ' + q.c[q.a] }),
-          h('p', { class: 'review-expl', 'data-tr': true }, rich(q.e)),
-          window.CEFR.markup && window.CEFR.markup.block({ bank: it.src, key: it.id, q: q.q, answer: q.c[q.a] }));
-      }));
+      wrong.map((q) => h('div', { class: 'review-item' },
+        h('p', { class: 'review-q', 'data-tr': true, text: '[' + q.level + '] ' + q.q }),
+        h('p', { class: q.pick === null ? 'meta' : 'review-you', text: q.pick === null ? 'ไม่ได้ตอบ' : '✗ คุณตอบ: ' + q.c[q.pick] }),
+        h('p', { class: 'review-right', text: '✓ เฉลย: ' + q.c[q.a] }),
+        h('p', { class: 'review-expl', 'data-tr': true }, rich(q.e)),
+        window.CEFR.markup && window.CEFR.markup.block({ bank: q.bank, key: q.key, q: q.q, answer: q.c[q.a] }))));
 
     setView(
       h('section', { class: 'panel summary' },
@@ -277,7 +291,7 @@
 
   // ---------- Keyboard ----------
   document.addEventListener('keydown', (e) => {
-    if (view !== 'quiz' || !run || e.ctrlKey || e.metaKey || e.altKey || dialogOpen()) return;
+    if (view !== 'quiz' || !run || busy || e.ctrlKey || e.metaKey || e.altKey || dialogOpen()) return;
     if (e.key === 'Enter') {
       if (run.cur.pick !== null) { e.preventDefault(); next(); }
       return;
