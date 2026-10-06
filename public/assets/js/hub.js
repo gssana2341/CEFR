@@ -141,73 +141,19 @@
   }
 
   // A1 → C2 on one line: what the placement test found, and which levels are still being written
-  const LEVEL_ORDER = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
-  function ladderTrack(last) {
+  function levelLadder(done) {
+    const last = placementLast();
+    const order = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     const reached = last ? ({ 'pre-A1': -1, A1: 0, A2: 1, B1: 2, B2: 3, 'B2+': 3 }[last.level] ?? -1) : -1;
     const soon = new Set(((D.roadmap || {}).levels || []).map((l) => l.id));
-    return h('ol', { class: 'ladder-track', 'aria-label': 'แผนที่ระดับ' }, LEVEL_ORDER.map((lv, i) => h('li', { class: 'ladder-step' + (i <= reached ? ' reached' : '') + (i === reached ? ' current' : '') + (soon.has(lv) ? ' soon' : '') },
-      h('span', { class: 'ladder-dot', 'aria-hidden': 'true' }),
-      h('span', { class: 'ladder-lv', text: lv }),
-      soon.has(lv) && h('span', { class: 'ladder-note', text: 'เร็วๆ นี้' }))));
-  }
-
-  // The first thing on the home page: where you are, and what to study next (from the placement result and your progress)
-  function levelHero(done) {
-    const last = placementLast();
-    const prog = lessonProgress();
-
-    // lessons to do next: the target level from the placement result, then the levels above it
-    const pickLessons = () => {
-      const from = LEVEL_ORDER.indexOf(last && last.target ? last.target : 'A1');
-      for (const lv of LEVEL_ORDER.slice(Math.max(0, from))) {
-        const left = D.lessons.filter((l) => l.level === lv && !(prog[l.id] || {}).done);
-        if (left.length) return { lv, list: left.slice(0, 3), more: left.length - 3 };
-      }
-      return null;
-    };
-    const rec = pickLessons();
-    const recBlock = h('div', { class: 'hero-recs' },
-      h('h2', { class: 'hero-h', text: last ? 'แนะนำให้เรียนต่อ' + (rec ? ' · ระดับ ' + rec.lv : '') : 'เริ่มจากตรงนี้ระหว่างรอวัดระดับ' }),
-      rec
-        ? h('ul', { class: 'rec-list' }, rec.list.map((l, i) => h('li', {}, h('a', { class: 'rec-row', href: 'learn.html#' + l.id },
-          h('span', { class: 'rec-no', text: String(i + 1) }),
-          h('span', { class: 'rec-name' }, l.title + ' ', h('span', { class: 'light', text: l.en })),
-          h('span', { class: 'rec-meta', text: lockedFor('lesson:' + l.level) ? 'สมาชิก' : l.minutes + ' นาที' })))))
-        : h('p', { class: 'hero-note', text: 'เรียนครบทุกบทที่มีแล้ว ลองฝึกทำข้อสอบหรือสอบจำลองต่อ' }),
-      rec && rec.more > 0 && h('a', { class: 'link-btn', href: 'index.html#learn', text: 'ดูบทเรียนระดับ ' + rec.lv + ' อีก ' + rec.more + ' บท →' }),
-      weakSpot());
-
-    function weakSpot() {
-      const wrong = PRACTICE.map((p) => [p, (store.get(p.id + ':wrong', []) || []).length]).sort((a, b) => b[1] - a[1])[0];
-      if (!wrong || wrong[1] === 0 || lockedFor('practice:' + wrong[0].id)) return null;
-      return h('a', { class: 'hero-weak', href: wrong[0].href },
-        h('span', { text: 'ทบทวนข้อที่ยังไม่แม่น' }), h('strong', { text: wrong[0].title + ' · ' + wrong[1] + ' ข้อ' }));
-    }
-
-    if (!last) {
-      return h('section', { class: 'hero acc-placement', 'aria-label': 'ระดับของคุณ' },
-        h('div', { class: 'hero-main' },
-          h('p', { class: 'hero-label', text: 'ระดับของคุณ' }),
-          h('div', { class: 'hero-level unknown', text: '?' }),
-          h('p', { class: 'hero-sub', text: 'ยังไม่รู้ว่าอยู่ระดับไหน ทำแบบทดสอบ 15 นาที แล้วเว็บจะบอกระดับและเลือกบทเรียนที่เหมาะให้' }),
-          ladderTrack(null),
-          h('div', { class: 'hero-cta' }, accBtn(placementRunning() ? 'ทำแบบทดสอบต่อ' : 'วัดระดับตอนนี้', 'placement.html'))),
-        recBlock);
-    }
-    const levels = ['A1', 'A2', 'B1', 'B2'];
-    const by = last.byLevel || {};
-    return h('section', { class: 'hero acc-placement', 'aria-label': 'ระดับของคุณ' },
-      h('div', { class: 'hero-main' },
-        h('p', { class: 'hero-label', text: 'ระดับของคุณ · ' + dateTh(last.at) }),
-        h('div', { class: 'hero-level', text: levelName(last.level) }),
-        h('p', { class: 'hero-sub', text: (last.score !== undefined ? 'คะแนน ' + last.score + '/100 · ' : '') + 'เรียนแล้ว ' + done + '/' + D.lessons.length + ' บท' }),
-        ladderTrack(last),
-        h('div', { class: 'hero-bars' }, levels.filter((lv) => by[lv] && by[lv].total > 0).map((lv) => h('div', { class: 'hero-bar' },
-          h('span', { class: 'hero-bar-lv', text: lv }),
-          h('span', { class: 'bar' }, h('span', { class: 'bar-fill', style: { width: Math.round((by[lv].right / by[lv].total) * 100) + '%' } })),
-          h('span', { class: 'hero-bar-n', text: by[lv].right + '/' + by[lv].total })))),
-        h('div', { class: 'hero-cta' }, h('a', { class: 'link-btn', href: 'placement.html', text: 'ทำแบบทดสอบอีกครั้ง →' }))),
-      recBlock);
+    return h('section', { class: 'ladder', 'aria-label': 'แผนที่ระดับ' },
+      h('ol', { class: 'ladder-track' }, order.map((lv, i) => h('li', { class: 'ladder-step' + (i <= reached ? ' reached' : '') + (i === reached ? ' current' : '') + (soon.has(lv) ? ' soon' : '') },
+        h('span', { class: 'ladder-dot', 'aria-hidden': 'true' }),
+        h('span', { class: 'ladder-lv', text: lv }),
+        soon.has(lv) && h('span', { class: 'ladder-note', text: 'เร็วๆ นี้' })))),
+      h('p', { class: 'ladder-meta', text: last
+        ? 'ระดับล่าสุดของคุณ: ' + levelName(last.level) + ' · เรียนแล้ว ' + done + '/' + D.lessons.length + ' บท'
+        : 'ยังไม่ได้วัดระดับ — ทำแบบทดสอบ 15 นาทีเพื่อเริ่มต้น' }));
   }
 
   function homePanel() {
@@ -247,8 +193,9 @@
 
     return h('div', {},
       h('h1', { class: 'page-title', text: 'เรียน ฝึก และวัดระดับ CEFR' }),
-      levelHero(done),
+      h('p', { class: 'lead', text: 'ภาษาอังกฤษระดับ A1–B2 อธิบายเป็นภาษาไทย ตอบแล้วเห็นเฉลยทันที คลิกคำเพื่อดูคำแปลได้ทุกหน้า' }),
       noticeLine(),
+      levelLadder(done),
       h('div', { class: 'home-grid' },
         h('div', {},
           continueCard(),

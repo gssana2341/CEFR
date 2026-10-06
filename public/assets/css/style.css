@@ -1337,39 +1337,6 @@ body.focus .page-title::after { display: none; }
 
 body { background: transparent; }
 
-/* ---------- Home: "your level" hero ---------- */
-.hero {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 32px;
-  margin: 0 0 32px; padding: 28px;
-  border: 1px solid color-mix(in srgb, var(--acc) 35%, var(--border)); border-radius: 20px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--acc) 10%, var(--bg)), color-mix(in srgb, var(--acc-learn) 7%, var(--bg)));
-  box-shadow: 0 14px 44px color-mix(in srgb, var(--acc) 12%, transparent);
-}
-.hero-main, .hero-recs { min-width: 0; }
-.hero-label { margin: 0; color: var(--acc); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.04em; }
-.hero-level { margin: 4px 0 2px; font-size: clamp(3.4rem, 9vw, 5.2rem); font-weight: 300; line-height: 1.05; letter-spacing: -0.03em; color: var(--acc); }
-.hero-level.unknown { color: var(--muted); }
-.hero-sub { margin: 0 0 18px; color: var(--muted); }
-.hero .ladder-track { margin-bottom: 18px; }
-.hero-bars { display: grid; gap: 6px; margin-bottom: 16px; }
-.hero-bar { display: grid; grid-template-columns: 2rem 1fr 2.6rem; align-items: center; gap: 10px; font-size: 0.8rem; color: var(--muted); }
-.hero-bar-lv { font-weight: 600; color: var(--fg); }
-.hero-bar-n { text-align: right; font-variant-numeric: tabular-nums; }
-.hero-bar .bar-fill { background: var(--acc); }
-.hero-cta { margin-top: 4px; }
-.hero-h { margin: 0 0 10px; font-size: 0.85rem; font-weight: 600; color: var(--acc-learn); letter-spacing: 0.02em; }
-.rec-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
-.rec-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-left: 4px solid var(--acc-learn); border-radius: 12px; background: var(--bg); color: inherit; text-decoration: none; transition: transform 0.15s, border-color 0.15s, box-shadow 0.2s; }
-.rec-row:hover { transform: translateX(3px); border-color: var(--acc-learn); box-shadow: 0 6px 18px color-mix(in srgb, var(--acc-learn) 15%, transparent); }
-.rec-no { flex: none; display: grid; place-items: center; width: 1.7rem; height: 1.7rem; border-radius: 50%; background: color-mix(in srgb, var(--acc-learn) 16%, transparent); color: var(--acc-learn); font-weight: 700; font-size: 0.85rem; }
-.rec-name { flex: 1; min-width: 0; font-weight: 600; }
-.rec-name .light { display: block; color: var(--muted); font-weight: 400; font-size: 0.85rem; }
-.rec-meta { flex: none; color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
-.hero-note { margin: 0 0 12px; color: var(--muted); }
-.hero-weak { display: flex; justify-content: space-between; gap: 12px; margin-top: 14px; padding: 10px 14px; border-radius: 12px; background: color-mix(in srgb, var(--acc-exam) 10%, var(--bg)); color: inherit; text-decoration: none; font-size: 0.9rem; border: 1px solid color-mix(in srgb, var(--acc-exam) 35%, var(--border)); }
-.hero-weak strong { color: var(--acc-exam); }
-@media (max-width: 860px) { .hero { grid-template-columns: minmax(0, 1fr); gap: 22px; padding: 22px 18px; } }
-
 /* ---------- Answering: the question starts a little way down, not glued to the top ---------- */
 /* the question block (bar + question + four choices, about 330px) starts so that it sits in the middle of the screen;
    the space is fixed, so nothing jumps when the explanation appears under it */
@@ -1394,9 +1361,7 @@ body.focus .container { padding-top: clamp(32px, calc(50vh - 190px), 300px); }
   .choice { min-height: 52px; padding: 11px 14px; }
   .choices { gap: 10px; }
   .feedback { margin-top: 22px; padding-left: 14px; }
-  .next-card, .ref-card, .hero { border-radius: 16px; }
-  .hero-sub { font-size: 0.95rem; }
-  .rec-row { padding: 11px 12px; gap: 10px; }
+  .next-card, .ref-card { border-radius: 16px; }
   .stat-tiles { grid-template-columns: 1fr 1fr; }
   .tiles .list-row, .tiles .soon-row { padding: 15px 16px; }
   .list-row-side { font-size: 0.8rem; }
