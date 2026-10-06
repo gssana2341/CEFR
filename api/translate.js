@@ -111,5 +111,6 @@ module.exports = async function handler(req, res) {
       lastError = e;
     }
   }
-  return send(502, { error: 'upstream_unavailable', detail: String(lastError && lastError.message) });
+  console.error('[translate] all providers failed:', lastError && lastError.message);
+  return send(502, { error: 'upstream_unavailable' });
 };

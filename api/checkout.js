@@ -58,6 +58,7 @@ module.exports = async function handler(req, res) {
     });
     return send(res, 200, { url: session.url, id: session.id });
   } catch (e) {
-    return send(res, 502, { error: 'payment_provider_error', detail: String(e.message).slice(0, 200) });
+    console.error('[checkout] stripe failed:', e.message);   // the reason stays in the server log, not in the response
+    return send(res, 502, { error: 'payment_provider_error' });
   }
 };
