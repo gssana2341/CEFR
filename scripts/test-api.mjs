@@ -30,6 +30,11 @@ const bank = require('../api/_bank.js');
 const { db, setUserPass } = require('../api/_firebase.js');
 const { isSyncKey } = require('../api/_sync.js');
 const { limited } = require('../api/_ratelimit.js');
+const passApi = require('../api/pass.js');
+const checkout = require('../api/checkout.js');
+const claim = require('../api/claim.js');
+const translate = require('../api/translate.js');
+const { writeChanges } = require('../api/_sync.js');
 
 let failed = 0;
 async function test(name, fn) {
@@ -235,6 +240,87 @@ await test('billing.js (shown in the page) and _entitlements.js (enforced) agree
   const b = sandbox.window.CEFR_DATA.billing;
   assert.equal(b.enabled, ent.BILLING_ENABLED);
   assert.deepEqual(JSON.parse(JSON.stringify(b.premium)), ent.PREMIUM);
+});
+
+console.log('accounts and payments');
+await test('an old signed pass token is no longer a membership, and checkout needs a sign-in', async () => {
+  const old = pay.sign({ exp: Date.now() + 86_400_000, sid: 'legacy1', plan: 'd1' });
+  assert.equal((await call(passApi, { method: 'GET', query: { token: old } })).body.valid, false);
+  assert.equal((await call(passApi, { method: 'GET', token: MEMBER })).body.valid, true);
+  assert.equal((await call(passApi, { method: 'GET', token: FREE })).body.valid, false);
+  assert.equal((await call(checkout, { body: { plan: 'd1', token: old } })).code, 401);
+  const ok = await call(checkout, { token: FREE, body: { plan: 'd1' } });
+  assert.equal(ok.code, 200);
+  assert.ok(ok.body.url.includes('free-user'), 'the session names the account');
+  assert.equal((await call(checkout, { token: FREE, body: { plan: 'nope' } })).code, 400);
+});
+await test('claim: credits the account named in the session, returns nothing copyable', async () => {
+  const r = await call(claim, { method: 'GET', query: { session_id: 'mock_d3_0_claimtester' } });
+  assert.equal(r.code, 200);
+  assert.equal(r.body.token, undefined);
+  assert.ok(r.body.exp > Date.now());
+  const again = await call(claim, { method: 'GET', query: { session_id: 'mock_d3_0_claimtester' } });
+  assert.equal(again.body.exp, r.body.exp, 'asking again adds no days');
+  for (const id of ['x', 'a/b/c/d/e', '../../x', 'a b c d e f', 'x'.repeat(300)]) {
+    assert.equal((await call(claim, { method: 'GET', query: { session_id: id } })).code, 400, id.slice(0, 20));
+  }
+});
+await test('claim with Stripe: the charged amount, currency and mode must match the plan', async () => {
+  const realFetch = globalThis.fetch;
+  const session = (over) => ({ payment_status: 'paid', mode: 'payment', currency: 'thb', amount_total: 2000, created: 1_800_000_000, metadata: { plan: 'd1', prev_exp: '0', uid: 'stripe-user' }, ...over });
+  let next = session();
+  globalThis.fetch = async () => ({ ok: true, json: async () => next });
+  process.env.PAY_MODE = '';
+  process.env.STRIPE_SECRET_KEY = 'sk_test_x';
+  try {
+    assert.equal((await call(claim, { method: 'GET', query: { session_id: 'cs_test_ok1234' } })).code, 200);
+    for (const over of [{ amount_total: 100 }, { currency: 'usd' }, { mode: 'subscription' }, { metadata: { plan: 'd30', prev_exp: '0', uid: 'stripe-user' } }]) {
+      next = session(over);
+      assert.equal((await call(claim, { method: 'GET', query: { session_id: 'cs_test_bad' + Math.random().toString(36).slice(2, 8) } })).code, 400, JSON.stringify(over));
+    }
+    next = session({ payment_status: 'unpaid' });
+    assert.equal((await call(claim, { method: 'GET', query: { session_id: 'cs_test_unpaid1' } })).code, 402);
+    next = session({ metadata: { plan: 'd1', prev_exp: '0' } });                 // no account in the session and nobody signed in
+    assert.equal((await call(claim, { method: 'GET', query: { session_id: 'cs_test_noacct1' } })).code, 401);
+  } finally {
+    globalThis.fetch = realFetch;
+    process.env.PAY_MODE = 'mock';
+    delete process.env.STRIPE_SECRET_KEY;
+  }
+});
+
+console.log('abuse and injection');
+await test('translate: other sites and bad text are refused before any provider is called', async () => {
+  const withHeaders = (headers, q) => new Promise((resolve) => {
+    const req = { method: 'GET', query: { q }, headers: { 'x-real-ip': '66.6.6.' + ++ipCounter, ...headers }, socket: {} };
+    const res = { setHeader() {}, status(c) { this.code = c; return this; }, send(b) { resolve({ code: this.code, body: JSON.parse(b) }); } };
+    translate(req, res);
+  });
+  assert.equal((await withHeaders({ 'sec-fetch-site': 'cross-site' }, 'hello')).code, 403);
+  assert.equal((await withHeaders({ origin: 'https://evil.example', host: 'cefr.example' }, 'hello')).code, 403);
+  assert.equal((await withHeaders({ 'sec-fetch-site': 'same-origin' }, '')).code, 400);
+  assert.equal((await withHeaders({ 'sec-fetch-site': 'same-origin' }, 'x'.repeat(301))).code, 400);
+  assert.equal((await withHeaders({ 'sec-fetch-site': 'same-origin' }, '12345')).code, 400);
+});
+await test('sync: odd change sets never reach the database', async () => {
+  const written = [];
+  const fakeDb = {
+    collection: () => ({ doc: () => ({ collection: () => ({ doc: (id) => ({ async get() { return { exists: false }; }, async set() { written.push(id); } }), async get() { return { size: 0 }; } }) }) }),
+  };
+  const bad = [
+    JSON.parse('{"__proto__":{"v":"1","t":1}}'), JSON.parse('{"constructor":{"v":"1","t":1}}'),
+    { 'users/other/data/x': { v: '1', t: 1 } }, { '../x': { v: '1', t: 1 } }, { 'grammar:state/../../x': { v: '1', t: 1 } },
+    { 'grammar:state': { v: '{bad json', t: 1 } }, { 'grammar:state': { v: '1', t: 'now' } }, { 'grammar:state': { v: 5, t: 1 } },
+    { 'grammar:state': { v: 'x'.repeat(70_000), t: 1 } }, { 'grammar:state': null },
+  ];
+  for (const changes of bad) {
+    const r = await writeChanges(fakeDb, 0, 'u1', changes);
+    assert.deepEqual(r.applied, [], JSON.stringify(changes).slice(0, 60));
+  }
+  for (const odd of [null, undefined, 'str', 5, [], [1, 2]]) assert.deepEqual((await writeChanges(fakeDb, 0, 'u1', odd)).applied, []);
+  assert.deepEqual(written, []);
+  assert.deepEqual((await writeChanges(fakeDb, 0, 'u1', { 'grammar:state': { v: '{"ok":1}', t: 5 } })).applied, ['grammar:state']);
+  assert.deepEqual(written, ['grammar~state']);
 });
 
 console.log('markup trial is counted on the server');

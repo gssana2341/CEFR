@@ -1,15 +1,15 @@
 // Membership pass on the browser side – Firebase Auth version.
 //
-// Now uses Firebase Auth: the pass is stored in Firestore (server-side).
-// When logged in, /api/pass is called with the Firebase ID token.
-// Legacy signed tokens are still supported for backward compatibility and migration.
+// The pass is stored in Firestore (server-side) against the Firebase account; /api/pass is called with the ID token.
+// An old signed pass (a code in localStorage / a ?code= link from before accounts existed) is only used to move
+// the membership into the signed-in account once (/api/migrate); it is not a way to be a member by itself any more.
 //
 // Features are named strings. Which ones need a membership is set in assets/data/billing.js:
 //   'exam' · 'markup' · 'practice:<set id>' · 'lesson:<A1|A2|B1|B2>'
 //   CEFR.pass.allows(f)    true when billing is off, the feature is free, or the pass is active
 //   CEFR.pass.members(f)   true when the feature is for members (shows the "สมาชิก" tag)
 //   CEFR.pass.lockPanel(f) a ready-made "members only" box
-//   CEFR.pass.setToken(t)  store a legacy pass and re-check it (backward compat)
+//   CEFR.pass.setToken(t)  move an old pass code into the signed-in account (false when not signed in / not valid)
 // Note: this only decides what the page SHOWS (lock boxes, "สมาชิก" tags). The lessons, questions and answers are not in the
 // page at all: /api/content and /api/quiz hand them out only after checking the account's pass on the server
 // (api/_entitlements.js is the real list of what needs a membership; keep billing.js in step with it).
@@ -56,16 +56,6 @@
           headers: { Authorization: 'Bearer ' + idToken },
           signal: AbortSignal.timeout(6000),
         });
-        if (r.ok) {
-          const d = await r.json();
-          exp = d.valid ? d.exp : 0;
-          write(EXP, String(exp));
-        }
-      } catch { /* offline or slow: keep the last confirmed expiry */ }
-    } else if (token) {
-      // Legacy path: check via query parameter
-      try {
-        const r = await fetch('/api/pass?token=' + encodeURIComponent(token), { cache: 'no-store', signal: AbortSignal.timeout(4000) });
         if (r.ok) {
           const d = await r.json();
           exp = d.valid ? d.exp : 0;
@@ -163,7 +153,7 @@
         });
         if (r.ok) {
           const d = await r.json();
-          if (d.exp > exp) { token = d.token; exp = d.exp; write(KEY, token); write(EXP, String(exp)); got = true; }
+          if (d.exp > exp) { exp = d.exp; write(EXP, String(exp)); got = true; }
         } else if (r.status === 402 || r.status >= 500) keep.push(p);      // not paid yet / server busy: try again later
       } catch { keep.push(p); }
     }
@@ -227,7 +217,16 @@
     exp: () => exp,
     active,
     daysLeft: () => Math.max(0, Math.ceil((exp - Date.now()) / 86_400_000)),
-    async setToken(t) { token = String(t || '').trim(); write(KEY, token); await check(); return exp > Date.now(); },
+    async setToken(t) {
+      token = String(t || '').trim();
+      write(KEY, token);
+      const a = window.CEFR.auth;
+      if (!token || !(a && a.user())) return false;      // the old code is kept and moved after the next sign-in (see autoMigrate)
+      await autoMigrate();
+      await check();
+      document.dispatchEvent(new CustomEvent('cefr:pass'));
+      return exp > Date.now();
+    },
     addPending,
     clearPending,
     // Re-check pass (called after login/logout)

@@ -10,10 +10,13 @@
 
 'use strict';
 
+const { rateLimited: limitedHere } = require('./_pay');
+const { limited } = require('./_ratelimit');
+
 const MAX_CHARS = 300;
 const TIMEOUT_MS = 4500; // two providers in the worst case → stays under Vercel's 10 s default limit
-const RATE_LIMIT = { windowMs: 60_000, max: 90 }; // per IP, per server instance (best effort)
-const hits = new Map();
+const PER_MINUTE = 90;       // per IP, per server instance (cheap, in memory)
+const PER_DAY = 2000;        // per IP, shared by every instance (Firestore) - a lookup that is not in the edge cache costs money
 
 const THAI = /[฀-๿]/;
 
@@ -32,16 +35,17 @@ function stripRomanization(s) {
   return at > 0 && THAI.test(s.slice(0, at)) ? s.slice(0, at).trim() : s;
 }
 
-function rateLimited(ip) {
-  const now = Date.now();
-  const rec = hits.get(ip);
-  if (!rec || now - rec.start > RATE_LIMIT.windowMs) {
-    hits.set(ip, { start: now, count: 1 });
-    if (hits.size > 5000) hits.clear(); // keep memory bounded
-    return false;
+// Only this site's own pages may call it: a browser sends Sec-Fetch-Site / Origin, which a page on another site can not forge.
+// (Scripts that send neither are still held by the limits below.)
+function crossSite(req) {
+  const h = req.headers || {};
+  const fetchSite = h['sec-fetch-site'];
+  if (fetchSite) return fetchSite !== 'same-origin' && fetchSite !== 'none';
+  const origin = h.origin;
+  if (origin) {
+    try { return new URL(origin).host !== h.host; } catch { return true; }
   }
-  rec.count += 1;
-  return rec.count > RATE_LIMIT.max;
+  return false;
 }
 
 async function viaGoogle(q, key) {
@@ -94,8 +98,9 @@ module.exports = async function handler(req, res) {
   const thai = (q.match(/[฀-๿]/g) || []).length;
   if (!q || q.length > MAX_CHARS || letters === 0 || thai > letters) return send(400, { error: 'bad_request' });
 
-  const ip = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
-  if (rateLimited(ip)) return send(429, { error: 'rate_limited' });
+  if (crossSite(req)) return send(403, { error: 'forbidden' });
+  if (limitedHere(req, 'translate', PER_MINUTE)) return send(429, { error: 'rate_limited' });
+  if (await limited(req, 'translate-day', PER_DAY, { windowMs: 86_400_000 })) return send(429, { error: 'rate_limited' });
 
   const providers = [];
   if (process.env.GOOGLE_TRANSLATE_API_KEY) providers.push(() => viaGoogle(q, process.env.GOOGLE_TRANSLATE_API_KEY));
