@@ -403,6 +403,20 @@ await test('hitting the cap on 3 different days blocks members-only content (fre
   assert.equal((await call(content, { method: 'GET', query: { set: 'conversations' }, token })).code, 200, 'cleared by hand');
 });
 
+console.log('styles');
+await test('a <dialog> rule never sets display unless it is limited to [open] (it would keep a closed dialog on screen)', () => {
+  const css = readFileSync(join(root, 'public', 'assets', 'css', 'style.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const isDialog = (sel) => /(^|[\s,>])(dialog|\.dialog|\.[\w-]+-dialog)(?![\w-])/.test(sel);       // the element or a class named *-dialog
+  const bad = [];
+  for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const sel = m[1].trim();
+    if (isDialog(sel) && !/\[open\]|:modal|::backdrop/.test(sel) && /(^|;|\s)display\s*:/.test(m[2])) bad.push(sel);
+  }
+  assert.deepEqual(bad, [], 'these dialog rules set display on a closed dialog');
+  // the check itself must be able to fail: the stylesheet of the broken version had exactly this
+  assert.ok(isDialog('.upd-dialog') && !isDialog('.dialog-actions'));
+});
+
 console.log('TOEIC');
 await test('TOEIC Part 5 is served like the other sets: no answers up front, the answer after a pick, every item has a source', async () => {
   const r = await call(content, { method: 'GET', query: { set: 'toeic5' } });
