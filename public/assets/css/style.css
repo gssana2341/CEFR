@@ -1227,3 +1227,7 @@ body.acc-learn .eyebrow { color: var(--acc); font-weight: 600; }
 .container.wide .plan { gap: 4px; padding: 20px; }
 .container.wide .plan-main { flex: 0 0 auto; }
 .container.wide .plan-price { margin: 14px 0 12px; }
+
+/* the membership page is reached from here, so it must be easy to see */
+.header-pill { padding: 5px 14px; margin-right: 6px; border: 1px solid var(--border); border-radius: 999px; color: var(--fg); font-weight: 500; }
+.header-pill:hover { border-color: var(--fg); }

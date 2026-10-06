@@ -82,9 +82,10 @@
           },
         }, avatar);
 
+        if (billingOn()) widget.append(h('a', { class: 'header-link header-pill', href: 'pricing.html', text: 'สมาชิก' }));
         widget.append(toggle, menu);
       } else {
-        if (billingOn()) widget.append(h('a', { class: 'header-link', href: 'pricing.html', text: 'สมาชิก' }));
+        if (billingOn()) widget.append(h('a', { class: 'header-link header-pill', href: 'pricing.html', text: 'สมาชิก' }));
         widget.append(h('button', {
           class: 'btn btn-sm btn-outline auth-login-btn', type: 'button', text: 'เข้าสู่ระบบ',
           onclick: () => showLoginDialog(),
