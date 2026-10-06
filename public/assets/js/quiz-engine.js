@@ -198,6 +198,7 @@
     const setView = (...nodes) => root.replaceChildren(...nodes.filter(Boolean));
 
     function render() {
+      window.CEFR.setView(view === 'quiz' && round ? 'quiz' : view === 'summary' && finished ? 'summary' : 'home');
       if (view === 'quiz' && round) {
         ensureRevealed([round.items[round.index]], render).then((ok) => { if (ok && view === 'quiz' && round) renderQuiz(); });
       } else if (view === 'summary' && finished) renderSummary();
@@ -254,8 +255,10 @@
               onclick: () => requestStart('wrong', shuffle(wrong)),
             })
           ),
-          h('p', { class: 'fine-print', text: 'กดปุ่ม ' + keyHint + ' เพื่อเลือกคำตอบ และ Enter เพื่อไปข้อถัดไป · ความคืบหน้าบันทึกไว้ในเครื่องนี้โดยอัตโนมัติ' }),
-          h('p', { class: 'fine-print', text: 'อยากรู้ความหมาย: คลิกที่คำภาษาอังกฤษ หรือลากคลุมข้อความ ในโจทย์ได้เลย (ปุ่ม "แปล" มุมขวาบนใช้เปิด/ปิดระบบนี้)' })
+          h('details', { class: 'hint' },
+            h('summary', { text: 'วิธีใช้' }),
+            h('p', { text: 'กดปุ่ม ' + keyHint + ' เพื่อเลือกคำตอบ และ Enter เพื่อไปข้อถัดไป · ความคืบหน้าบันทึกไว้ในเครื่องนี้โดยอัตโนมัติ' }),
+            h('p', { text: 'อยากรู้ความหมาย: คลิกที่คำภาษาอังกฤษ หรือลากคลุมข้อความในโจทย์ได้เลย (ปุ่ม "แปล" มุมขวาบนใช้เปิด/ปิดระบบนี้)' }))
         ),
         hasData && h('div', { class: 'panel-foot' },
           h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: 'ล้างความคืบหน้าและสถิติ', onclick: resetProgress })
@@ -304,6 +307,7 @@
         h('strong', { class: 'feedback-title', text: correct ? 'ถูกต้อง' : 'ผิด' }),
         h('p', { class: 'feedback-text', 'data-tr': true }, rich(q.e)),
         clueBlock(q),
+        h('p', { class: 'q-ref', text: refLabel(q) }),
         nextBtn
       );
 
@@ -313,10 +317,11 @@
       const trBtn = canTranslate && h('button', {
         class: 'btn btn-ghost btn-sm tr-all',
         type: 'button',
-        text: trOpen ? 'ซ่อนคำแปล' : 'แปลทั้งข้อ',
+        text: trOpen ? 'ซ่อนแปล' : 'แปล',
+        'aria-label': 'แปลทั้งข้อ',
         onclick: () => {
           trOpen = !trOpen;
-          trBtn.textContent = trOpen ? 'ซ่อนคำแปล' : 'แปลทั้งข้อ';
+          trBtn.textContent = trOpen ? 'ซ่อนแปล' : 'แปล';
           trPanel.hidden = !trOpen;
           if (trOpen) fillTranslation(trPanel, q);
         },
@@ -325,19 +330,16 @@
 
       setView(
         h('section', { class: 'panel' },
-          bar,
-          h('div', { class: 'top-bar' },
-            h('span', { text: (round.index + 1) + ' / ' + round.items.length }),
-            h('span', { text: (round.mode === 'wrong' ? 'ทบทวน · ' : '') + refLabel(q) })
-          ),
+          h('div', { class: 'focus-bar' },
+            h('button', { class: 'focus-exit', type: 'button', 'aria-label': 'พักไว้ก่อน (บันทึกอัตโนมัติ)', title: 'พักไว้ก่อน (บันทึกอัตโนมัติ)', text: '←', onclick: goHome }),
+            bar,
+            h('span', { class: 'focus-count', text: (round.index + 1) + ' / ' + round.items.length }),
+            trBtn),
+          round.mode === 'wrong' && h('p', { class: 'q-tag', text: 'ทบทวนข้อที่ยังไม่แม่น' }),
           h('p', { class: 'question', 'data-tr': true, text: q.q }),
-          trBtn,
           trPanel,
           choices,
-          feedback,
-          h('div', { class: 'quiz-footer' },
-            h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: '← พักไว้ก่อน (บันทึกอัตโนมัติ)', onclick: goHome })
-          )
+          feedback
         )
       );
 

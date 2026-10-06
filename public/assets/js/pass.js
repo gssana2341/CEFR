@@ -233,6 +233,4 @@
     recheck: check,
   };
 
-  // the "สมาชิก" tab is only added when selling is on
-  if (cfg().enabled) document.querySelectorAll('nav.tabs[data-section]').forEach((el) => window.CEFR.renderNav(el, el.dataset.section));
 })();

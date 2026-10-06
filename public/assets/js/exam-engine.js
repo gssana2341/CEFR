@@ -343,7 +343,13 @@
   }
 
   // ---------- Views ----------
+  async function askLeave() {
+    const ok = await confirmDialog('ออกจากหน้าสอบ? เวลาของส่วนนี้ยังเดินต่อ กลับมาสอบต่อได้จากหน้าเลือกรูปแบบ', { okText: 'ออก', cancelText: 'อยู่ต่อ' });
+    if (ok) goIntro();
+  }
+
   function render() {
+    window.CEFR.setView(view === 'exam' && state ? 'exam' : view === 'result' && finished ? 'result' : 'intro');
     if (trToggle) trToggle.hidden = view !== 'result';
     if (view === 'exam' && state) { if (state.between) renderBetween(); else renderExam(); }
     else if (view === 'result' && finished) renderResult();
@@ -523,6 +529,7 @@
 
     setView(
       h('div', { class: 'exam-bar' },
+        h('button', { class: 'focus-exit', type: 'button', 'aria-label': 'ออกจากหน้าสอบ', title: 'ออกจากหน้าสอบ', text: '←', onclick: askLeave }),
         h('div', { class: 'exam-timebox' },
           h('span', { class: 'exam-timer' + (remaining() <= 5 * 60000 ? ' low' : ''), id: 'exam-timer', role: 'timer', 'aria-label': 'เวลาที่เหลือของส่วนนี้', text: fmtClock(remaining()) }),
           h('span', { class: 'exam-sec', text: profile.sections.length > 1 ? sec.title + ' · ' + sec.minutes + ' นาที' : profile.title })),
@@ -551,7 +558,7 @@
           h('button', { class: 'btn btn-ghost btn-sm', type: 'button', 'aria-pressed': String(helpOn()), text: 'ช่วยแปลโจทย์: ' + (helpOn() ? 'เปิด' : 'ปิด'),
             onclick: () => { store.set('translate:test', !helpOn()); renderExam(); } }))
       ),
-      !oneWay && h('details', { class: 'nav-details', open: true },
+      !oneWay && h('details', { class: 'nav-details' },
         h('summary', { text: 'รายการข้อทั้งหมด' }),
         navigator()),
       h('p', { class: 'fine-print', text: oneWay

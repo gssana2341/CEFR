@@ -154,6 +154,7 @@
 
   // ---------- Views ----------
   function render() {
+    window.CEFR.setView(view === 'quiz' && run ? 'quiz' : view === 'result' && finished ? 'result' : 'intro');
     showTranslateToggle(view === 'result');
     if (view === 'quiz' && run) renderQuiz();
     else if (view === 'result' && finished) renderResult();
@@ -215,8 +216,10 @@
 
     setView(
       h('section', { class: 'panel' },
-        bar,
-        h('div', { class: 'top-bar' }, h('span', { text: 'ข้อ ' + n })),
+        h('div', { class: 'focus-bar' },
+          h('button', { class: 'focus-exit', type: 'button', 'aria-label': 'พักไว้ก่อน (บันทึกอัตโนมัติ)', title: 'พักไว้ก่อน (บันทึกอัตโนมัติ)', text: '←', onclick: goHome }),
+          bar,
+          h('span', { class: 'focus-count', text: 'ข้อ ' + n })),
         h('p', { class: 'question', 'data-tr': helpOn() ? true : null, text: e.q }),
         h('div', { class: 'choices', role: 'group', 'aria-label': 'ตัวเลือก' },
           e.order.map((orig, i) => h('button', {
@@ -231,7 +234,6 @@
         h('div', { class: 'exam-actions' },
           h('button', { class: 'btn btn-block', type: 'button', disabled: e.pick === null, text: 'ถัดไป', onclick: next })),
         h('div', { class: 'quiz-footer' },
-          h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: '← พักไว้ก่อน (บันทึกอัตโนมัติ)', onclick: goHome }),
           h('button', { class: 'btn btn-ghost btn-sm', type: 'button', 'aria-pressed': String(helpOn()), text: 'ช่วยแปลโจทย์: ' + (helpOn() ? 'เปิด' : 'ปิด'),
             onclick: () => { store.set('translate:test', !helpOn()); renderQuiz(); } }))));
   }

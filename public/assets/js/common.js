@@ -175,13 +175,19 @@
     ['test', 'ทดสอบ', 'index.html#test'],
   ];
 
+  // (the membership page is reached from the account area in the header, not from the tab bar)
   function renderNav(el, active) {
-    const billing = (window.CEFR_DATA && window.CEFR_DATA.billing) || {};
-    const tabs = billing.enabled ? [...NAV, ['member', 'สมาชิก', 'pricing.html']] : NAV;   // shown only when selling is on
-    el.replaceChildren(...tabs.map(([id, label, href]) => h('a', { href, text: label, 'aria-current': id === active ? 'page' : null })));
+    el.replaceChildren(...NAV.map(([id, label, href]) => h('a', { href, text: label, 'aria-current': id === active ? 'page' : null })));
+  }
+
+  // Which screen of a page is showing ('home' | 'quiz' | 'exam' | 'summary' ...). While a question is on screen the page
+  // goes into focus mode (body.focus): no tab bar, title or footer - only the question (see "Focus mode" in style.css).
+  function setView(name) {
+    document.body.dataset.view = name;
+    document.body.classList.toggle('focus', name === 'quiz' || name === 'exam');
   }
 
   document.querySelectorAll('nav.tabs[data-section]').forEach((el) => renderNav(el, el.dataset.section));
 
-  window.CEFR = { QUIZZES, store, shuffle, pct, h, rich, confirmDialog, dialogOpen, renderNav };
+  window.CEFR = { QUIZZES, store, shuffle, pct, h, rich, confirmDialog, dialogOpen, renderNav, setView };
 })();

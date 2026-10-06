@@ -111,6 +111,7 @@
   const setView = (...nodes) => root.replaceChildren(...nodes.filter(Boolean));
 
   function render() {
+    window.CEFR.setView(view === 'quiz' && cur ? 'quiz' : view === 'summary' && finished ? 'summary' : 'home');
     if (view === 'quiz' && cur) renderPassage();
     else if (view === 'summary' && finished) renderSummary();
     else { view = 'home'; renderHome(); }
@@ -167,8 +168,10 @@
         h('span', { class: 'label', text: 'ลำดับบทความ' }),
         chips,
         h('button', { class: 'btn', type: 'button', text: 'เริ่มทำทั้ง ' + data.length + ' บทความ', onclick: startAll }),
-        h('p', { class: 'fine-print', text: 'กด Enter เพื่อส่งคำตอบและไปบทความถัดไป · ความคืบหน้าบันทึกไว้ในเครื่องนี้โดยอัตโนมัติ' }),
-        h('p', { class: 'fine-print', text: 'อยากรู้ความหมาย: คลิกที่คำภาษาอังกฤษ หรือลากคลุมข้อความ ในบทความได้เลย (ปุ่ม "แปล" มุมขวาบนใช้เปิด/ปิดระบบนี้)' })
+        h('details', { class: 'hint' },
+          h('summary', { text: 'วิธีใช้' }),
+          h('p', { text: 'กด Enter เพื่อส่งคำตอบและไปบทความถัดไป · ความคืบหน้าบันทึกไว้ในเครื่องนี้โดยอัตโนมัติ' }),
+          h('p', { text: 'อยากรู้ความหมาย: คลิกที่คำภาษาอังกฤษ หรือลากคลุมข้อความในบทความได้เลย (ปุ่ม "แปล" มุมขวาบนใช้เปิด/ปิดระบบนี้)' }))
       ),
       h('section', { class: 'panel' },
         h('h2', { class: 'section-title', text: 'หรือเลือกฝึกทีละบทความ' }),
@@ -293,19 +296,15 @@
 
     setView(
       h('section', { class: 'panel' },
-        bar,
-        h('div', { class: 'top-bar' },
-          h('span', { text: 'บทความที่ ' + (cur.pos + 1) + ' / ' + n }),
-          n === 1 && h('span', { text: 'ฝึกทีละบทความ' })
-        ),
+        h('div', { class: 'focus-bar' },
+          h('button', { class: 'focus-exit', type: 'button', 'aria-label': 'พักไว้ก่อน (บันทึกถึงบทความที่ส่งแล้ว)', title: 'พักไว้ก่อน (บันทึกถึงบทความที่ส่งแล้ว)', text: '←', onclick: goHome }),
+          bar,
+          h('span', { class: 'focus-count', text: (cur.pos + 1) + ' / ' + n })),
         h('span', { class: 'topic', text: p.topic }),
         h('div', { class: 'passage', 'data-tr': true }, body),
         msg,
         submitBtn,
-        feedback,
-        h('div', { class: 'quiz-footer' },
-          h('button', { class: 'btn btn-ghost btn-sm', type: 'button', text: '← พักไว้ก่อน (บันทึกถึงบทความที่ส่งแล้ว)', onclick: goHome })
-        )
+        feedback
       )
     );
   }

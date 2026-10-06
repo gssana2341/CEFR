@@ -17,6 +17,8 @@
   const { h, confirmDialog } = window.CEFR;
   const { auth } = window.CEFR_FIREBASE;
 
+  const billingOn = () => Boolean(window.CEFR_DATA && window.CEFR_DATA.billing && window.CEFR_DATA.billing.enabled);
+
   let currentUser = null;
   let idTokenCache = '';
 
@@ -58,6 +60,7 @@
           h('p', { class: 'auth-menu-name', text: user.displayName || '' }),
           h('p', { class: 'auth-menu-email', text: user.email || '' }),
           h('hr', { class: 'auth-menu-sep' }),
+          billingOn() && h('a', { class: 'auth-menu-item', href: 'pricing.html', text: 'สมาชิก / แพ็กเกจ' }),
           h('button', {
             class: 'auth-menu-item', type: 'button', text: 'ออกจากระบบ',
             onclick: async () => {
@@ -81,6 +84,7 @@
 
         widget.append(toggle, menu);
       } else {
+        if (billingOn()) widget.append(h('a', { class: 'header-link', href: 'pricing.html', text: 'สมาชิก' }));
         widget.append(h('button', {
           class: 'btn btn-sm btn-outline auth-login-btn', type: 'button', text: 'เข้าสู่ระบบ',
           onclick: () => showLoginDialog(),

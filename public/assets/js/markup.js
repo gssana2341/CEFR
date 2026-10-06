@@ -13,7 +13,7 @@
 (function () {
   'use strict';
 
-  const { h } = window.CEFR;
+  const { h, store } = window.CEFR;
   const NS = 'http://www.w3.org/2000/svg';
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let uidCounter = 0;   // unique marker ids so several diagrams on one page never share an arrowhead
@@ -523,12 +523,11 @@
     // the server decides who sees mark-up: members always, everybody else a few questions a day (ann.trialLeft counts what is left)
     if (ann.locked) {
       return h('div', { class: 'clue-box' },
-        h('p', { class: 'clue-title', text: 'ดูตรงนี้' }),
         h('p', { class: 'notice' }, 'วันนี้ดูเส้นโยงฟรีครบแล้ว — สมาชิกดูได้ไม่จำกัด · ',
           h('a', { class: 'link-btn', href: 'pricing.html?need=markup', text: 'ดูแพ็กเกจ →' })));
     }
     const trial = typeof ann.trialLeft === 'number' ? { left: ann.trialLeft } : null;
-    const box = h('div', { class: 'clue-box' }, h('p', { class: 'clue-title', text: 'ดูตรงนี้' }));
+    const box = h('div', { class: 'clue-box' });
     if ((ann.links && ann.links.length) || (ann.tags && ann.tags.length)) box.append(diagram(opts.q, opts.answer, ann));
     if (ann.tip) {
       const [main, ...rest] = ann.tip.split(' · ');
@@ -542,7 +541,11 @@
       box.append(h('p', { class: 'fine-print' }, 'ตัวอย่างฟรี วันนี้เหลืออีก ' + trial.left + ' ข้อ · สมาชิกดูได้ไม่จำกัด ',
         h('a', { class: 'link-btn', href: 'pricing.html?need=markup', text: 'ดูแพ็กเกจ →' })));
     }
-    return box;
+    // folded by default so the answer screen stays short; whether it is open is remembered on this device
+    const fold = h('details', { class: 'clue-fold', open: store.get('ui:markup', false) === true ? true : null },
+      h('summary', { text: 'ดูโครงสร้างประโยค' }), box);
+    fold.addEventListener('toggle', () => store.set('ui:markup', fold.open));
+    return fold;
   }
 
   window.CEFR.markup = { block, annotation, plan, tenseGrid, tenseDetail, tenseCard };
