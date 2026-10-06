@@ -1171,3 +1171,14 @@ body[class*="acc-"] .focus-exit:hover { color: var(--acc); }
 .ref-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .ref-chip { padding: 3px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); color: var(--fg); font-size: 0.85rem; text-decoration: none; }
 .ref-chip:hover { border-color: var(--acc); color: var(--acc); }
+
+/* ---------- Wide pages: tenses summary, membership ---------- */
+.tense-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: 16px; align-items: start; }
+.tense-list .tense-section { margin: 0; border-left: 4px solid var(--acc, var(--border)); background: color-mix(in srgb, var(--acc, transparent) 4%, var(--bg)); }
+.tense-list .tense-section:target { border-color: var(--acc, var(--fg)); }
+.container.wide .tgrid th, .container.wide .tgrid td { padding: 12px 10px; font-size: 0.9rem; }
+.container.wide .tense-grid-wrap, .container.wide .table-wrap { max-width: 100%; }
+.container.wide .stack { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.container.wide .plan { flex-direction: column; align-items: stretch; text-align: left; }
+.container.wide .plan .btn { width: 100%; }
+body.acc-learn .eyebrow { color: var(--acc); font-weight: 600; }

@@ -13,9 +13,9 @@
     h('h2', { class: 'section-title', style: { marginTop: '0' }, text: 'ตารางสรุป' }),
     tenseGrid(null, true),
     h('h2', { class: 'section-title', text: 'รายละเอียดแต่ละ tense' }),
-    ...list.map((t) => h('article', { class: 'tense-section', id: t.id },
+    h('div', { class: 'tense-list' }, list.map((t) => h('article', { class: 'tense-section', id: t.id },
       h('h2', {}, t.en + ' ', h('span', { class: 'light', text: t.th })),
-      tenseDetail(t)))
+      tenseDetail(t))))
   );
 
   // scroll to the tense in the URL hash (the grid cells and the feedback card link here)
