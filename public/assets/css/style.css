@@ -1293,7 +1293,7 @@ body.focus .page-title::after { display: none; }
 @keyframes bell { 0%, 100% { transform: none; } 10% { transform: rotate(14deg); } 20% { transform: rotate(-12deg); } 30% { transform: rotate(8deg); } 40% { transform: rotate(-5deg); } 50% { transform: none; } }
 
 .upd-dialog {
-  position: relative; width: min(94vw, 520px); max-height: min(86vh, 720px); padding: 0; overflow: hidden;
+  position: fixed; inset: 0; margin: auto; width: min(94vw, 520px); max-height: min(86vh, 720px); padding: 0; overflow: hidden;
   display: flex; flex-direction: column;
   border: 1px solid color-mix(in srgb, var(--fg) 14%, transparent); border-radius: 18px;
   background: color-mix(in srgb, var(--bg) 94%, var(--acc-learn));
