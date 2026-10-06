@@ -147,10 +147,15 @@
     const reached = last ? ({ 'pre-A1': -1, A1: 0, A2: 1, B1: 2, B2: 3, 'B2+': 3 }[last.level] ?? -1) : -1;
     const soon = new Set(((D.roadmap || {}).levels || []).map((l) => l.id));
     return h('section', { class: 'ladder', 'aria-label': 'แผนที่ระดับ' },
-      h('ol', { class: 'ladder-track' }, order.map((lv, i) => h('li', { class: 'ladder-step' + (i <= reached ? ' reached' : '') + (i === reached ? ' current' : '') + (soon.has(lv) ? ' soon' : '') },
+      h('div', { class: 'ladder-head' },
+        h('span', { class: 'ladder-title', text: 'เส้นทางสู่ C2' }),
+        !last && h('a', { class: 'ladder-link', href: 'placement.html', text: 'วัดระดับ →' })),
+      h('ol', { class: 'ladder-track' }, order.map((lv, i) => h('li', { class: 'ladder-step lv-' + lv + (i <= reached ? ' reached' : '') + (i === reached ? ' current' : '') + (soon.has(lv) ? ' soon' : '') },
         h('span', { class: 'ladder-dot', 'aria-hidden': 'true' }),
         h('span', { class: 'ladder-lv', text: lv }),
-        soon.has(lv) && h('span', { class: 'ladder-note', text: 'เร็วๆ นี้' })))),
+        soon.has(lv) && h('span', { class: 'ladder-note', text: 'เร็วๆ นี้' }),
+        i === reached && h('span', { class: 'ladder-here', text: 'คุณอยู่ที่นี่' }),
+        !last && i === 0 && h('span', { class: 'ladder-here start', text: 'เริ่มที่นี่' })))),
       h('p', { class: 'ladder-meta', text: last
         ? 'ระดับล่าสุดของคุณ: ' + levelName(last.level) + ' · เรียนแล้ว ' + done + '/' + D.lessons.length + ' บท'
         : 'ยังไม่ได้วัดระดับ — ทำแบบทดสอบ 15 นาทีเพื่อเริ่มต้น' }));

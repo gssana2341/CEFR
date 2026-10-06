@@ -1367,3 +1367,28 @@ body.focus .container { padding-top: clamp(32px, calc(50vh - 190px), 300px); }
   .list-row-side { font-size: 0.8rem; }
 }
 @media (max-width: 480px) { body.focus .exam-actions { position: sticky; bottom: 0; z-index: 5; } }
+
+/* ---------- Level map: a little colour and life ---------- */
+.ladder { position: relative; overflow: hidden; padding: 16px 24px 18px; background:
+  radial-gradient(70% 140% at 0% 0%, color-mix(in srgb, var(--acc-grammar) 9%, transparent), transparent 60%),
+  radial-gradient(70% 140% at 100% 100%, color-mix(in srgb, var(--acc-advanced) 9%, transparent), transparent 60%),
+  var(--subtle); }
+.ladder-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.ladder-title { color: var(--muted); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; }
+.ladder-link { color: var(--acc-placement); font-size: 0.85rem; font-weight: 600; text-decoration: none; }
+.ladder-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.lv-A1 { --lv: var(--acc-conversations); } .lv-A2 { --lv: var(--acc-grammar); } .lv-B1 { --lv: var(--acc-extra); }
+.lv-B2 { --lv: var(--acc-placement); } .lv-C1 { --lv: var(--acc-exam); } .lv-C2 { --lv: var(--acc-advanced); }
+.ladder-step::before { top: 10px; height: 3px; border-radius: 2px; }
+.ladder-step.reached::before { background: linear-gradient(90deg, color-mix(in srgb, var(--lv) 40%, var(--border)), var(--lv)); }
+.ladder-dot { width: 20px; height: 20px; border: 2px solid color-mix(in srgb, var(--lv) 45%, var(--border)); }
+.ladder-step.reached .ladder-dot { border-color: var(--lv); background: var(--lv); box-shadow: 0 0 14px color-mix(in srgb, var(--lv) 55%, transparent); }
+.ladder-step.current .ladder-dot { box-shadow: 0 0 0 5px color-mix(in srgb, var(--lv) 25%, transparent), 0 0 18px color-mix(in srgb, var(--lv) 60%, transparent); animation: beacon 2.4s ease-out infinite; }
+@keyframes beacon { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--lv) 50%, transparent), 0 0 18px color-mix(in srgb, var(--lv) 60%, transparent); } 70%, 100% { box-shadow: 0 0 0 12px transparent, 0 0 18px color-mix(in srgb, var(--lv) 60%, transparent); } }
+.ladder-step.reached .ladder-lv, .ladder-step.current .ladder-lv { color: var(--lv); }
+.ladder-step.soon .ladder-dot { border-style: dashed; background: transparent; }
+.ladder-here { margin-top: 4px; padding: 1px 10px; border-radius: 999px; background: color-mix(in srgb, var(--lv, var(--acc-placement)) 18%, transparent); color: var(--lv, var(--acc-placement)); font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
+.ladder-here.start { --lv: var(--acc-conversations); animation: fadeNudge 2.4s ease-in-out infinite; }
+@keyframes fadeNudge { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+.ladder-meta { margin-top: 16px; }
+@media (max-width: 480px) { .ladder { padding: 14px 14px 16px; } .ladder-here { font-size: 0.62rem; padding: 1px 6px; } .ladder-dot { width: 18px; height: 18px; } .ladder-step::before { top: 9px; } }
