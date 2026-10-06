@@ -1371,8 +1371,10 @@ body { background: transparent; }
 @media (max-width: 860px) { .hero { grid-template-columns: minmax(0, 1fr); gap: 22px; padding: 22px 18px; } }
 
 /* ---------- Answering: the question starts a little way down, not glued to the top ---------- */
-body.focus .container { padding-top: clamp(24px, 20vh, 220px); }
-@media (max-width: 480px) { body.focus .container { padding-top: clamp(16px, 8vh, 72px); } }
+/* the question block (bar + question + four choices, about 330px) starts so that it sits in the middle of the screen;
+   the space is fixed, so nothing jumps when the explanation appears under it */
+body.focus .container { padding-top: clamp(32px, calc(50vh - 190px), 300px); }
+@media (max-width: 480px) { body.focus .container { padding-top: clamp(16px, calc(50vh - 260px), 90px); } }
 
 /* ---------- Phones: roomier, calmer header, a next button that stays readable ---------- */
 @media (max-width: 480px) {
