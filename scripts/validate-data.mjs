@@ -17,7 +17,7 @@ const sandbox = { window: {} };
 vm.createContext(sandbox);
 for (const [dir, file] of [...['grammar', 'conversations', 'cloze', 'extra', 'placement', 'lessons', 'cat-bank',
   'clues-grammar', 'clues-conversations', 'clues-extra', 'clues-placement', 'clues-lessons', 'toeic5'].map((f) => [contentDir, f]),
-...['exam', 'glossary', 'billing', 'tenses'].map((f) => [dataDir, f])]) {
+...['exam', 'glossary', 'billing', 'tenses', 'changelog', 'roadmap'].map((f) => [dataDir, f])]) {
   vm.runInContext(readFileSync(join(dir, file + '.js'), 'utf8'), sandbox, { filename: file + '.js' });
 }
 // markup.js is a browser script; only its pure helpers (plan) are used here
@@ -68,6 +68,33 @@ for (const key of ['grammar', 'conversations', 'extra', 'toeic5']) {
       if (q.source !== 'original' && !isStr(q.license)) err(where, 'license is required for questions that are not original');
     }
   });
+}
+
+// --- "What's new" entries and the C1-C2 roadmap (public data files) ---
+{
+  const log = D.changelog;
+  const TAGS = ['ใหม่', 'ปรับปรุง', 'ปลอดภัย', 'เร็วๆ นี้'];
+  if (!Array.isArray(log) || !log.length) err('changelog', 'missing or empty');
+  else {
+    const ids = new Set();
+    log.forEach((e, i) => {
+      const where = `changelog[${i}]`;
+      if (!isStr(e.id)) err(where, 'id is empty'); else if (ids.has(e.id)) err(where, 'duplicate id'); else ids.add(e.id);
+      for (const k of ['date', 'title']) if (!isStr(e[k])) err(where, k + ' is empty');
+      if (!Array.isArray(e.items) || !e.items.length) err(where, 'items missing');
+      else e.items.forEach((it, j) => {
+        if (!TAGS.includes(it.tag)) err(`${where}.items[${j}]`, 'tag must be one of ' + TAGS.join(', '));
+        if (!isStr(it.title) || !isStr(it.text)) err(`${where}.items[${j}]`, 'title and text are required');
+      });
+    });
+  }
+  const road = D.roadmap?.levels;
+  if (!Array.isArray(road) || !road.length) err('roadmap', 'missing or empty');
+  else for (const lv of road) {
+    if (!isStr(lv.id) || !isStr(lv.name)) err('roadmap', 'level needs id and name');
+    if (D.lessons?.some((l) => l.level === lv.id)) err('roadmap.' + lv.id, 'this level already has real lessons: remove its entry from roadmap.js');
+    if (!Array.isArray(lv.lessons) || !lv.lessons.every((p) => Array.isArray(p) && isStr(p[0]) && isStr(p[1]))) err('roadmap.' + lv.id, 'lessons must be [english, thai] pairs');
+  }
 }
 
 // --- Placement test bank ---

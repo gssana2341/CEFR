@@ -11,7 +11,7 @@
 
   const TABS = ['home', 'learn', 'practice', 'test', 'toeic'];
   const TITLES = { home: 'CEFR Quiz — เรียน ฝึก และวัดระดับภาษาอังกฤษ', learn: 'เรียน — CEFR Quiz', practice: 'ฝึก — CEFR Quiz', test: 'ทดสอบ — CEFR Quiz', toeic: 'TOEIC — CEFR Quiz' };
-  const LEVEL_NAMES = { A1: ['A1', 'เริ่มต้น'], A2: ['A2', 'พื้นฐาน'], B1: ['B1', 'กลาง'], B2: ['B2', 'กลางค่อนสูง'] };
+  const LEVEL_NAMES = { A1: ['A1', 'เริ่มต้น'], A2: ['A2', 'พื้นฐาน'], B1: ['B1', 'กลาง'], B2: ['B2', 'กลางค่อนสูง'], C1: ['C1', 'ขั้นสูง'], C2: ['C2', 'เชี่ยวชาญ'] };
   const PASS_RATIO = 0.7;
 
   const dateTh = (ms) => new Date(ms).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
@@ -140,6 +140,22 @@
       href ? h('a', { class: 'list-row', href }, inner) : h('div', { class: 'list-row soon-row' }, inner));
   }
 
+  // A1 → C2 on one line: what the placement test found, and which levels are still being written
+  function levelLadder(done) {
+    const last = placementLast();
+    const order = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+    const reached = last ? ({ 'pre-A1': -1, A1: 0, A2: 1, B1: 2, B2: 3, 'B2+': 3 }[last.level] ?? -1) : -1;
+    const soon = new Set(((D.roadmap || {}).levels || []).map((l) => l.id));
+    return h('section', { class: 'ladder', 'aria-label': 'แผนที่ระดับ' },
+      h('ol', { class: 'ladder-track' }, order.map((lv, i) => h('li', { class: 'ladder-step' + (i <= reached ? ' reached' : '') + (i === reached ? ' current' : '') + (soon.has(lv) ? ' soon' : '') },
+        h('span', { class: 'ladder-dot', 'aria-hidden': 'true' }),
+        h('span', { class: 'ladder-lv', text: lv }),
+        soon.has(lv) && h('span', { class: 'ladder-note', text: 'เร็วๆ นี้' })))),
+      h('p', { class: 'ladder-meta', text: last
+        ? 'ระดับล่าสุดของคุณ: ' + levelName(last.level) + ' · เรียนแล้ว ' + done + '/' + D.lessons.length + ' บท'
+        : 'ยังไม่ได้วัดระดับ — ทำแบบทดสอบ 15 นาทีเพื่อเริ่มต้น' }));
+  }
+
   function homePanel() {
     const last = placementLast();
     const hist = examHistory();
@@ -179,6 +195,7 @@
       h('h1', { class: 'page-title', text: 'เรียน ฝึก และวัดระดับ CEFR' }),
       h('p', { class: 'lead', text: 'ภาษาอังกฤษระดับ A1–B2 อธิบายเป็นภาษาไทย ตอบแล้วเห็นเฉลยทันที คลิกคำเพื่อดูคำแปลได้ทุกหน้า' }),
       noticeLine(),
+      levelLadder(done),
       h('div', { class: 'home-grid' },
         h('div', {},
           continueCard(),
@@ -223,7 +240,16 @@
               h('span', { class: 'lesson-name' }, l.title + ' ', h('span', { class: 'light', text: l.en })),
               h('span', { class: 'lesson-state' + (isDone ? ' done' : ''), text: state })));
           })));
-      }));
+      }),
+      ((D.roadmap || {}).levels || []).map((lv) => h('details', { class: 'level-fold is-soon' },
+        h('summary', {},
+          h('span', { class: 'level-name' }, lv.name + ' ', h('span', { class: 'light', text: lv.thai })),
+          h('span', { class: 'level-count', text: 'เร็วๆ นี้ · ' + lv.lessons.length + ' บท' })),
+        h('ul', { class: 'lesson-list' }, lv.lessons.map(([en, th], i) => h('li', {},
+          h('div', { class: 'lesson-link soon-lesson' },
+            h('span', { class: 'lesson-no', text: String(i + 1).padStart(2, '0') }),
+            h('span', { class: 'lesson-name' }, en + ' ', h('span', { class: 'light', text: th })),
+            h('span', { class: 'lesson-state', text: 'กำลังจัดทำ' }))))))));
   }
 
   // the 12-tense summary page, kept at the top of the lessons tab with a shortcut to each tense
@@ -242,13 +268,13 @@
     return h('div', {},
       h('h1', { class: 'page-title', text: 'ฝึกทำข้อสอบ' }),
       h('p', { class: 'tab-intro', text: 'ตอบแล้วเห็นเฉลยพร้อมคำอธิบายทันที ข้อที่ผิดจะถูกเก็บไว้ให้ทบทวนภายหลัง' }),
-      h('ul', { class: 'list-rows tiles' }, PRACTICE.map((p) => {
+      h('ul', { class: 'list-rows tiles' }, [...PRACTICE.map((p) => {
         const info = practiceInfo(p.id);
         const locked = lockedFor('practice:' + p.id);
         const side = locked ? 'สมาชิก' : info.resume ? 'ทำต่อ' : 'เริ่มทำ';
         return listRow(locked ? 'pricing.html?need=practice:' + p.id : p.href, p.title, p.thai,
           [...info.meta, info.resume && 'ค้างอยู่: ' + info.resume].filter(Boolean).join(' · '), side, p.id, !locked);
-      })));
+      }), listRow(null, 'Advanced', 'C1–C2', 'ไวยากรณ์และสำนวนระดับสูง กำลังจัดทำ', 'เร็วๆ นี้', 'advanced')]));
   }
 
   function testPanel() {
