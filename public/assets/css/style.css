@@ -1221,3 +1221,9 @@ body.acc-learn .eyebrow { color: var(--acc); font-weight: 600; }
 .tense-list { align-items: stretch; }
 .tense-body > .tense-cta { margin-top: auto; }
 .tense-body > .tense-tip + .examples, .tense-body > .examples { margin-bottom: 18px; }
+
+/* membership: four plans in one row on wide screens, compact cards */
+.container.wide .stack { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.container.wide .plan { gap: 4px; padding: 20px; }
+.container.wide .plan-main { flex: 0 0 auto; }
+.container.wide .plan-price { margin: 14px 0 12px; }
