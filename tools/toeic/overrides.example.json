@@ -1,0 +1,10 @@
+{
+  "_note": "Copy to overrides.json (git-ignored: it holds text typed from the book, and the book is copyrighted). Hand fixes applied by extract.py after reading the PDFs.",
+  "replace": [["glued word", "glued word with a space"]],
+  "1": {
+    "50": { "q": "Question text typed by hand", "c": ["choice A", "choice B", "choice C", "choice D"] }
+  },
+  "graphics": {
+    "1": { "67": { "page": 15, "rect": [171, 447, 393, 667] } }
+  }
+}

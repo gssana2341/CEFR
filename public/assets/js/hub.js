@@ -312,10 +312,22 @@
     { part: 7, title: 'Reading Comprehension', thai: 'อ่านจับใจความ', group: 'Reading', q: 54 },
   ];
 
+  // Are the full book sets (toeic-test.html, served by /api/toeic) there? Asked once; the tab is rebuilt when the answer arrives.
+  let book = false;
+  fetch('/api/toeic', { cache: 'no-store', signal: AbortSignal.timeout(6000) })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => { if (d && d.available && d.sets && d.sets.length) { book = d.sets.length; refreshTabs(); } })
+    .catch(() => { /* offline: the rows simply stay "coming soon" */ });
+
   function toeicPanel() {
     const tile = (big, small) => h('div', { class: 'stat-tile' }, h('strong', { text: big }), h('span', { text: small }));
     const partRow = (p) => {
       const lead = h('span', { class: 'part-no', text: String(p.part) });
+      if (!p.set && book) {
+        const pass = window.CEFR.pass;
+        const locked = pass && pass.members('toeic') && !pass.active();
+        return listRow('toeic-test.html', p.title, p.thai, 'ข้อสอบเต็มชุด ' + book + ' ชุด · ' + p.q + ' ข้อต่อชุด', locked ? 'สมาชิก' : 'เปิดแล้ว', 'toeic', !locked, lead);
+      }
       if (!p.set) return listRow(null, p.title, p.thai, 'ข้อสอบจริง ' + p.q + ' ข้อ', 'เร็วๆ นี้', 'toeic', false, lead);
       const info = practiceInfo(p.set);
       return listRow(p.href, p.title, p.thai, [...info.meta, info.resume && 'ค้างอยู่: ' + info.resume].filter(Boolean).join(' · '),
@@ -324,13 +336,13 @@
     const parts = (group) => TOEIC_PARTS.filter((p) => p.group === group);
     return h('div', { class: 'acc-toeic' },
       h('h1', { class: 'page-title' }, 'TOEIC ', h('span', { class: 'light', text: 'ฝึก · เรียน · ซ้อมสอบ' })),
-      h('p', { class: 'tab-intro', text: 'ที่รวมสำหรับเตรียมสอบ TOEIC: ฝึกตาม Part ข้อสอบเก่าและชุดจำลอง และแนวทางทำข้อสอบ ตอนนี้เปิด Part 5 แล้ว ส่วนที่เหลือทยอยเพิ่ม' }),
+      h('p', { class: 'tab-intro', text: 'ที่รวมสำหรับเตรียมสอบ TOEIC: ฝึกตาม Part ข้อสอบเก่าและชุดจำลอง และแนวทางทำข้อสอบ Part 5 ฝึกได้เลย ส่วนข้อสอบเต็มชุดพร้อมไฟล์เสียงเปิดให้สมาชิกเมื่อพร้อม' }),
       h('div', { class: 'stat-tiles' },
         tile('200 ข้อ', 'ข้อสอบจริง 2 ชั่วโมง'),
         tile('Listening', '100 ข้อ · 45 นาที · Part 1–4'),
         tile('Reading', '100 ข้อ · 75 นาที · Part 5–7'),
         tile('10–990', 'ช่วงคะแนนรวม')),
-      h('div', { class: 'part-group' }, h('h2', { text: 'Listening' }), h('p', { class: 'meta', text: 'ต้องใช้ไฟล์เสียง กำลังเตรียมระบบ' })),
+      h('div', { class: 'part-group' }, h('h2', { text: 'Listening' }), h('p', { class: 'meta', text: book ? 'มีไฟล์เสียงประกอบทุก Part' : 'ต้องใช้ไฟล์เสียง กำลังเตรียมระบบ' })),
       h('ul', { class: 'list-rows tiles' }, parts('Listening').map(partRow)),
       h('div', { class: 'part-group' }, h('h2', { text: 'Reading' }), h('p', { class: 'meta', text: 'ฝึกได้ทีละ Part' })),
       h('ul', { class: 'list-rows tiles' }, parts('Reading').map(partRow)),
@@ -370,11 +382,12 @@
     window.scrollTo(0, 0);
   }
 
-  document.addEventListener('cefr:pass', () => {
+  function refreshTabs() {
     const tab = currentTab();
     build();
     TABS.forEach((t) => { panels[t].hidden = t !== tab; });
-  });
+  }
+  document.addEventListener('cefr:pass', refreshTabs);
   window.addEventListener('hashchange', show);
   window.addEventListener('pageshow', (e) => { if (e.persisted) show(); });   // back button → refresh progress
   show();

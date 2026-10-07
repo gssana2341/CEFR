@@ -5,7 +5,7 @@
 // the membership into the signed-in account once (/api/migrate); it is not a way to be a member by itself any more.
 //
 // Features are named strings. Which ones need a membership is set in assets/data/billing.js:
-//   'exam' · 'markup' · 'practice:<set id>' · 'lesson:<A1|A2|B1|B2>'
+//   'exam' · 'markup' · 'toeic' · 'practice:<set id>' · 'lesson:<A1|A2|B1|B2>'
 //   CEFR.pass.allows(f)    true when billing is off, the feature is free, or the pass is active
 //   CEFR.pass.members(f)   true when the feature is for members (shows the "สมาชิก" tag)
 //   CEFR.pass.lockPanel(f) a ready-made "members only" box
@@ -168,6 +168,7 @@
   // ---------- "members only" box ----------
   const WHAT = {
     exam: 'สอบจำลอง',
+    toeic: 'ชุดข้อสอบ TOEIC เต็มชุด',
     markup: 'เส้นโยงบนประโยคและสูตร tense',
   };
   function nameOf(feature) {

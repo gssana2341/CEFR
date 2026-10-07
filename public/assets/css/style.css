@@ -1392,3 +1392,31 @@ body.focus .container { padding-top: clamp(32px, calc(50vh - 190px), 300px); }
 @keyframes fadeNudge { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
 .ladder-meta { margin-top: 16px; }
 @media (max-width: 480px) { .ladder { padding: 14px 14px 16px; } .ladder-here { font-size: 0.62rem; padding: 1px 6px; } .ladder-dot { width: 18px; height: 18px; } .ladder-step::before { top: 9px; } }
+
+/* ---------- TOEIC full test sets ---------- */
+.toeic-head { margin-bottom: 20px; }
+.toeic-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.toeic-audio { margin: 4px 0 16px; }
+.toeic-audio audio { display: block; width: 100%; margin: 8px 0 6px; }
+.toeic-head .progress { margin: 14px 0 8px; }
+.toeic-submit { margin-top: 14px; }
+.toeic-group { border-top: 1px solid var(--border); padding: 22px 0 6px; margin-top: 22px; }
+.toeic-group-title { margin: 0 0 14px; font-size: 1rem; color: var(--acc-toeic, var(--fg)); }
+.toeic-pass { display: grid; gap: 10px; margin-bottom: 18px; }
+.toeic-passage, .toeic-photo {
+  display: block; max-width: 100%; height: auto; background: #fff;
+  border: 1px solid var(--border); border-radius: 10px;
+  -webkit-user-drag: none; user-select: none; -webkit-user-select: none;
+}
+.toeic-photo { margin: 6px 0 14px; max-height: 420px; width: auto; }
+.toeic-q { padding: 16px 0 22px; }
+.toeic-q + .toeic-q { border-top: 1px dashed var(--border); }
+.q-no { margin: 0 0 8px; color: var(--acc, var(--muted)); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.04em; }
+.toeic-q .question { margin-bottom: 16px; }
+.choices.letters { grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); }
+.choices.letters .choice { justify-content: center; }
+.toeic-ans { margin: 12px 0 0; min-height: 1.2em; }
+.toeic-ans.ok { color: var(--ok); }
+.toeic-ans.bad { color: var(--bad); }
+.toeic-expl { display: block; margin-top: 4px; color: var(--muted); }
+.toeic-result { margin: 0 0 20px; }

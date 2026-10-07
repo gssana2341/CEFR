@@ -4,7 +4,7 @@
 // This file is what actually decides whether /api/content and /api/quiz hand out a lesson, a question set or a
 // sentence mark-up. scripts/test-entitlements.mjs checks that the two files agree.
 //
-// Feature names (same as the browser uses):  'exam' · 'markup' · 'practice:<set>' · 'lesson:<A1|A2|B1|B2>'
+// Feature names (same as the browser uses):  'exam' · 'markup' · 'toeic' · 'practice:<set>' · 'lesson:<A1|A2|B1|B2>'
 'use strict';
 
 const crypto = require('node:crypto');
@@ -14,6 +14,7 @@ const { verifyAuth, getUserPass, db } = require('./_firebase');
 const BILLING_ENABLED = true;                       // false = everything free (same switch as billing.js "enabled")
 const PREMIUM = {
   exam: true,
+  toeic: true,                                      // the TOEIC book sets (/api/toeic)
   markup: true,
   markupFreePerDay: 3,                              // distinct questions per day a non-member may see mark-up for
   practice: ['conversations', 'cloze', 'extra'],    // Grammar is free
@@ -26,7 +27,7 @@ function members(feature) {
   const f = String(feature);
   if (f.startsWith('practice:')) return PREMIUM.practice.includes(f.slice(9));
   if (f.startsWith('lesson:')) return PREMIUM.lessonLevels.includes(f.slice(7));
-  return f === 'exam' || f === 'markup' ? Boolean(PREMIUM[f]) : false;
+  return f === 'exam' || f === 'markup' || f === 'toeic' ? Boolean(PREMIUM[f]) : false;
 }
 
 // → { user: {uid,email}|null, active: boolean, blocked: boolean, ident: string }

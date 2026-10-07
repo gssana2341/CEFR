@@ -6,6 +6,7 @@
 //   CEFR.content.reveal('grammar', [{ n, pick }])  → asks for the answer + explanation of what the learner picked; they are
 //                                              written onto the question objects (q.a, q.e) and its mark-up into CEFR_DATA.clues
 //   CEFR.content.post(body)                 → any /api/quiz call
+//   CEFR.content.call(method, url, body)    → any other JSON endpoint with the sign-in header (the TOEIC book sets use it)
 // Errors are ApiError with .status (401 sign in · 402 members only · 429 slow down · 0 offline) and .code.
 (function () {
   'use strict';
@@ -107,5 +108,5 @@
     return null;
   }
 
-  window.CEFR.content = { load, lesson, reveal, post, setClue, special, ApiError };
+  window.CEFR.content = { load, lesson, reveal, post, call, setClue, special, ApiError };
 })();

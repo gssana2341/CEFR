@@ -14,3 +14,8 @@ Thumbs.db
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# TOEIC book extraction output (copyrighted, never commit)
+build/
+tools/toeic/overrides.json
+__pycache__/
