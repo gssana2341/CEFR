@@ -58,5 +58,20 @@ for (const { id } of index.sets) {
   console.log('  answers A/B/C/D: ' + tally.join(' / ') + ' (should be roughly even)');
   if (Math.min(...tally) < 30) bad('the answer letters look lopsided: ' + tally);
 }
+// the Ebook pages (extract_tips.py)
+if (existsSync(join(dir, 'tips', 'data.json'))) {
+  const t = JSON.parse(readFileSync(join(dir, 'tips', 'data.json'), 'utf8'));
+  const want = { grammar: 2, vocab: 10, phrases: 6 };
+  console.log('tips');
+  for (const sec of t.sections) {
+    if (want[sec.id] !== sec.pages.length) bad('tips ' + sec.id + ' has ' + sec.pages.length + ' pages, expected ' + want[sec.id]);
+    for (const pg of sec.pages) {
+      const f = join(dir, 'tips', 'img', pg.img);
+      if (!existsSync(f) || statSync(f).size < 50_000) bad('tips picture missing or tiny: ' + pg.img);
+      if (!pg.cap) bad('tips page without a caption: ' + pg.img);
+    }
+  }
+  console.log('  ' + t.sections.map((x) => x.id + ' ' + x.pages.length).join(' · '));
+} else console.log('tips: not extracted (run tools/toeic/extract_tips.py)');
 console.log(problems ? '\n' + problems + ' problem(s)' : '\nall sets look complete');
 process.exit(problems ? 1 : 0);

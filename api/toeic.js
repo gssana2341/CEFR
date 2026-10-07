@@ -2,6 +2,7 @@
 //
 //   GET  /api/toeic                          → { available, sets:[{ id, title, parts:{ '1':{ q, audio } … } }] }   (names and counts only)
 //   GET  /api/toeic?set=1&part=3             → the part WITHOUT answers; pictures and audio come as links that expire (members only)
+//   GET  /api/toeic?op=tips                  → the Ebook pages (grammar tricks, 200 words, 120 phrases) as picture links (members only)
 //   GET  /api/toeic?op=media&p=…&t=…         → one picture / a slice of an audio file; the link itself is the credential, because an
 //                                              <img> or <audio> tag cannot send a sign-in header. A link is tied to one account, one
 //                                              file and about 25 minutes.
@@ -36,7 +37,7 @@ function notConfigured(res) {
 async function media(req, res, q) {
   if (req.headers['sec-fetch-site'] === 'cross-site') return send(res, 403, { error: 'forbidden' });     // no hot-linking from other sites
   const p = typeof q.p === 'string' ? q.p : '';
-  if (!/^s\d{1,2}\/(img|audio)\/[a-z0-9_\-]+\.(webp|mp3)$/i.test(p)) return send(res, 404, { error: 'not_found' });
+  if (!/^(s\d{1,2}|tips)\/(img|audio)\/[a-z0-9_\-]+\.(webp|mp3)$/i.test(p)) return send(res, 404, { error: 'not_found' });
   const uid = toeic.verifyMedia(p, q.t);
   if (!uid) return send(res, 403, { error: 'link_expired' });
   if (!store.configured()) return notConfigured(res);
@@ -106,6 +107,17 @@ async function getPart(req, res, q) {
   return send(res, 200, out);
 }
 
+async function getTips(req, res) {
+  if (!store.configured()) return notConfigured(res);
+  const ctx = await who(req);
+  const refused = deny(ctx, 'toeic');
+  if (refused) return send(res, refused.status, { error: refused.error, feature: 'toeic' });
+  const uid = ctx.user && ctx.user.uid;
+  if (await limited(req, 'toeic-tips-day', 60, { uid, windowMs: DAY })) return send(res, 429, { error: 'rate_limited' });
+  const out = await toeic.publicTips(uid || '');
+  return out ? send(res, 200, out) : send(res, 404, { error: 'not_found' });
+}
+
 async function check(req, res) {
   const body = await readJson(req);
   const set = body.set;
@@ -144,6 +156,7 @@ module.exports = async function handler(req, res) {
     if (req.method !== 'GET') return send(res, 405, { error: 'method_not_allowed' });
     const q = req.query || {};
     if (q.op === 'media') return await media(req, res, q);
+    if (q.op === 'tips') return await getTips(req, res);
     if (q.set !== undefined || q.part !== undefined) return await getPart(req, res, q);
     return send(res, 200, await toeic.listSets());
   } catch (e) {

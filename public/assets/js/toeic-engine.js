@@ -26,6 +26,7 @@
   const params = new URLSearchParams(location.search);
   const set = Number(params.get('set'));
   const part = Number(params.get('part'));
+  const tipsView = params.get('tips');                          // 'grammar' | 'vocab' | 'phrases' | '1' (first section)
   const lastKey = (s, p) => 'toeic:s' + s + 'p' + p + ':last';
 
   const mmss = (sec) => Math.floor(sec / 60) + ':' + String(Math.round(sec % 60)).padStart(2, '0');
@@ -36,6 +37,9 @@
     if (t) t.replaceChildren(title + ' ', h('span', { class: 'light', text: light || '' }));
     document.title = title + ' ' + (light || '') + ' — CEFR Quiz';
   };
+
+  // Media is shown, never offered: no right-click menu, no dragging (a deterrent, not a lock)
+  const guard = (el) => { el.addEventListener('contextmenu', (e) => e.preventDefault()); el.addEventListener('dragstart', (e) => e.preventDefault()); return el; };
 
   // ---------- errors ----------
   let retryOnSignIn = null;
@@ -87,6 +91,15 @@
           freeHref: 'index.html#toeic', freeText: 'กลับไปหน้า TOEIC',
         }));
       }
+      if (d.tips && d.tips.length) {
+        blocks.push(
+          h('div', { class: 'part-group' }, h('h2', { text: 'ทริกและเทคนิค' }), h('p', { class: 'meta', text: 'สรุปจาก Ebook เสริมคะแนน' })),
+          h('ul', { class: 'list-rows tiles' }, d.tips.map((t) => h('li', { class: 'acc-toeic' },
+            h('a', { class: 'list-row', href: 'toeic-test.html?tips=' + t.id },
+              h('span', { class: 'list-row-main' },
+                h('span', { class: 'list-row-title', text: t.title }),
+                h('span', { class: 'list-row-sub', text: t.sub + ' · ' + t.pages + ' หน้า' })))))));
+      }
       for (const s of d.sets) {
         const rows = Object.keys(PARTS).filter((p) => s.parts[p]).map((p) => {
           const info = s.parts[p];
@@ -109,6 +122,44 @@
     };
     draw();
     document.addEventListener('cefr:pass', draw);
+  }
+
+  // ---------- tips: the Ebook pages, shown as printed ----------
+  async function tips() {
+    setHead('TOEIC · ทริกและเทคนิค', 'ทริก', 'เสริมคะแนน TOEIC');
+    root.replaceChildren(h('p', { class: 'meta', text: 'กำลังโหลด…' }));
+    let d;
+    try { d = await api.call('GET', '/api/toeic?op=tips'); } catch (e) { return showError(e, tips); }
+    let current = d.sections.find((x) => x.id === tipsView) || d.sections[0];
+
+    const zoom = (src, cap) => {
+      const dlg = h('dialog', { class: 'dialog toeic-zoom', 'aria-label': cap || 'ภาพขยาย' },
+        h('div', { class: 'toeic-zoom-bar' },
+          h('span', { class: 'meta', text: cap || '' }),
+          h('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'ปิด', onclick: () => { dlg.close(); dlg.remove(); } })),
+        h('div', { class: 'toeic-zoom-body' }, guard(h('img', { class: 'toeic-zoom-img', src, alt: cap || '', draggable: 'false' }))));
+      dlg.addEventListener('cancel', () => dlg.remove());
+      dlg.addEventListener('click', (e) => { if (e.target === dlg) { dlg.close(); dlg.remove(); } });
+      document.body.append(dlg);
+      dlg.showModal();
+    };
+
+    const list = h('div', { class: 'toeic-tips' });
+    const chips = h('div', { class: 'chips', role: 'group', 'aria-label': 'เลือกเล่ม' });
+    const draw = () => {
+      chips.querySelectorAll('.chip').forEach((b, i) => b.setAttribute('aria-pressed', String(d.sections[i] === current)));
+      list.replaceChildren(
+        h('p', { class: 'lead', text: current.sub }),
+        ...current.pages.map((pg) => h('figure', { class: 'toeic-tip' },
+          h('figcaption', { class: 'q-no', text: pg.cap }),
+          guard(h('img', { class: 'toeic-passage', src: pg.src, alt: current.title + ' · ' + pg.cap, draggable: 'false', onclick: () => zoom(pg.src, pg.cap) })),
+          h('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'ขยายดู', onclick: () => zoom(pg.src, pg.cap) }))));
+    };
+    d.sections.forEach((sec) => chips.append(h('button', { class: 'chip', type: 'button', text: sec.title, onclick: () => { current = sec; draw(); } })));
+    root.replaceChildren(
+      h('div', { class: 'toeic-nav' }, h('a', { class: 'btn btn-outline btn-sm', href: 'toeic-test.html', text: '← ชุดข้อสอบ' })),
+      chips, list);
+    draw();
   }
 
   // ---------- one Part ----------
@@ -143,8 +194,6 @@
     const summary = h('div', { class: 'toeic-summary' });
     const submitBtn = h('button', { class: 'btn', type: 'button', text: 'ส่งคำตอบ', onclick: submit });
 
-    // Media is shown, never offered: no download button, no right-click menu, no dragging (a deterrent, not a lock)
-    const guard = (el) => { el.addEventListener('contextmenu', (e) => e.preventDefault()); el.addEventListener('dragstart', (e) => e.preventDefault()); return el; };
     const picture = (src, cls, alt) => guard(h('img', { class: cls, src, alt, draggable: 'false', decoding: 'async' }));
 
     // ---------- audio (Parts 1-4) ----------
@@ -364,5 +413,5 @@
     }
   }
 
-  (part ? openPart : home)();
+  (tipsView ? tips : part ? openPart : home)();
 })();

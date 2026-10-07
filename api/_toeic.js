@@ -87,7 +87,34 @@ async function listSets() {
     }
     sets.push({ id: d.id, title: d.title, parts });
   }
-  return { available: sets.length > 0, sets };
+  return { available: sets.length > 0, sets, tips: await listTips() };
+}
+
+// ---------- tips (the Ebook pages: grammar tricks, vocabulary, phrases) - pictures of the printed pages ----------
+async function loadTips() {
+  try {
+    return await store.getJson('tips/data.json');
+  } catch (e) {
+    if (e.code === 'not_found') return null;
+    throw e;
+  }
+}
+
+// names and page counts only
+async function listTips() {
+  const t = await loadTips();
+  return t ? t.sections.map((s) => ({ id: s.id, title: s.title, sub: s.sub, pages: s.pages.length })) : [];
+}
+
+async function publicTips(uid) {
+  const t = await loadTips();
+  if (!t) return null;
+  return {
+    sections: t.sections.map((s) => ({
+      id: s.id, title: s.title, sub: s.sub,
+      pages: s.pages.map((pg) => ({ src: mediaUrl(uid, 'tips/img/' + pg.img), cap: pg.cap })),
+    })),
+  };
 }
 
 // one part as a browser may see it: no answers, no explanations, pictures and audio as short-lived links
@@ -121,4 +148,4 @@ function itemMap(data, partNo) {
   return new Map(itemsOf(data.parts[partNo]).map((it) => [it.n, it]));
 }
 
-module.exports = { validSet, validPart, signMedia, verifyMedia, mediaUrl, loadSet, listSets, publicPart, itemMap, itemsOf, MEDIA_TTL, PARTS };
+module.exports = { validSet, validPart, signMedia, verifyMedia, mediaUrl, loadSet, listSets, publicPart, publicTips, itemMap, itemsOf, MEDIA_TTL, PARTS };

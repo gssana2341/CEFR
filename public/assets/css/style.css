@@ -1420,3 +1420,13 @@ body.focus .container { padding-top: clamp(32px, calc(50vh - 190px), 300px); }
 .toeic-ans.bad { color: var(--bad); }
 .toeic-expl { display: block; margin-top: 4px; color: var(--muted); }
 .toeic-result { margin: 0 0 20px; }
+
+/* TOEIC tips (ebook pages) */
+.toeic-tips { margin-top: 18px; }
+.toeic-tip { margin: 0 0 28px; }
+.toeic-tip .toeic-passage { cursor: zoom-in; width: 100%; }
+.toeic-tip .btn { margin-top: 10px; }
+dialog.toeic-zoom { width: min(96vw, 1100px); max-width: none; max-height: 94vh; padding: 12px; }
+.toeic-zoom-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.toeic-zoom-body { overflow: auto; max-height: calc(94vh - 80px); }
+.toeic-zoom-img { display: block; width: 100%; min-width: 760px; height: auto; background: #fff; -webkit-user-drag: none; user-select: none; }

@@ -319,6 +319,14 @@
     .then((d) => { if (d && d.available && d.sets && d.sets.length) { book = d.sets.length; refreshTabs(); } })
     .catch(() => { /* offline: the rows simply stay "coming soon" */ });
 
+  // a tips row: a real link once the book is on the server, otherwise "coming soon"
+  function tipRow(id, title, sub) {
+    const pass = window.CEFR.pass;
+    const locked = pass && pass.members('toeic') && !pass.active();
+    return book ? listRow('toeic-test.html?tips=' + id, title, null, sub, locked ? 'สมาชิก' : 'เปิดแล้ว', 'toeic', !locked)
+      : listRow(null, title, null, sub, 'เร็วๆ นี้', 'toeic');
+  }
+
   function toeicPanel() {
     const tile = (big, small) => h('div', { class: 'stat-tile' }, h('strong', { text: big }), h('span', { text: small }));
     const partRow = (p) => {
@@ -353,8 +361,9 @@
       h('div', { class: 'part-group' }, h('h2', { text: 'เรียนเพื่อ TOEIC' })),
       h('ul', { class: 'list-rows tiles' },
         listRow('index.html#learn', 'ไวยากรณ์ที่ออกบ่อย', null, 'tense, preposition, word form — ใช้บทเรียนในแท็บเรียนได้เลย', 'ไปที่บทเรียน', 'toeic', true),
-        listRow(null, 'กลยุทธ์ทำแต่ละ Part', null, 'เทคนิคและกับดักที่พบบ่อย', 'เร็วๆ นี้', 'toeic'),
-        listRow(null, 'ศัพท์ธุรกิจที่ออกบ่อย', null, 'จัดตามหัวข้อ: สำนักงาน การเงิน การเดินทาง', 'เร็วๆ นี้', 'toeic')));
+        tipRow('grammar', 'แกรมมาร์ 5 เรื่องที่ออกบ่อย', 'สูตร วิธีดู และตัวอย่างข้อสอบ'),
+        tipRow('vocab', 'ศัพท์ TOEIC 200 คำ 20 หมวด', 'จัดตามหัวข้อ: อาหาร โรงพยาบาล สนามบิน การประชุม'),
+        tipRow('phrases', '120 วลีที่ออกสอบและใช้ทำงานจริง', 'ประโยคพร้อมคำแปล 6 หมวดงานออฟฟิศ')));
   }
 
   // ---------- Tabs ----------

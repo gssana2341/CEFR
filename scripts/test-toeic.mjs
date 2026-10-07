@@ -78,6 +78,9 @@ for (const id of [1, 2, 3]) {
   mk('s' + id + '/audio/part1.mp3', AUDIO);
 }
 mk('index.json', JSON.stringify({ sets: [{ id: 1 }, { id: 2 }, { id: 3 }] }));
+mk('tips/data.json', JSON.stringify({ sections: [{ id: 'grammar', title: 'Grammar tips', sub: 'sub', pages: [{ img: 'g1.webp', cap: 'page 1' }, { img: 'g2.webp', cap: 'page 2' }] }] }));
+mk('tips/img/g1.webp', IMG);
+mk('tips/img/g2.webp', IMG);
 mk('secret.txt', 'outside of the store tree? no - inside the dir, but not a valid media path');
 
 const KEYS_THAT_LEAK = ['a', 'e', 'answer', 'key'];
@@ -105,6 +108,25 @@ await test('the menu lists sets and counts, never questions', async () => {
   assert.equal(r.json.sets.length, 3);
   assert.equal(r.json.sets[0].parts['7'].q, 2);
   assert.ok(!JSON.stringify(r.json).includes('stem'));
+});
+
+await test('tips: names in the menu, pictures only for members, links work and nothing else under tips/ can be fetched', async () => {
+  const menu = await call();
+  assert.deepEqual(menu.json.tips.map((t) => [t.id, t.pages]), [['grammar', 2]]);
+  assert.ok(!JSON.stringify(menu.json.tips).includes('/api/toeic'), 'no links in the menu');
+  assert.equal((await call({ query: { op: 'tips' } })).code, 401);
+  assert.equal((await call({ query: { op: 'tips' }, token: FREE })).code, 402);
+  const r = await call({ query: { op: 'tips' }, token: MEMBER });
+  assert.equal(r.code, 200);
+  assert.deepEqual(leaks(r.json), []);
+  assert.equal(r.json.sections[0].pages.length, 2);
+  const img = await call({ query: Object.fromEntries(new URL(r.json.sections[0].pages[0].src, 'http://x').searchParams) });
+  assert.equal(img.code, 200);
+  assert.ok(Buffer.compare(img.buf, IMG) === 0);
+  for (const p of ['tips/data.json', 'tips/img/../data.json', 'tips/audio/x.mp3', 'tips/img/g1.png', 'tipsx/img/g1.webp']) {
+    const m = await call({ query: { op: 'media', p, t: toeic.signMedia('member-user', p) } });
+    assert.ok([403, 404].includes(m.code) && !m.buf, p + ' → ' + m.code);
+  }
 });
 
 await test('a part needs a sign-in (401) and a membership (402)', async () => {
