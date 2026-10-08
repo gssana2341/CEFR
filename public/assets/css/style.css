@@ -1475,3 +1475,8 @@ dialog.toeic-zoom { width: min(96vw, 1100px); max-width: none; max-height: 94vh;
 .toeic-step-nav { display: grid; gap: 10px; margin-top: 22px; }
 .toeic-step .toeic-group { border-top: 0; padding-top: 0; margin-top: 0; }
 .toeic-expl { white-space: pre-line; }
+
+/* TOEIC pages are long (a whole Part, a passage with its pictures): the question-in-the-middle-of-the-screen spacing of the one-question
+   quiz pages pushed them far down, so they start at the top in focus mode. The exam room uses the wide column (answer sheet beside the questions). */
+body.toeic-page.focus .container { padding-top: 12px; }
+body.toeic-page .toeic-exam-bar { top: 0; }
