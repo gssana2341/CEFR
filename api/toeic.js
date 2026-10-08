@@ -13,7 +13,7 @@
 'use strict';
 const { send, readJson, rateLimited } = require('./_pay');
 const { limited } = require('./_ratelimit');
-const { who, deny, members } = require('./_entitlements');
+const { who, deny, members, toeicGate } = require('./_entitlements');
 const { seenToday, strike } = require('./_abuse');
 const { stampText } = require('./_watermark');
 const store = require('./_toeic_store');
@@ -162,7 +162,12 @@ module.exports = async function handler(req, res) {
     if (q.op === 'media') return await media(req, res, q);
     if (q.op === 'tips') return await getTips(req, res);
     if (q.set !== undefined || q.part !== undefined) return await getPart(req, res, q);
-    return send(res, 200, await toeic.listSets());
+    // the menu is only shown to those who may open the sets (others see "coming soon")
+    const ctx = await who(req);
+    const gate = toeicGate(ctx);
+    if (gate.status) return send(res, 200, { available: false, sets: [], tips: [] });
+    const list = await toeic.listSets();
+    return send(res, 200, gate.rule === 'invited' ? { ...list, beta: true } : list);
   } catch (e) {
     console.error('[toeic] failed:', e.message);
     return send(res, 502, { error: 'server_error' });

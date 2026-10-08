@@ -315,13 +315,21 @@
   ];
 
   // Are the book sets (served by /api/toeic) there? Asked once; the tab is rebuilt when the answer arrives.
-  let book = { sets: [], tips: [] };
-  fetch('/api/toeic', { cache: 'no-store', signal: AbortSignal.timeout(6000) })
-    .then((r) => (r.ok ? r.json() : null))
-    .then((d) => { if (d && d.available && d.sets && d.sets.length) { book = { sets: d.sets.map((x) => x.id), tips: d.tips || [] }; refreshTabs(); } })
-    .catch(() => { /* offline: the rows simply stay "coming soon" */ });
+  let book = { sets: [], tips: [], beta: false };
+  function loadBook() {
+    const call = window.CEFR.content && window.CEFR.content.call;
+    if (!call) return;
+    call('GET', '/api/toeic')
+      .then((d) => {
+        const next = d && d.available && d.sets && d.sets.length ? { sets: d.sets.map((x) => x.id), tips: d.tips || [], beta: Boolean(d.beta) } : { sets: [], tips: [], beta: false };
+        if (JSON.stringify(next) !== JSON.stringify(book)) { book = next; refreshTabs(); }
+      })
+      .catch(() => { /* offline: the rows simply stay "coming soon" */ });
+  }
+  loadBook();
+  document.addEventListener('cefr:auth', loadBook);          // the sets are shown only to those who may open them: ask again once signed in
   const bookOn = () => book.sets.length > 0;
-  const bookLocked = () => { const pass = window.CEFR.pass; return Boolean(pass && pass.members('toeic') && !pass.active()); };
+  const bookLocked = () => { const pass = window.CEFR.pass; return !book.beta && Boolean(pass && pass.members('toeic') && !pass.active()); };
 
   const tipRow = (id, title, sub) => (bookOn() && book.tips.some((t) => t.id === id)
     ? listRow('toeic-test.html?tips=' + id, title, null, sub, bookLocked() ? 'สมาชิก' : 'เปิดแล้ว', 'toeic', !bookLocked())

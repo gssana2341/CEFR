@@ -56,7 +56,9 @@
       }));
       return;
     }
-    const msg = e.code === 'account_blocked' ? 'บัญชีนี้ถูกระงับการเข้าถึงเนื้อหาสำหรับสมาชิกชั่วคราว เพราะมีการดึงเนื้อหาผิดปกติ หากเข้าใจผิด กรุณาติดต่อผู้ดูแล'
+    const msg = e.code === 'not_invited' ? 'ตอนนี้ชุดข้อสอบนี้เปิดให้เฉพาะผู้ทดสอบที่ได้รับเชิญ (ต้องเข้าสู่ระบบด้วยอีเมลที่ได้รับเชิญ)'
+      : e.code === 'not_open' ? 'ชุดข้อสอบนี้ยังไม่เปิดให้ใช้งาน'
+        : e.code === 'account_blocked' ? 'บัญชีนี้ถูกระงับการเข้าถึงเนื้อหาสำหรับสมาชิกชั่วคราว เพราะมีการดึงเนื้อหาผิดปกติ หากเข้าใจผิด กรุณาติดต่อผู้ดูแล'
       : e.code === 'daily_limit' ? 'วันนี้เปิดครบโควตาแล้ว (ได้ไม่เกิน 14 Part ต่อวัน Part ที่เปิดไปแล้วเปิดซ้ำได้) กลับมาใหม่พรุ่งนี้'
         : e.status === 429 ? 'เปิดหรือตอบเร็วเกินไป รอสักครู่แล้วลองใหม่'
           : e.status === 503 ? 'ชุดข้อสอบนี้ยังไม่เปิดให้ใช้งาน'
@@ -81,7 +83,7 @@
         h('a', { class: 'btn btn-outline', href: 'index.html#toeic', text: 'กลับหน้า TOEIC' })));
       return;
     }
-    const locked = () => pass && pass.members('toeic') && !pass.active();
+    const locked = () => !d.beta && pass && pass.members('toeic') && !pass.active();       // invited testers need no membership
     const draw = () => {
       const blocks = [];
       if (locked()) {
@@ -132,7 +134,7 @@
     root.replaceChildren(h('p', { class: 'meta', text: 'กำลังโหลด…' }));
     let d;
     try { d = await api.call('GET', '/api/toeic'); } catch (e) { return showError(e, partMenu); }
-    const locked = () => pass && pass.members('toeic') && !pass.active();
+    const locked = () => !d.beta && pass && pass.members('toeic') && !pass.active();       // invited testers need no membership
     const rows = (d.sets || []).filter((s) => s.parts[part]).map((s) => {
       const i = s.parts[part];
       const last = store.get(lastKey(s.id, part), null);

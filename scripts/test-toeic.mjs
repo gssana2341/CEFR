@@ -338,6 +338,7 @@ for (const honour of [true, false]) {
     delete process.env.TOEIC_DIR;
     process.env.SUPABASE_URL = fake.url + '/';
     process.env.SUPABASE_SERVICE_KEY = 'svc-key';
+    process.env.TOEIC_ALLOWED_EMAILS = '*';                    // no folder = not a developer machine: open the sets to members for this test
     store.clearCache();
     try {
       assert.equal(store.which(), 'supabase');
@@ -360,11 +361,87 @@ for (const honour of [true, false]) {
       fake.server.close();
       delete process.env.SUPABASE_URL;
       delete process.env.SUPABASE_SERVICE_KEY;
+      delete process.env.TOEIC_ALLOWED_EMAILS;
       process.env.TOEIC_DIR = dir;
       store.clearCache();
     }
   });
 }
+
+// ---------- closed beta: only the invited addresses (TOEIC_ALLOWED_EMAILS) ----------
+await test('closed beta: nobody when the list is empty; only the invited, verified addresses when it is set; "*" = the membership rule', async () => {
+  const fake = await fakeSupabase(true);
+  delete process.env.TOEIC_DIR;
+  process.env.SUPABASE_URL = fake.url;
+  process.env.SUPABASE_SERVICE_KEY = 'svc-key';
+  store.clearCache();
+  const INVITED = 'mock-tester1.Tester.One@Example.com';          // the address is compared in lower case
+  const OTHER = 'mock-tester2.someone.else@example.com';
+  const NOEMAIL = 'mock-member-user';                             // a member, but not on the list
+  const get = (token, q) => call({ query: q || { set: '1', part: '5' }, token });
+  try {
+    // 1. list unset: nothing opens, not even for a paying member, and the menu says "not available"
+    delete process.env.TOEIC_ALLOWED_EMAILS;
+    for (const t of [INVITED, NOEMAIL, undefined]) assert.equal((await get(t)).code, t ? 403 : 403, 'closed for ' + t);
+    assert.equal((await get(NOEMAIL)).json.error, 'not_open');
+    assert.equal((await call({ token: INVITED })).json.available, false);
+    assert.equal((await call({ method: 'POST', token: INVITED, body: { op: 'check', set: 1, part: 5, items: [{ n: 101, pick: 0 }] } })).code, 403);
+    assert.equal((await get(INVITED, { op: 'tips' })).code, 403);
+
+    // 2. a list: the invited address works with no membership at all
+    process.env.TOEIC_ALLOWED_EMAILS = 'tester.one@example.com, friend@example.com';
+    assert.equal((await get(undefined)).code, 401, 'signed out is asked to sign in');
+    assert.equal((await get(OTHER)).code, 403);
+    assert.equal((await get(OTHER)).json.error, 'not_invited');
+    assert.equal((await get(NOEMAIL)).json.error, 'not_invited', 'a paying member that is not on the list is refused');
+    const ok = await get(INVITED);
+    assert.equal(ok.code, 200);
+    assert.deepEqual(leaks(ok.json), []);
+    const menu = await call({ token: INVITED });
+    assert.equal(menu.json.available, true);
+    assert.equal(menu.json.beta, true);
+    assert.equal((await call({ token: OTHER })).json.available, false, 'others see "coming soon"');
+    assert.equal((await call({})).json.available, false, 'signed-out visitors too');
+    assert.equal((await call({ method: 'POST', token: INVITED, body: { op: 'check', set: 1, part: 5, items: [{ n: 101, pick: 0 }] } })).code, 200);
+    assert.equal((await call({ method: 'POST', token: OTHER, body: { op: 'check', set: 1, part: 5, items: [{ n: 101, pick: 0 }] } })).code, 403);
+    assert.equal((await get(INVITED, { op: 'tips' })).code, 200);
+    assert.equal((await get(OTHER, { op: 'tips' })).code, 403);
+
+    // 3. "*": the normal rule (members)
+    process.env.TOEIC_ALLOWED_EMAILS = '*';
+    assert.equal((await get(NOEMAIL)).code, 200);
+    assert.equal((await get(FREE)).code, 402);
+    assert.equal((await call({ token: NOEMAIL })).json.beta, undefined);
+  } finally {
+    delete process.env.TOEIC_ALLOWED_EMAILS;
+    fake.server.close();
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_KEY;
+    process.env.TOEIC_DIR = dir;
+    store.clearCache();
+  }
+});
+
+await test('the invite check itself: needs a verified address, a blocked account stays out, the match is not a substring', () => {
+  const { toeicGate } = require('../api/_entitlements.js');
+  const saved = process.env.TOEIC_DIR;
+  delete process.env.TOEIC_DIR;
+  process.env.TOEIC_ALLOWED_EMAILS = 'a@x.com';
+  try {
+    const user = (email, verified = true) => ({ user: { uid: 'u', email, verified }, blocked: false });
+    assert.equal(toeicGate(user('a@x.com')).rule, 'invited');
+    assert.equal(toeicGate(user('A@X.COM')).rule, 'invited');
+    assert.equal(toeicGate(user('a@x.com', false)).error, 'not_invited', 'an unverified address does not count');
+    assert.equal(toeicGate(user('xa@x.com')).error, 'not_invited');
+    assert.equal(toeicGate(user('a@x.com.evil.org')).error, 'not_invited');
+    assert.equal(toeicGate(user(null)).error, 'not_invited');
+    assert.equal(toeicGate({ user: { uid: 'u', email: 'a@x.com', verified: true }, blocked: true }).error, 'account_blocked');
+    assert.equal(toeicGate({ user: null }).status, 401);
+  } finally {
+    delete process.env.TOEIC_ALLOWED_EMAILS;
+    process.env.TOEIC_DIR = saved;
+  }
+});
 
 rmSync(dir, { recursive: true, force: true });
 console.log(failed ? '\n' + failed + ' failed' : '\nall passed');

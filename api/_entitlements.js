@@ -21,6 +21,25 @@ const PREMIUM = {
   lessonLevels: ['A2', 'B1', 'B2'],                 // A1 lessons are free
 };
 
+// ---------- closed beta of the TOEIC book sets ----------
+// TOEIC_ALLOWED_EMAILS (a server environment variable, so no address is in the public repository):
+//   unset / empty   nobody (the sets are not open yet)      "a@x.com, b@y.com"   only these accounts, no membership needed
+//   "*"             everybody the normal membership rule lets in
+// The account must be signed in with a verified address. On a developer machine reading from a folder (TOEIC_DIR) the normal rule applies.
+// → { rule: 'members' } | { rule: 'invited' } | { status, error }
+function toeicGate(ctx) {
+  if (process.env.TOEIC_DIR && !process.env.VERCEL && !process.env.VERCEL_ENV) return { rule: 'members' };
+  const raw = String(process.env.TOEIC_ALLOWED_EMAILS || '').trim();
+  if (raw === '*') return { rule: 'members' };
+  const list = raw.split(/[\s,;]+/).map((x) => x.toLowerCase()).filter(Boolean);
+  if (!list.length) return { status: 403, error: 'not_open' };
+  if (!ctx.user) return { status: 401, error: 'login_required' };
+  const email = String(ctx.user.email || '').toLowerCase();
+  if (!email || !ctx.user.verified || !list.includes(email)) return { status: 403, error: 'not_invited' };
+  if (ctx.blocked) return { status: 403, error: 'account_blocked' };
+  return { rule: 'invited' };
+}
+
 // does this feature need a membership?
 function members(feature) {
   if (!BILLING_ENABLED) return false;
@@ -46,6 +65,11 @@ async function who(req) {
 
 // → null when allowed, otherwise { status, error } to send back
 function deny(ctx, feature) {
+  if (feature === 'toeic') {
+    const g = toeicGate(ctx);
+    if (g.status) return { status: g.status, error: g.error, feature };
+    if (g.rule === 'invited') return null;
+  }
   if (!members(feature)) return null;
   if (ctx.blocked) return { status: 403, error: 'account_blocked', feature };
   if (ctx.active) return null;
@@ -81,4 +105,4 @@ async function clueFor(ctx, ann, bank, key) {
   }
 }
 
-module.exports = { BILLING_ENABLED, PREMIUM, members, who, deny, clueFor };
+module.exports = { BILLING_ENABLED, PREMIUM, members, who, deny, clueFor, toeicGate };
