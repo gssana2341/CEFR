@@ -285,7 +285,7 @@ push เข้า `main` = deploy production อัตโนมัติ · bran
 3. **อัปโหลด** ไป Supabase Storage (bucket ส่วนตัว สร้างให้เอง): ตั้ง `SUPABASE_URL` กับ `SUPABASE_SERVICE_KEY` (คีย์ `service_role`) ใน `.env` แล้ว `npm run toeic:upload` · แล้วตั้งสองตัวนี้ใน Vercel (Production) ด้วยเพื่อให้ API อ่านได้ (ไม่ต้องใส่ `NEXT_PUBLIC_`/ห้ามใส่ในหน้าเว็บ) · อยากย้ายไปที่เก็บอื่น (Cloudflare R2, Firebase Storage) แก้ที่ `api/_toeic_store.js` ไฟล์เดียว
 3b. **ทริก (Ebook เสริมคะแนน)**: `python tools/toeic/extract_tips.py --src "C:/…/Toeic" --out build/toeic` เก็บหน้าเนื้อหาของ 3 เล่ม (แกรมมาร์ 5 เรื่อง 2 หน้า · ศัพท์ 200 คำ 10 หน้า · วลี 120 ข้อ 6 หน้า) เป็นรูปตามที่พิมพ์ (ข้ามปกและหน้าโฆษณา) เพราะภาษาไทยในไฟล์ดึงเป็นข้อความไม่ได้ ไม่มีอะไรถูกพิมพ์ซ้ำจึงไม่มีคำแปลผิด · `npm run toeic:upload` ส่งไปพร้อมกับชุดข้อสอบ · เปิดที่ `toeic-test.html?tips=grammar|vocab|phrases` (สมาชิกเท่านั้น)
 4. **ทดสอบทั้งระบบกับของจริง**: `node tools/toeic/e2e.mjs` เดินผ่าน endpoint จริงทุก Part (โหลดได้ ข้อครบเรียงเลข ไม่มีเฉลยหลุด รูปทุกลิงก์ได้ไฟล์จริง เสียงประกอบกลับเป็นไฟล์เดิมทุก byte เฉลยตรงกับ data.json) แล้วสรุปเป็นตาราง
-5. **ในเครื่อง**: `TOEIC_DIR=build/toeic PAY_MODE=mock npm run dev` อ่านจากโฟลเดอร์ตรงๆ (ไม่ทำงานบน Vercel)
+5. **ดูในเครื่อง (ไม่ต้องมี Supabase / Stripe / ล็อกอิน)**: `npm run dev:toeic` แล้วเปิด http://localhost:3000/#toeic · อ่านข้อมูลจาก `build/toeic` ล็อกอินเป็นสมาชิกจำลองให้ (มีป้ายสีส้ม "โหมดดูในเครื่อง" มุมขวาล่าง) ฐานข้อมูลอยู่ในหน่วยความจำ รีสตาร์ทแล้วตัวนับโควตารายวันเริ่มใหม่ · ใช้บน Vercel ไม่ได้
 
 ใครเปิดได้: สมาชิกเท่านั้น (`toeic` ใน `api/_entitlements.js` กับ `billing.js`) · ยังไม่อัปโหลด = API ตอบ "ยังไม่เปิดให้ใช้งาน" และหน้า TOEIC ยังโชว์ "เร็วๆ นี้" · ใน PDF ไม่มีคำอธิบายเฉลย มีแต่คำตอบ (ถ้าเพิ่ม `e` ต่อข้อใน `data.json` ระบบแสดงให้เอง)
 

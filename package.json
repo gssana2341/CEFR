@@ -9,7 +9,8 @@
     "test": "node scripts/test.mjs",
     "manifest": "node scripts/build-manifest.mjs",
     "toeic:validate": "node tools/toeic/validate.mjs",
-    "toeic:upload": "node tools/toeic/upload.mjs"
+    "toeic:upload": "node tools/toeic/upload.mjs",
+    "dev:toeic": "node scripts/dev-toeic.mjs"
   },
   "dependencies": {
     "firebase-admin": "^11.11.1",
