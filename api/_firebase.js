@@ -50,7 +50,10 @@ async function verifyAuth(req, opts) {
   if (!hdr.startsWith('Bearer ')) return null;
   const idToken = hdr.slice(7);
   if (!idToken || idToken.length > 4000) return null;
-  if (useMem) return /^mock-[A-Za-z0-9_-]{1,100}$/.test(idToken) ? { uid: idToken.slice(5), email: null, verified: true } : null;
+  if (useMem) {                                    // "mock-<uid>" or "mock-<uid>.<e-mail>" (local tests of the invite list)
+    const m = /^mock-([A-Za-z0-9_-]{1,100})(?:\.([A-Za-z0-9_.+-]{1,64}@[A-Za-z0-9.-]{1,100}))?$/.exec(idToken);
+    return m ? { uid: m[1], email: m[2] || null, verified: true } : null;
+  }
   try {
     const decoded = await getAuth().verifyIdToken(idToken, Boolean(opts && opts.checkRevoked));
     const google = decoded.firebase && decoded.firebase.sign_in_provider === 'google.com';

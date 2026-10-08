@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 let failed = false;
-for (const file of ['test-claims.mjs', 'test-sync.mjs', 'test-api.mjs']) {
+for (const file of ['test-claims.mjs', 'test-sync.mjs', 'test-api.mjs', 'test-toeic.mjs']) {
   console.log('\n— ' + file);
   const r = spawnSync(process.execPath, [join(here, file)], { stdio: 'inherit' });
   if (r.status !== 0) failed = true;

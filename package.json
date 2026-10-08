@@ -7,7 +7,11 @@
     "dev": "node scripts/dev-server.mjs",
     "validate": "node scripts/validate-data.mjs",
     "test": "node scripts/test.mjs",
-    "manifest": "node scripts/build-manifest.mjs"
+    "manifest": "node scripts/build-manifest.mjs",
+    "toeic:validate": "node tools/toeic/validate.mjs",
+    "toeic:upload": "node tools/toeic/upload.mjs",
+    "dev:toeic": "node scripts/dev-toeic.mjs",
+    "toeic:prepare": "node tools/toeic/segment.mjs && node tools/toeic/merge_notes.mjs && node tools/toeic/validate.mjs"
   },
   "dependencies": {
     "firebase-admin": "^11.11.1",

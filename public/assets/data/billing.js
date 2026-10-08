@@ -11,6 +11,7 @@ window.CEFR_DATA.billing = {
   enabled: true,
   premium: {
     exam: true,                                          // สอบจำลอง
+    toeic: true,                                         // ชุดข้อสอบ TOEIC เต็มชุด (Part 1–7)
     markup: true,                                        // เส้นโยงบนประโยค + การ์ด tense
     markupFreePerDay: 3,                                 // ...แต่ทุกคนดูฟรีได้วันละกี่ข้อ (ตัวอย่างให้ลองก่อนซื้อ)
     practice: ['conversations', 'cloze', 'extra'],       // ชุดฝึกที่ต้องเป็นสมาชิก (Grammar ฟรี)

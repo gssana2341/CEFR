@@ -10,6 +10,27 @@ const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PUBLIC = join(ROOT, 'public');
 const config = JSON.parse(readFileSync(join(ROOT, 'vercel.json'), 'utf8'));
 
+// DEV_MOCK_MEMBER=1 (with PAY_MODE=mock; see scripts/dev-toeic.mjs): the pages are served without the Firebase sign-in and with a
+// pretend signed-in member instead, so everything behind a membership can be looked at locally. Can never be on at Vercel.
+const MOCK_MEMBER = process.env.DEV_MOCK_MEMBER === '1' && process.env.PAY_MODE === 'mock' && !process.env.VERCEL && !process.env.VERCEL_ENV;
+const MOCK_AUTH_JS = `// local preview only: a pretend signed-in member (one account per TOEIC set, so the daily Part cap is not hit while browsing)
+(function () {
+  var set = Number(new URLSearchParams(location.search).get('set')) || 0;
+  var uid = set ? 'dev-set' + set : 'dev-member';
+  window.CEFR.auth = { ready: Promise.resolve(), user: function () { return { uid: uid, displayName: 'สมาชิกจำลอง', email: null }; }, getToken: function () { return Promise.resolve('mock-' + uid); }, showLogin: function () {} };
+  var tag = document.createElement('div');
+  tag.textContent = 'โหมดดูในเครื่อง · สมาชิกจำลอง';
+  tag.style.cssText = 'position:fixed;right:10px;bottom:10px;z-index:99;padding:4px 10px;border-radius:999px;background:#b45309;color:#fff;font:12px/1.4 system-ui;opacity:.85;pointer-events:none';
+  document.addEventListener('DOMContentLoaded', function () { document.body.append(tag); });
+})();
+`;
+function mockMemberHtml(html) {
+  return html
+    .replace(/<script[^>]*firebasejs[^>]*><\/script>\s*/g, '')
+    .replace(/<script src="assets\/js\/(firebase-init|auth)\.js"><\/script>\s*/g, '')
+    .replace('<script src="assets/js/common.js"></script>', '<script src="assets/js/common.js"></script>\n  <script src="_dev-auth.js"></script>');
+}
+
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -59,6 +80,11 @@ const server = http.createServer(async (req, res) => {
       return res.end();
     }
 
+    if (MOCK_MEMBER && path === '/_dev-auth.js') {
+      res.writeHead(200, { 'Content-Type': TYPES['.js'], ...configHeaders(path) });
+      return res.end(MOCK_AUTH_JS);
+    }
+
     let file = join(PUBLIC, path === '/' ? 'index.html' : path);
     if (!file.startsWith(PUBLIC + sep) && file !== PUBLIC) { res.writeHead(403); return res.end('Forbidden'); }
     if ((!existsSync(file) || statSync(file).isDirectory()) && existsSync(file + '.html')) file += '.html';
@@ -68,7 +94,7 @@ const server = http.createServer(async (req, res) => {
       return res.end(readFileSync(join(PUBLIC, '404.html')));
     }
     res.writeHead(200, { 'Content-Type': TYPES[extname(file)] || 'application/octet-stream', ...configHeaders(path) });
-    res.end(readFileSync(file));
+    res.end(MOCK_MEMBER && extname(file) === '.html' ? mockMemberHtml(readFileSync(file, 'utf8')) : readFileSync(file));
   } catch (e) {
     console.error(e);
     if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });

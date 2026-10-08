@@ -1392,3 +1392,91 @@ body.focus .container { padding-top: clamp(32px, calc(50vh - 190px), 300px); }
 @keyframes fadeNudge { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
 .ladder-meta { margin-top: 16px; }
 @media (max-width: 480px) { .ladder { padding: 14px 14px 16px; } .ladder-here { font-size: 0.62rem; padding: 1px 6px; } .ladder-dot { width: 18px; height: 18px; } .ladder-step::before { top: 9px; } }
+
+/* ---------- TOEIC full test sets ---------- */
+.toeic-head { margin-bottom: 20px; }
+.toeic-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.toeic-audio { margin: 4px 0 16px; }
+.toeic-audio audio { display: block; width: 100%; margin: 8px 0 6px; }
+.toeic-head .progress { margin: 14px 0 8px; }
+.toeic-submit { margin-top: 14px; }
+.toeic-group { border-top: 1px solid var(--border); padding: 22px 0 6px; margin-top: 22px; }
+.toeic-group-title { margin: 0 0 14px; font-size: 1rem; color: var(--acc-toeic, var(--fg)); }
+.toeic-pass { display: grid; gap: 10px; margin-bottom: 18px; }
+.toeic-passage, .toeic-photo {
+  display: block; max-width: 100%; height: auto; background: #fff;
+  border: 1px solid var(--border); border-radius: 10px;
+  -webkit-user-drag: none; user-select: none; -webkit-user-select: none;
+}
+.toeic-photo { margin: 6px 0 14px; max-height: 420px; width: auto; }
+.toeic-q { padding: 16px 0 22px; }
+.toeic-q + .toeic-q { border-top: 1px dashed var(--border); }
+.q-no { margin: 0 0 8px; color: var(--acc, var(--muted)); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.04em; }
+.toeic-q .question { margin-bottom: 16px; }
+.choices.letters { grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); }
+.choices.letters .choice { justify-content: center; }
+.toeic-ans { margin: 12px 0 0; min-height: 1.2em; }
+.toeic-ans.ok { color: var(--ok); }
+.toeic-ans.bad { color: var(--bad); }
+.toeic-expl { display: block; margin-top: 4px; color: var(--muted); }
+.toeic-result { margin: 0 0 20px; }
+
+/* TOEIC tips (ebook pages) */
+.toeic-tips { margin-top: 18px; }
+.toeic-tip { margin: 0 0 28px; }
+.toeic-tip .toeic-passage { cursor: zoom-in; width: 100%; }
+.toeic-tip .btn { margin-top: 10px; }
+dialog.toeic-zoom { width: min(96vw, 1100px); max-width: none; max-height: 94vh; padding: 12px; }
+.toeic-zoom-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.toeic-zoom-body { overflow: auto; max-height: calc(94vh - 80px); }
+.toeic-zoom-img { display: block; width: 100%; min-width: 760px; height: auto; background: #fff; -webkit-user-drag: none; user-select: none; }
+
+/* TOEIC exam room */
+.toeic-intro .toeic-rules { margin: 14px 0 0; padding-left: 1.2em; color: var(--muted); line-height: 1.8; }
+.toeic-exam-bar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 0; margin-bottom: 14px; background: var(--bg); border-bottom: 1px solid var(--border); }
+.toeic-exam-bar .progress { flex: 1; min-width: 80px; margin: 0; }
+.toeic-bar-title { font-weight: 600; color: var(--acc-toeic, var(--fg)); }
+.toeic-bar-label { color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.toeic-timer { margin-left: auto; font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.toeic-timer.warn { color: var(--bad); }
+.toeic-vol { width: 90px; accent-color: var(--acc-toeic, currentColor); }
+.toeic-tap { margin: 0 0 14px; }
+.toeic-directions { margin: 0 0 18px; padding: 10px 14px; border-left: 3px solid var(--acc-toeic, var(--border)); background: var(--subtle); border-radius: 0 8px 8px 0; }
+.toeic-part { margin-bottom: 34px; }
+.toeic-part-title { font-size: 1.2rem; margin: 26px 0 10px; }
+.toeic-part-title .light { color: var(--muted); font-weight: 400; }
+.toeic-flag { margin-top: 10px; }
+.toeic-flag[aria-pressed="true"] { color: var(--acc-toeic, var(--fg)); font-weight: 600; }
+.toeic-exam-layout { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 28px; align-items: start; }
+.toeic-exam-side { position: sticky; top: 64px; max-height: calc(100vh - 80px); overflow: auto; }
+.toeic-side-box { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; }
+.toeic-side-box > summary { cursor: pointer; font-weight: 600; }
+.pal-part { margin-top: 12px; }
+.pal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); gap: 5px; margin-top: 6px; }
+.pal { font: inherit; font-size: 0.75rem; min-height: 30px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; font-variant-numeric: tabular-nums; }
+.pal.done { background: color-mix(in srgb, var(--acc-toeic, var(--fg)) 22%, transparent); color: var(--fg); border-color: var(--acc-toeic, var(--fg)); }
+.pal.flag { box-shadow: inset 0 -3px 0 var(--bad); }
+.toeic-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-variant-numeric: tabular-nums; }
+.toeic-table th, .toeic-table td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+@media (max-width: 900px) { .toeic-exam-layout { grid-template-columns: minmax(0, 1fr); } .toeic-exam-side { position: static; max-height: none; order: -1; } }
+
+/* TOEIC practice: one step at a time */
+.toeic-clip-box { margin: 0 0 18px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--subtle); }
+.toeic-clip-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+.toeic-clip-time { margin-left: auto; font-variant-numeric: tabular-nums; }
+.toeic-clip .progress { margin: 4px 0 6px; }
+.toeic-clip-opt { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+.toeic-clip-box > .toeic-clip-opt { display: flex; }
+.toeic-speed { font: inherit; font-size: 0.85rem; padding: 4px 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--fg); }
+.toeic-clip-box audio { width: 100%; }
+.toeic-script { margin: 18px 0 0; padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; }
+.toeic-script > summary { cursor: pointer; font-weight: 600; }
+.toeic-script-line { margin: 8px 0 0; color: var(--muted); line-height: 1.7; }
+.toeic-step-nav { display: grid; gap: 10px; margin-top: 22px; }
+.toeic-step .toeic-group { border-top: 0; padding-top: 0; margin-top: 0; }
+.toeic-expl { white-space: pre-line; }
+
+/* TOEIC pages are long (a whole Part, a passage with its pictures): the question-in-the-middle-of-the-screen spacing of the one-question
+   quiz pages pushed them far down, so they start at the top in focus mode. The exam room uses the wide column (answer sheet beside the questions). */
+body.toeic-page.focus .container { padding-top: 12px; }
+body.toeic-page .toeic-exam-bar { top: 0; }
