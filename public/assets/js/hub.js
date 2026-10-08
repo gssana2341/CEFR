@@ -300,8 +300,10 @@
   }
 
   // ---------- TOEIC ----------
-  // The seven parts of the real test. A part with a `set` is available now; the others are listed so the whole
-  // structure is visible (Listening needs audio, see the plan in README).
+  // Three kinds of things, kept apart on purpose:
+  //   ซ้อมสอบจริง   the exam room (toeic-exam.html): sat like the real test, nothing revealed until it is handed in
+  //   ฝึกตาม Part   one question at a time with the answer and the reasoning right after (toeic-test.html)
+  //   ทริก          the Ebook pages
   const TOEIC_PARTS = [
     { part: 1, title: 'Photographs', thai: 'ภาพถ่าย', group: 'Listening', q: 6 },
     { part: 2, title: 'Question–Response', thai: 'ถาม–ตอบสั้น', group: 'Listening', q: 25 },
@@ -312,58 +314,64 @@
     { part: 7, title: 'Reading Comprehension', thai: 'อ่านจับใจความ', group: 'Reading', q: 54 },
   ];
 
-  // Are the full book sets (toeic-test.html, served by /api/toeic) there? Asked once; the tab is rebuilt when the answer arrives.
-  let book = false;
+  // Are the book sets (served by /api/toeic) there? Asked once; the tab is rebuilt when the answer arrives.
+  let book = { sets: [], tips: [] };
   fetch('/api/toeic', { cache: 'no-store', signal: AbortSignal.timeout(6000) })
     .then((r) => (r.ok ? r.json() : null))
-    .then((d) => { if (d && d.available && d.sets && d.sets.length) { book = d.sets.length; refreshTabs(); } })
+    .then((d) => { if (d && d.available && d.sets && d.sets.length) { book = { sets: d.sets.map((x) => x.id), tips: d.tips || [] }; refreshTabs(); } })
     .catch(() => { /* offline: the rows simply stay "coming soon" */ });
+  const bookOn = () => book.sets.length > 0;
+  const bookLocked = () => { const pass = window.CEFR.pass; return Boolean(pass && pass.members('toeic') && !pass.active()); };
 
-  // a tips row: a real link once the book is on the server, otherwise "coming soon"
-  function tipRow(id, title, sub) {
-    const pass = window.CEFR.pass;
-    const locked = pass && pass.members('toeic') && !pass.active();
-    return book ? listRow('toeic-test.html?tips=' + id, title, null, sub, locked ? 'สมาชิก' : 'เปิดแล้ว', 'toeic', !locked)
-      : listRow(null, title, null, sub, 'เร็วๆ นี้', 'toeic');
+  const tipRow = (id, title, sub) => (bookOn() && book.tips.some((t) => t.id === id)
+    ? listRow('toeic-test.html?tips=' + id, title, null, sub, bookLocked() ? 'สมาชิก' : 'เปิดแล้ว', 'toeic', !bookLocked())
+    : listRow(null, title, null, sub, 'เร็วๆ นี้', 'toeic'));
+
+  // the exam room of one set: last score, or "continue" when a run is still open
+  function examRow(id) {
+    const hist = store.get('toeic:exam:s' + id + ':history', []);
+    const run = store.get('toeic:exam:s' + id, null);
+    const open = run && run.v === 1 && run.phase !== 'done' && run.phase !== 'grading';
+    const last = hist[0];
+    const sub = ['Listening 45 + Reading 75 นาที · 200 ข้อ', last && last.total ? 'ล่าสุด ~' + last.total + ' (' + dateTh(last.at) + ')' : last && (last.L || last.R) ? 'ล่าสุด ' + ((last.L || last.R).right) + '/100' : null, open && 'ทำค้างอยู่'].filter(Boolean).join(' · ');
+    return listRow('toeic-exam.html?set=' + id, 'ซ้อมสอบจริง ชุดที่ ' + id, null, sub, bookLocked() ? 'สมาชิก' : open ? 'ทำต่อ' : 'เริ่มสอบ', 'exam', !bookLocked(),
+      h('span', { class: 'part-no', text: String(id) }));
   }
 
   function toeicPanel() {
     const tile = (big, small) => h('div', { class: 'stat-tile' }, h('strong', { text: big }), h('span', { text: small }));
     const partRow = (p) => {
       const lead = h('span', { class: 'part-no', text: String(p.part) });
-      if (!p.set && book) {
-        const pass = window.CEFR.pass;
-        const locked = pass && pass.members('toeic') && !pass.active();
-        return listRow('toeic-test.html', p.title, p.thai, 'ข้อสอบเต็มชุด ' + book + ' ชุด · ' + p.q + ' ข้อต่อชุด', locked ? 'สมาชิก' : 'เปิดแล้ว', 'toeic', !locked, lead);
+      if (bookOn()) {
+        const sub = [p.group, p.q + ' ข้อต่อชุด', book.sets.length + ' ชุด' + (p.part === 5 ? ' + ข้อสอบเขียนใหม่ของเว็บ 30 ข้อ (ฟรี)' : '')].join(' · ');
+        return listRow('toeic-test.html?part=' + p.part, p.title, p.thai, sub, bookLocked() && p.part !== 5 ? 'สมาชิก' : 'ฝึกได้', 'toeic', !(bookLocked() && p.part !== 5), lead);
       }
-      if (!p.set) return listRow(null, p.title, p.thai, 'ข้อสอบจริง ' + p.q + ' ข้อ', 'เร็วๆ นี้', 'toeic', false, lead);
+      if (!p.set) return listRow(null, p.title, p.thai, p.group + ' · ข้อสอบจริง ' + p.q + ' ข้อ', 'เร็วๆ นี้', 'toeic', false, lead);
       const info = practiceInfo(p.set);
       return listRow(p.href, p.title, p.thai, [...info.meta, info.resume && 'ค้างอยู่: ' + info.resume].filter(Boolean).join(' · '),
         info.resume ? 'ทำต่อ' : 'เริ่มทำ', 'toeic', true, lead);
     };
-    const parts = (group) => TOEIC_PARTS.filter((p) => p.group === group);
+    const group = (title, meta, rows) => [
+      h('div', { class: 'part-group' }, h('h2', { text: title }), meta && h('p', { class: 'meta', text: meta })),
+      h('ul', { class: 'list-rows tiles' }, rows)];
     return h('div', { class: 'acc-toeic' },
-      h('h1', { class: 'page-title' }, 'TOEIC ', h('span', { class: 'light', text: 'ฝึก · เรียน · ซ้อมสอบ' })),
-      h('p', { class: 'tab-intro', text: 'ที่รวมสำหรับเตรียมสอบ TOEIC: ฝึกตาม Part ข้อสอบเก่าและชุดจำลอง และแนวทางทำข้อสอบ Part 5 ฝึกได้เลย ส่วนข้อสอบเต็มชุดพร้อมไฟล์เสียงเปิดให้สมาชิกเมื่อพร้อม' }),
+      h('h1', { class: 'page-title' }, 'TOEIC ', h('span', { class: 'light', text: 'ซ้อมสอบ · ฝึก · ทริก' })),
+      h('p', { class: 'tab-intro', text: 'แยกเป็น 3 อย่าง: ซ้อมสอบจริงในห้องสอบจำลอง · ฝึกตาม Part ทีละข้อพร้อมเฉลยและวิธีคิด · ทริกและเทคนิคสรุปเป็นหน้าๆ' }),
       h('div', { class: 'stat-tiles' },
         tile('200 ข้อ', 'ข้อสอบจริง 2 ชั่วโมง'),
         tile('Listening', '100 ข้อ · 45 นาที · Part 1–4'),
         tile('Reading', '100 ข้อ · 75 นาที · Part 5–7'),
         tile('10–990', 'ช่วงคะแนนรวม')),
-      h('div', { class: 'part-group' }, h('h2', { text: 'Listening' }), h('p', { class: 'meta', text: book ? 'มีไฟล์เสียงประกอบทุก Part' : 'ต้องใช้ไฟล์เสียง กำลังเตรียมระบบ' })),
-      h('ul', { class: 'list-rows tiles' }, parts('Listening').map(partRow)),
-      h('div', { class: 'part-group' }, h('h2', { text: 'Reading' }), h('p', { class: 'meta', text: 'ฝึกได้ทีละ Part' })),
-      h('ul', { class: 'list-rows tiles' }, parts('Reading').map(partRow)),
-      h('div', { class: 'part-group' }, h('h2', { text: 'ข้อสอบเก่าและชุดจำลอง' })),
-      h('ul', { class: 'list-rows tiles' },
-        listRow(null, 'คลังข้อสอบเก่า', null, 'รวบรวมชุดที่ใช้ได้อย่างถูกลิขสิทธิ์ แสดงที่มาของทุกชุด', 'เร็วๆ นี้', 'toeic'),
-        listRow(null, 'ชุดจำลอง 200 ข้อ', null, 'จับเวลาเหมือนจริง พร้อมคะแนนประมาณ 10–990', 'เร็วๆ นี้', 'toeic')),
-      h('div', { class: 'part-group' }, h('h2', { text: 'เรียนเพื่อ TOEIC' })),
-      h('ul', { class: 'list-rows tiles' },
-        listRow('index.html#learn', 'ไวยากรณ์ที่ออกบ่อย', null, 'tense, preposition, word form — ใช้บทเรียนในแท็บเรียนได้เลย', 'ไปที่บทเรียน', 'toeic', true),
-        tipRow('grammar', 'แกรมมาร์ 5 เรื่องที่ออกบ่อย', 'สูตร วิธีดู และตัวอย่างข้อสอบ'),
-        tipRow('vocab', 'ศัพท์ TOEIC 200 คำ 20 หมวด', 'จัดตามหัวข้อ: อาหาร โรงพยาบาล สนามบิน การประชุม'),
-        tipRow('phrases', '120 วลีที่ออกสอบและใช้ทำงานจริง', 'ประโยคพร้อมคำแปล 6 หมวดงานออฟฟิศ')));
+      ...group('ซ้อมสอบจริง', 'ห้องสอบจำลอง: เสียง Listening เล่นครั้งเดียว · Reading จับเวลา 75 นาที · ไม่เห็นเฉลยจนกว่าจะส่ง · ได้คะแนนโดยประมาณ',
+        bookOn() ? book.sets.map(examRow) : [listRow(null, 'ซ้อมสอบเต็มชุด', null, 'Listening + Reading 200 ข้อ จับเวลาเหมือนจริง', 'เร็วๆ นี้', 'exam')]),
+      ...group('ฝึกตาม Part', 'ทำทีละข้อ ตอบแล้วเห็นเฉลยพร้อมวิธีคิด · ไม่จับเวลา', TOEIC_PARTS.map(partRow)),
+      ...group('ทริกและเทคนิค', 'สรุปจาก Ebook เสริมคะแนน',
+        [tipRow('grammar', 'แกรมมาร์ 5 เรื่องที่ออกบ่อย', 'สูตร วิธีดู และตัวอย่างข้อสอบ'),
+          tipRow('vocab', 'ศัพท์ TOEIC 200 คำ 20 หมวด', 'จัดตามหัวข้อ: อาหาร โรงพยาบาล สนามบิน การประชุม'),
+          tipRow('phrases', '120 วลีที่ออกสอบและใช้ทำงานจริง', 'ประโยคพร้อมคำแปล 6 หมวดงานออฟฟิศ'),
+          listRow('index.html#learn', 'ไวยากรณ์ที่ออกบ่อย', null, 'tense, preposition, word form — บทเรียนในแท็บเรียน', 'ไปที่บทเรียน', 'toeic', true)]),
+      ...group('ข้อสอบเก่า', null,
+        [listRow(null, 'คลังข้อสอบเก่า', null, 'รวบรวมชุดที่ใช้ได้อย่างถูกลิขสิทธิ์ แสดงที่มาของทุกชุด', 'เร็วๆ นี้', 'toeic')]));
   }
 
   // ---------- Tabs ----------

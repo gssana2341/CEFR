@@ -124,6 +124,37 @@
     document.addEventListener('cefr:pass', draw);
   }
 
+  // ---------- one Part: which set to practise it from ----------
+  async function partMenu() {
+    const info = PARTS[part];
+    if (!info) return home();
+    setHead('TOEIC · ฝึกตาม Part', 'Part ' + part, info.en + ' · ' + info.th);
+    root.replaceChildren(h('p', { class: 'meta', text: 'กำลังโหลด…' }));
+    let d;
+    try { d = await api.call('GET', '/api/toeic'); } catch (e) { return showError(e, partMenu); }
+    const locked = () => pass && pass.members('toeic') && !pass.active();
+    const rows = (d.sets || []).filter((s) => s.parts[part]).map((s) => {
+      const i = s.parts[part];
+      const last = store.get(lastKey(s.id, part), null);
+      const sub = [i.q + ' ข้อ', i.audio ? 'เสียง ' + mmss(i.audio) + ' นาที' : null, last ? 'ล่าสุด ' + last.right + '/' + last.total + ' (' + pct(last.right, last.total) + '%)' : null].filter(Boolean).join(' · ');
+      return h('li', { class: 'acc-toeic' },
+        h('a', { class: 'list-row', href: 'toeic-test.html?set=' + s.id + '&part=' + part },
+          h('span', { class: 'part-no', text: String(s.id) }),
+          h('span', { class: 'list-row-main' }, h('span', { class: 'list-row-title', text: s.title }), h('span', { class: 'list-row-sub', text: sub })),
+          h('span', { class: 'list-row-side', text: locked() ? 'สมาชิก' : 'ฝึกได้' })));
+    });
+    if (part === 5) {
+      rows.push(h('li', { class: 'acc-toeic' }, h('a', { class: 'list-row', href: 'toeic5.html' },
+        h('span', { class: 'part-no', text: '+' }),
+        h('span', { class: 'list-row-main' }, h('span', { class: 'list-row-title', text: 'ข้อสอบเขียนใหม่ของเว็บ' }), h('span', { class: 'list-row-sub', text: '30 ข้อ · มีคำอธิบายภาษาไทย' })),
+        h('span', { class: 'list-row-side', text: 'ฟรี' }))));
+    }
+    root.replaceChildren(
+      h('div', { class: 'toeic-nav' }, h('a', { class: 'btn btn-outline btn-sm', href: 'index.html#toeic', text: '← หน้า TOEIC' })),
+      h('p', { class: 'lead', text: 'เลือกชุดที่จะฝึก Part นี้ ทำทีละข้อ ตอบแล้วเห็นเฉลย' }),
+      h('ul', { class: 'list-rows tiles' }, rows));
+  }
+
   // ---------- tips: the Ebook pages, shown as printed ----------
   async function tips() {
     setHead('TOEIC · ทริกและเทคนิค', 'ทริก', 'เสริมคะแนน TOEIC');
@@ -413,5 +444,5 @@
     }
   }
 
-  (tipsView ? tips : part ? openPart : home)();
+  (tipsView ? tips : part && !set ? partMenu : part ? openPart : home)();
 })();

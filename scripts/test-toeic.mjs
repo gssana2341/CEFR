@@ -18,6 +18,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import crypto from 'node:crypto';
 import http from 'node:http';
+import vm from 'node:vm';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
@@ -281,6 +282,28 @@ await test('only so many parts per day: the 15th different part is refused', asy
   assert.equal(last.code, 429);
   assert.equal(last.json.error, 'daily_limit');
   assert.equal((await call({ query: { set: '1', part: '1' }, token: bob })).code, 200, 'a part opened before can be opened again');
+});
+
+// ---------- the exam room's score estimate (browser code, run here in a sandbox) ----------
+await test('score estimate: 0-100 raw maps to 5-495, never goes down as the raw score goes up, and CEFR bands follow the total', async () => {
+  const sandbox = { window: { CEFR: { h() {} } } };
+  vm.createContext(sandbox);
+  vm.runInContext(readFileSync(new URL('../public/assets/js/toeic-ui.js', import.meta.url), 'utf8'), sandbox);
+  const ui = sandbox.window.CEFR.toeicUi;
+  for (const sec of ['listening', 'reading']) {
+    let prev = -1;
+    for (let raw = 0; raw <= 100; raw++) {
+      const v = ui.scaled(sec, raw);
+      assert.ok(v >= 5 && v <= 495 && v % 5 === 0, sec + ' ' + raw + ' → ' + v);
+      assert.ok(v >= prev, sec + ' went down at ' + raw);
+      prev = v;
+    }
+    assert.equal(ui.scaled(sec, 0), 5);
+    assert.equal(ui.scaled(sec, 100), 495);
+  }
+  assert.equal(ui.scaled('listening', 150), 495);
+  assert.equal(ui.scaled('reading', -5), 5);
+  assert.deepEqual([100, 300, 600, 800, 950].map(ui.cefrOf), ['ต่ำกว่า A1', 'A2', 'B1', 'B2', 'C1']);
 });
 
 // ---------- the Supabase backend against a fake Supabase ----------
