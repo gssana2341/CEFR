@@ -52,6 +52,25 @@ for (const { id } of index.sets) {
     }
   }
   for (let n = 1; n <= 200; n++) if (!seen.has(n)) bad('question ' + n + ' is missing');
+  // practice needs: where each question sits in the recording, the script, and the written reasoning
+  const noE = [];
+  const noAt = [];
+  const noTx = [];
+  for (const p of [1, 2, 3, 4, 5, 6, 7]) {
+    const part = d.parts[p];
+    for (const it of (part.items || part.groups.flatMap((g) => g.items))) {
+      if (!it.e) noE.push(it.n);
+      if (p <= 2 && !it.at) noAt.push(it.n);
+      if (p <= 4 && !it.tx) noTx.push(it.n);
+    }
+    for (const g of part.groups || []) if (p >= 3 && p <= 4 && !g.at) noAt.push('group ' + g.id);
+  }
+  if (noAt.length) bad('audio stretch missing for ' + noAt.length + ': ' + noAt.slice(0, 8).join(', ') + ' (run segment.mjs)');
+  if (noTx.length) bad('script missing for ' + noTx.length + ' listening questions (run merge_notes.mjs)');
+  if (noE.length) {
+    const msg = noE.length + ' question(s) without written reasoning: ' + noE.slice(0, 12).join(', ') + (noE.length > 12 ? ' ...' : '');
+    if (process.argv.includes('--strict')) bad(msg); else console.log('  ! ' + msg);
+  } else console.log('  every question has its reasoning');
   // the answer keys of Part 2 can only be A-C; across the whole test the letters should be spread out
   const tally = [0, 0, 0, 0];
   for (const p of [1, 2, 3, 4, 5, 6, 7]) for (const it of (d.parts[p].items || d.parts[p].groups.flatMap((g) => g.items))) tally[it.a]++;

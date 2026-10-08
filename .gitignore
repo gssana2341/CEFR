@@ -19,3 +19,4 @@ Thumbs.db
 build/
 tools/toeic/overrides.json
 __pycache__/
+tools/toeic/notes/

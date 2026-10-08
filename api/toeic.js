@@ -143,7 +143,11 @@ async function check(req, res) {
   for (const it of items) {
     const q = it && byN.get(it.n);
     if (!q || !isInt(it.pick, 0, q.c.length - 1) || results[it.n]) return send(res, 400, { error: 'bad_items' });
-    results[it.n] = { a: q.a, ...(q.e ? { e: uid ? stampText(q.e, uid) : q.e } : {}) };
+    results[it.n] = {
+      a: q.a,
+      ...(q.e ? { e: uid ? stampText(q.e, uid) : q.e } : {}),          // the reasoning (วิธีคิด)
+      ...(q.tx ? { tx: uid ? stampText(q.tx, uid) : q.tx } : {}),      // the script of the recording, once the question was answered
+    };
   }
   if (await limited(req, 'toeic-answers-day', ANSWERS_PER_DAY, { uid, windowMs: DAY, cost: items.length })) return send(res, 429, { error: 'rate_limited' });
   return send(res, 200, { results });

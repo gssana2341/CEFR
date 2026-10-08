@@ -65,7 +65,7 @@ function setData(id) {
   const parts = {
     1: { audio: { file: 'audio/part1.mp3', sec: 100, bytes: AUDIO.length }, items: [{ n: 1, img: 'q1.webp', c: ['A', 'B', 'C', 'D'], a: 2 }] },
     2: { audio: { file: 'audio/part1.mp3', sec: 100 }, items: [{ n: 7, c: ['A', 'B', 'C'], a: 0 }] },
-    3: { audio: { file: 'audio/part1.mp3', sec: 100 }, groups: [{ id: '32-34', items: [{ n: 32, q: longText, c: ['a', 'b', 'c', 'd'], a: 1, e: 'because of the clue in the long explanation text' }] }] },
+    3: { audio: { file: 'audio/part1.mp3', sec: 100 }, groups: [{ id: '32-34', at: [10, 60], items: [{ n: 32, q: longText, c: ['a', 'b', 'c', 'd'], a: 1, cue: 30, e: 'because of the clue in the long explanation text', tx: 'Good morning, I would like to rent a car for a couple of days please.' }] }] },
     4: { audio: null, groups: [{ id: '71-73', items: [{ n: 71, q: 'short?', c: ['a', 'b', 'c', 'd'], a: 3, img: 'q1.webp' }] }] },
     5: { items: [{ n: 101, q: longText, c: ['w', 'x', 'y', 'z'], a: 0 }] },
     6: { groups: [{ id: '131-134', label: 'e-mail', imgs: ['q1.webp'], items: [{ n: 131, c: ['w', 'x', 'y', 'z'], a: 1 }] }] },
@@ -84,7 +84,7 @@ mk('tips/img/g1.webp', IMG);
 mk('tips/img/g2.webp', IMG);
 mk('secret.txt', 'outside of the store tree? no - inside the dir, but not a valid media path');
 
-const KEYS_THAT_LEAK = ['a', 'e', 'answer', 'key'];
+const KEYS_THAT_LEAK = ['a', 'e', 'tx', 'answer', 'key'];
 function leaks(v, path = '') {
   if (Array.isArray(v)) return v.flatMap((x, i) => leaks(x, path + '[' + i + ']'));
   if (v && typeof v === 'object') return Object.entries(v).flatMap(([k, x]) => (KEYS_THAT_LEAK.includes(k) ? [path + '.' + k] : leaks(x, path + '.' + k)));
@@ -142,6 +142,8 @@ await test('the part sent to a member has no answer, explanation or other giveaw
     assert.equal(r.code, 200, 'part ' + p);
     assert.deepEqual(leaks(r.json), [], 'part ' + p + ' leaks');
     assert.ok(!JSON.stringify(r.json).includes('because of the clue'), 'explanation text must not be in the part');
+    assert.ok(!JSON.stringify(r.json).includes('Good morning'), 'the script must not be in the part');
+    if (p === '3') { assert.deepEqual(r.json.groups[0].at, [10, 60]); assert.equal(r.json.groups[0].items[0].cue, 30); }
   }
 });
 
@@ -168,6 +170,7 @@ await test('check: answers only for the picks made; bad picks, repeats and forei
   const withE = await call({ method: 'POST', token: MEMBER, body: { op: 'check', set: 1, part: 3, items: [{ n: 32, pick: 0 }] } });
   assert.equal(withE.json.results[32].a, 1);
   assert.ok(withE.json.results[32].e.startsWith('because of the clue'));
+  assert.ok(withE.json.results[32].tx.startsWith('Good morning'), 'the script of the recording comes with the answer');
   const bad = (items, part = 7) => call({ method: 'POST', token: MEMBER, body: { op: 'check', set: 1, part, items } });
   assert.equal((await bad([{ n: 147, pick: 4 }])).code, 400);
   assert.equal((await bad([{ n: 147, pick: -1 }])).code, 400);

@@ -1459,3 +1459,19 @@ dialog.toeic-zoom { width: min(96vw, 1100px); max-width: none; max-height: 94vh;
 .toeic-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-variant-numeric: tabular-nums; }
 .toeic-table th, .toeic-table td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
 @media (max-width: 900px) { .toeic-exam-layout { grid-template-columns: minmax(0, 1fr); } .toeic-exam-side { position: static; max-height: none; order: -1; } }
+
+/* TOEIC practice: one step at a time */
+.toeic-clip-box { margin: 0 0 18px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--subtle); }
+.toeic-clip-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+.toeic-clip-time { margin-left: auto; font-variant-numeric: tabular-nums; }
+.toeic-clip .progress { margin: 4px 0 6px; }
+.toeic-clip-opt { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+.toeic-clip-box > .toeic-clip-opt { display: flex; }
+.toeic-speed { font: inherit; font-size: 0.85rem; padding: 4px 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--fg); }
+.toeic-clip-box audio { width: 100%; }
+.toeic-script { margin: 18px 0 0; padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; }
+.toeic-script > summary { cursor: pointer; font-weight: 600; }
+.toeic-script-line { margin: 8px 0 0; color: var(--muted); line-height: 1.7; }
+.toeic-step-nav { display: grid; gap: 10px; margin-top: 22px; }
+.toeic-step .toeic-group { border-top: 0; padding-top: 0; margin-top: 0; }
+.toeic-expl { white-space: pre-line; }

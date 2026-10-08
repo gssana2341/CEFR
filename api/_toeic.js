@@ -127,6 +127,8 @@ function publicPart(data, partNo, uid) {
     const o = { n: it.n, c: it.c };
     if (it.q) o.q = uid ? stampText(it.q, uid) : it.q;            // signed-in readers get their invisible tag (see _watermark.js)
     if (it.img) o.img = img(it.img);
+    if (it.at) o.at = it.at;                                       // where this question sits in the Part's recording (seconds; not secret)
+    if (it.cue !== undefined) o.cue = it.cue;
     return o;
   };
   const out = { set, part: Number(partNo) };
@@ -135,6 +137,7 @@ function publicPart(data, partNo, uid) {
   if (part.groups) {
     out.groups = part.groups.map((g) => ({
       id: g.id,
+      ...(g.at ? { at: g.at } : {}),
       ...(g.label ? { label: g.label } : {}),
       ...(g.imgs && g.imgs.length ? { imgs: g.imgs.map(img) } : {}),
       items: g.items.map(pub),

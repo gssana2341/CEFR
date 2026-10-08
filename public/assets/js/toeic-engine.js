@@ -204,244 +204,185 @@
     mount(P);
   }
 
+  // ---------- practice: one question (or one conversation / passage) at a time ----------
+  // Each step shows what the real test shows - the recording (Parts 1-4), the picture, the question - and after a pick the answer, the
+  // reasoning (วิธีคิด) and, for Parts 1-4, the script of what was said. The answer is asked from the server per pick.
   function mount(P) {
+    const ui = window.CEFR.toeicUi;
     const KEY = 'toeic:s' + set + 'p' + part;
-    const items = P.items || P.groups.flatMap((g) => g.items);
-    const byN = new Map(items.map((q) => [q.n, q]));
-    const textless = part <= 2;                                  // Parts 1-2: the choices are only heard / seen as letters
-    const rev = {};                                              // n -> { a, e } once the server told us
-    let saved = store.get(KEY, null);
-    if (!saved || saved.v !== 1) saved = { v: 1, mode: 'practice', picks: {}, submitted: false };
-    for (const n of Object.keys(saved.picks)) if (!byN.has(Number(n))) delete saved.picks[n];
-    const picks = saved.picks;
-    let mode = saved.mode === 'exam' ? 'exam' : 'practice';
-    let submitted = Boolean(saved.submitted);
+    const textless = part <= 2;
+    const steps = P.groups
+      ? P.groups.map((g) => ({ id: g.id, g, items: g.items, at: g.at, label: g.label }))
+      : P.items.map((q) => ({ id: String(q.n), items: [q], at: q.at }));
+    const all = steps.flatMap((st) => st.items);
+    const byN = new Map(all.map((q) => [q.n, q]));
+    const stepOf = new Map(steps.flatMap((st, i) => st.items.map((q) => [q.n, i])));
+    const rev = {};                                              // n -> { a, e, tx } once the server told us
+    const fresh = () => api.call('GET', '/api/toeic?set=' + set + '&part=' + part).then((F) => F.audio.src);
+    const wantAuto = () => store.get('toeic:autoplay', true) !== false;
+
+    let st = store.get(KEY, null);
+    if (!st || st.v !== 2) st = { v: 2, order: steps.map((_, i) => i), index: 0, picks: {} };
+    for (const n of Object.keys(st.picks)) if (!byN.has(Number(n))) delete st.picks[n];
+    if (!Array.isArray(st.order) || !st.order.length || st.order.some((i) => !steps[i])) st.order = steps.map((_, i) => i);
+    st.index = Math.min(Math.max(0, st.index || 0), st.order.length);
+    const persist = () => store.set(KEY, st);
+
+    let player = null;
     let busy = false;
+    const cards = new Map();
 
-    const persist = () => store.set(KEY, { v: 1, mode, picks, submitted });
-    const cards = new Map();                                     // n -> { el, buttons[], note }
-    const bar = h('div', { class: 'progress-fill' });
-    const count = h('span', { class: 'meta', 'aria-live': 'polite' });
-    const summary = h('div', { class: 'toeic-summary' });
-    const submitBtn = h('button', { class: 'btn', type: 'button', text: 'ส่งคำตอบ', onclick: submit });
-
-    const picture = (src, cls, alt) => guard(h('img', { class: cls, src, alt, draggable: 'false', decoding: 'async' }));
-
-    // ---------- audio (Parts 1-4) ----------
-    let audioEl = null;
-    let pictures = [];                                           // [{ el, from }] so a refreshed link can replace them
-    if (P.audio) {
-      audioEl = guard(h('audio', { controls: true, preload: 'metadata', controlsList: 'nodownload noplaybackrate', src: P.audio.src }));
-      let refreshing = false;
-      audioEl.addEventListener('error', async () => {
-        if (refreshing) return;
-        refreshing = true;
-        const t = audioEl.currentTime;
-        const was = !audioEl.paused;
-        try {                                                    // the link lives ~25 minutes: ask for a new one and carry on from the same second
-          const fresh = await api.call('GET', '/api/toeic?set=' + set + '&part=' + part);
-          audioEl.src = fresh.audio.src;
-          audioEl.addEventListener('loadedmetadata', () => { audioEl.currentTime = t; if (was) audioEl.play().catch(() => {}); }, { once: true });
-        } catch { /* offline: the controls show the problem */ }
-        setTimeout(() => { refreshing = false; }, 5000);
-      });
-    }
-
-    // ---------- questions ----------
-    function choice(q, i) {
-      const label = textless ? '' : q.c[i];
-      const btn = h('button', { class: 'choice', type: 'button', onclick: () => pick(q.n, i), 'aria-label': 'ตัวเลือก ' + (LETTERS[i] || '') },
-        h('span', { class: 'choice-key', text: LETTERS[i] }),
-        label && h('span', { 'data-tr': true, text: label }));
-      return btn;
-    }
-
-    function card(q) {
-      const note = h('p', { class: 'toeic-ans meta', 'aria-live': 'polite' });
-      const buttons = q.c.map((_, i) => choice(q, i));
-      const el = h('div', { class: 'toeic-q', id: 'q' + q.n },
-        h('p', { class: 'q-no', text: 'ข้อ ' + q.n }),
-        q.img && picture(q.img, 'toeic-photo', 'ภาพประกอบข้อ ' + q.n),
-        q.q && h('p', { class: 'question', 'data-tr': true, text: q.q }),
-        h('div', { class: 'choices' + (textless ? ' letters' : '') }, buttons),
-        note);
-      cards.set(q.n, { el, buttons, note });
-      return el;
-    }
-
-    const body = [];
-    if (P.groups) {
-      for (const g of P.groups) {
-        const ns = g.items.map((q) => q.n);
-        const range = ns.length > 1 ? 'ข้อ ' + ns[0] + '–' + ns[ns.length - 1] : 'ข้อ ' + ns[0];
-        body.push(h('section', { class: 'toeic-group' },
-          h('h3', { class: 'toeic-group-title' }, range, g.label ? ' · ' + g.label : ''),
-          g.imgs && h('div', { class: 'toeic-pass' }, g.imgs.map((src, k) => picture(src, 'toeic-passage', 'เนื้อหาที่ใช้ตอบ ' + range + (g.imgs.length > 1 ? ' (' + (k + 1) + '/' + g.imgs.length + ')' : '')))),
-          g.items.map(card)));
-      }
-    } else {
-      body.push(h('div', { class: 'toeic-list' }, P.items.map(card)));
-    }
-
-    // ---------- painting ----------
-    function paint(n) {
-      const c = cards.get(n);
-      const r = rev[n];
-      const p = picks[n];
-      c.buttons.forEach((b, i) => {
-        b.disabled = Boolean(r);
-        b.classList.toggle('selected', !r && p === i);
-        b.classList.toggle('correct', Boolean(r) && r.a === i);
-        b.classList.toggle('wrong', Boolean(r) && p === i && r.a !== i);
-      });
-      if (r) {
-        const ok = p === r.a;
-        const q = byN.get(n);
-        c.note.className = 'toeic-ans meta ' + (ok ? 'ok' : 'bad');
-        c.note.replaceChildren(...[
-          ok ? 'ถูกต้อง' : (p === undefined ? 'ไม่ได้ตอบ · ' : 'ผิด · ') + 'เฉลย (' + LETTERS[r.a] + ')' + (textless ? '' : ' ' + q.c[r.a]),
-          r.e && h('span', { class: 'toeic-expl', 'data-tr': true, text: r.e })].filter(Boolean));     // replaceChildren would print a falsy value as text
-      } else {
-        c.note.className = 'toeic-ans meta';
-        c.note.textContent = '';
-      }
-    }
-
-    function refresh() {
-      const answered = Object.keys(picks).length;
-      const total = items.length;
-      bar.style.width = Math.round((answered / total) * 100) + '%';
-      count.textContent = 'ตอบแล้ว ' + answered + '/' + total + ' ข้อ';
-      submitBtn.hidden = !(mode === 'exam' && !submitted) && !(mode === 'practice' && answered === total && !submitted);
-      submitBtn.textContent = mode === 'exam' ? 'ส่งคำตอบและดูผล' : 'ดูผลคะแนน';
-      submitBtn.disabled = answered === 0;
-      syncChips();
-    }
-
-    // ---------- answers ----------
-    async function reveal(list) {
+    const reveal = async (list) => {
       for (let i = 0; i < list.length; i += 60) {
         const chunk = list.slice(i, i + 60);
         const d = await api.call('POST', '/api/toeic', { op: 'check', set, part, items: chunk });
         for (const it of chunk) rev[it.n] = d.results[it.n];
       }
-    }
+    };
+    const paintCard = (n) => ui.paint(cards.get(n), byN.get(n), { pick: st.picks[n], a: (rev[n] || {}).a, e: (rev[n] || {}).e, reveal: Boolean(rev[n]) });
+    const right = (n) => st.picks[n] !== undefined && rev[n] && st.picks[n] === rev[n].a;
+    const leave = () => { if (player) { player.destroy(); player = null; } };
 
-    async function pick(n, i) {
-      if (busy || rev[n] || (submitted && mode === 'exam')) return;
-      picks[n] = i;
-      if (mode === 'exam') { persist(); paint(n); refresh(); return; }
-      busy = true;
-      try {
-        await reveal([{ n, pick: i }]);
-      } catch (e) {
-        delete picks[n];
+    // ---------- one step ----------
+    function renderStep() {
+      leave();
+      cards.clear();
+      const step = steps[st.order[st.index]];
+      const total = st.order.length;
+
+      const bar = h('div', { class: 'progress-fill', style: { width: Math.round((st.index / total) * 100) + '%' } });
+      const nextBtn = h('button', { class: 'btn btn-block', type: 'button', text: st.index === total - 1 ? 'ดูผลคะแนน' : 'ถัดไป', hidden: true, onclick: next });
+      const prevBtn = st.index > 0 && h('button', { class: 'btn btn-outline btn-block', type: 'button', text: '← ก่อนหน้า', onclick: () => { st.index--; persist(); renderStep(); window.scrollTo(0, 0); } });
+      const script = h('details', { class: 'toeic-script', hidden: true });
+      const syncStep = () => {
+        const done = step.items.every((q) => rev[q.n]);
+        nextBtn.hidden = !done;
+        const tx = step.items.map((q) => rev[q.n] && rev[q.n].tx).find(Boolean);
+        script.hidden = !tx;
+        if (tx && !script.dataset.ready) {
+          script.dataset.ready = '1';
+          script.replaceChildren(h('summary', { text: 'ดูสคริปต์เสียง (English)' }),
+            ...tx.split('\n').map((l) => h('p', { class: 'toeic-script-line', 'data-tr': true, text: l })));
+        }
+      };
+
+      const pick = async (n, i) => {
+        if (busy || rev[n]) return;
+        busy = true;
+        st.picks[n] = i;
+        try { await reveal([{ n, pick: i }]); } catch (e) { delete st.picks[n]; busy = false; notice(e); return; }
         busy = false;
-        notice(e);
-        return;
+        persist();
+        paintCard(n);
+        syncStep();
+        if (step.items.every((q) => rev[q.n])) nextBtn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      };
+      const make = (q) => { const c = ui.questionCard(q, { part, onPick: pick }); cards.set(q.n, c); paintCard(q.n); return c.el; };
+
+      // the recording of this step
+      let clip = null;
+      if (P.audio && step.at) {
+        player = ui.clipPlayer({ src: P.audio.src, start: step.at[0], end: step.at[1], cue: step.items[0].cue, refresh: fresh, autoplay: wantAuto() });
+        const auto = h('label', { class: 'toeic-clip-opt' }, h('input', { type: 'checkbox', checked: wantAuto(), onchange: (e) => store.set('toeic:autoplay', e.target.checked) }), ' เล่นเสียงอัตโนมัติเมื่อเปิดข้อ');
+        clip = h('div', { class: 'toeic-clip-box' }, player.el, auto);
+      } else if (P.audio) {
+        clip = h('div', { class: 'toeic-clip-box' }, ui.guard(h('audio', { controls: true, preload: 'none', controlsList: 'nodownload noplaybackrate', src: P.audio.src })));
       }
-      busy = false;
-      persist();
-      paint(n);
-      refresh();
+
+      const body = step.g ? ui.groupBlock(step.g, part, make) : make(step.items[0]);
+
+      window.CEFR.setView('quiz');
+      root.replaceChildren(h('section', { class: 'panel toeic-step' },
+        h('div', { class: 'focus-bar' },
+          h('button', { class: 'focus-exit', type: 'button', 'aria-label': 'พักไว้ก่อน (บันทึกอัตโนมัติ)', title: 'พักไว้ก่อน (บันทึกอัตโนมัติ)', text: '←', onclick: () => { leave(); location.href = 'toeic-test.html?part=' + part; } }),
+          h('div', { class: 'progress' }, bar),
+          h('span', { class: 'focus-count', text: (st.index + 1) + ' / ' + total })),
+        h('p', { class: 'q-tag', text: 'ชุดที่ ' + set + ' · Part ' + part + ' ' + ui.PARTS[part].en }),
+        clip, body, script,
+        h('div', { class: 'toeic-step-nav' }, nextBtn, prevBtn)));
+      syncStep();
     }
 
-    async function submit() {
-      if (busy) return;
-      busy = true;
-      submitBtn.disabled = true;
-      try {
-        // practice: everything picked is already revealed; exam: reveal all picks now (unanswered ones are shown too)
-        const need = items.filter((q) => !rev[q.n]).map((q) => ({ n: q.n, pick: picks[q.n] === undefined ? 0 : picks[q.n] }));
-        if (need.length) await reveal(need);
-      } catch (e) {
-        busy = false;
-        submitBtn.disabled = false;
-        notice(e);
-        return;
-      }
-      busy = false;
-      submitted = true;
-      persist();
-      items.forEach((q) => paint(q.n));
-      const right = items.filter((q) => picks[q.n] !== undefined && picks[q.n] === rev[q.n].a).length;
-      store.set(lastKey(set, part), { right, total: items.length, at: Date.now() });
-      showSummary(right);
-      refresh();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function showSummary(right) {
-      const total = items.length;
-      const wrong = items.filter((q) => picks[q.n] === undefined || picks[q.n] !== rev[q.n].a).map((q) => q.n);
-      summary.replaceChildren(h('section', { class: 'panel summary toeic-result' },
-        h('h2', { text: 'ผลคะแนน' }),
-        h('div', { class: 'score', text: right + ' / ' + total }),
-        h('p', { class: 'score-sub', text: pct(right, total) + '%' + (wrong.length ? ' · ผิดหรือไม่ได้ตอบ ข้อ ' + wrong.join(', ') : ' · ถูกทุกข้อ') }),
-        h('div', { class: 'btn-row' },
-          h('button', { class: 'btn', type: 'button', text: 'ทำใหม่', onclick: restart }),
-          h('a', { class: 'btn btn-outline', href: 'toeic-test.html', text: 'เลือก Part อื่น' }))));
-    }
-
-    function restart() {
-      for (const k of Object.keys(picks)) delete picks[k];
-      for (const k of Object.keys(rev)) delete rev[k];
-      submitted = false;
-      summary.replaceChildren();
-      persist();
-      items.forEach((q) => paint(q.n));
-      refresh();
-      window.scrollTo({ top: 0 });
+    function next() {
+      leave();
+      if (st.index < st.order.length - 1) { st.index++; persist(); renderStep(); window.scrollTo(0, 0); } else finish();
     }
 
     function notice(e) {
       const msg = e.status === 401 || e.status === 402 ? 'ต้องเข้าสู่ระบบด้วยบัญชีสมาชิกเพื่อดูเฉลย'
         : e.status === 429 ? 'ตอบเร็วหรือบ่อยเกินไป รอสักครู่แล้วลองใหม่' : 'เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้ง';
-      summary.replaceChildren(h('p', { class: 'meta', role: 'alert', text: msg }));
+      const old = root.querySelector('.toeic-notice');
+      if (old) old.remove();
+      root.querySelector('.toeic-step').prepend(h('p', { class: 'meta toeic-notice', role: 'alert', text: msg }));
     }
 
-    // ---------- chrome ----------
-    const modeChips = h('div', { class: 'chips', role: 'group', 'aria-label': 'โหมด' });
-    const MODES = [['practice', 'ฝึก · เฉลยทีละข้อ'], ['exam', 'จำลองสอบ · ตรวจตอนท้าย']];
-    const syncChips = () => modeChips.querySelectorAll('.chip').forEach((b, i) => {
-      b.setAttribute('aria-pressed', String(MODES[i][0] === mode));
-      b.disabled = Object.keys(picks).length > 0 && MODES[i][0] !== mode;     // the mode is fixed once answering has begun (reset with ทำใหม่)
+    // ---------- the end of the round ----------
+    async function finish() {
+      leave();
+      window.CEFR.setView('summary');
+      const need = all.filter((q) => st.picks[q.n] !== undefined && !rev[q.n]).map((q) => ({ n: q.n, pick: st.picks[q.n] }));
+      if (need.length) { try { await reveal(need); } catch (e) { return showError(e, finish); } }
+      const wrong = all.filter((q) => !right(q.n));
+      const score = all.length - wrong.length;
+      store.set(lastKey(set, part), { right: score, total: all.length, at: Date.now() });
+      const msg = pct(score, all.length) >= 90 ? 'ยอดเยี่ยม' : pct(score, all.length) >= 70 ? 'ดีมาก' : pct(score, all.length) >= 50 ? 'พอใช้ ทบทวนข้อที่ผิดจะดีขึ้น' : 'ลองทบทวนข้อที่ผิดแล้วทำใหม่';
+      const review = wrong.length > 0 && h('div', { class: 'review' },
+        h('h3', { text: 'ข้อที่ผิดหรือไม่ได้ตอบ (' + wrong.length + ')' }),
+        wrong.map((q) => {
+          const r = rev[q.n] || {};
+          return h('div', { class: 'review-item' },
+            h('p', { class: 'review-q', 'data-tr': true, text: 'ข้อ ' + q.n + (q.q ? ': ' + q.q : '') }),
+            st.picks[q.n] !== undefined && h('p', { class: 'review-you', text: '✗ คุณตอบ: (' + LETTERS[st.picks[q.n]] + ')' + (textless ? '' : ' ' + q.c[st.picks[q.n]]) }),
+            h('p', { class: 'review-right', text: '✓ เฉลย: (' + LETTERS[r.a] + ')' + (textless ? '' : ' ' + q.c[r.a]) }),
+            r.e && h('p', { class: 'review-expl', 'data-tr': true, text: r.e }));
+        }));
+      root.replaceChildren(h('section', { class: 'panel summary' },
+        h('h2', { text: 'ผลคะแนน' }),
+        h('div', { class: 'score', text: score + ' / ' + all.length }),
+        h('p', { class: 'score-sub', text: pct(score, all.length) + '% · ' + msg }),
+        h('div', { class: 'btn-row' },
+          wrong.length > 0 && h('button', { class: 'btn', type: 'button', text: 'ทำเฉพาะข้อที่ผิด (' + wrong.length + ')', onclick: redoWrong }),
+          h('button', { class: 'btn btn-outline', type: 'button', text: 'ทำรอบใหม่', onclick: restart }),
+          h('a', { class: 'btn btn-outline', href: 'toeic-test.html?part=' + part, text: 'เลือกชุดอื่น' })),
+        review));
+      window.scrollTo(0, 0);
+    }
+
+    function restart() {
+      st = { v: 2, order: steps.map((_, i) => i), index: 0, picks: {} };
+      for (const k of Object.keys(rev)) delete rev[k];
+      persist();
+      renderStep();
+      window.scrollTo(0, 0);
+    }
+    function redoWrong() {
+      const wrongN = all.filter((q) => !right(q.n)).map((q) => q.n);
+      for (const n of wrongN) { delete st.picks[n]; delete rev[n]; }
+      st.order = [...new Set(wrongN.map((n) => stepOf.get(n)))].sort((x, y) => x - y);
+      st.index = 0;
+      persist();
+      renderStep();
+      window.scrollTo(0, 0);
+    }
+
+    // keyboard: A-D / 1-4 pick for the first open question of the step, Enter goes on
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || document.querySelector('dialog[open]') || !root.querySelector('.toeic-step')) return;
+      const step = steps[st.order[st.index]];
+      if (!step) return;
+      if (e.key === 'Enter') { const b = root.querySelector('.toeic-step-nav .btn:not([hidden])'); if (b && !b.textContent.startsWith('←')) { e.preventDefault(); b.click(); } return; }
+      if (e.key.length !== 1) return;
+      const k = e.key.toUpperCase();
+      const i = 'ABCD'.indexOf(k) >= 0 ? 'ABCD'.indexOf(k) : '1234'.indexOf(k);
+      const open = step.items.find((q) => !rev[q.n]);
+      if (i >= 0 && open && i < open.c.length) cards.get(open.n).buttons[i].click();
     });
-    MODES.forEach(([m, label]) => modeChips.append(h('button', {
-      class: 'chip', type: 'button', text: label,
-      onclick: () => { if (Object.keys(picks).length) return; mode = m; persist(); syncChips(); refresh(); },
-    })));
-    const head = h('section', { class: 'panel toeic-head' },
-      h('div', { class: 'toeic-nav' },
-        h('a', { class: 'btn btn-outline btn-sm', href: 'toeic-test.html', text: '← ทุก Part' }),
-        part > 1 && h('a', { class: 'btn btn-outline btn-sm', href: 'toeic-test.html?set=' + set + '&part=' + (part - 1), text: 'Part ' + (part - 1) }),
-        part < 7 && h('a', { class: 'btn btn-outline btn-sm', href: 'toeic-test.html?set=' + set + '&part=' + (part + 1), text: 'Part ' + (part + 1) })),
-      audioEl && h('div', { class: 'toeic-audio' },
-        h('span', { class: 'label', text: 'ไฟล์เสียง Part ' + part + ' · ' + mmss(P.audio.sec) + ' นาที' }),
-        audioEl,
-        h('p', { class: 'meta', text: 'ในข้อสอบจริงเสียงจะเล่นครั้งเดียวต่อเนื่อง ลองฟังจบรอบเดียวแล้วค่อยตอบ' })),
-      h('span', { class: 'label', text: 'โหมด' }),
-      modeChips,
-      h('div', { class: 'progress' }, bar),
-      count,
-      h('div', { class: 'btn-row toeic-submit' }, submitBtn));
 
-    root.replaceChildren(head, summary, ...body);
-    items.forEach((q) => paint(q.n));
-    refresh();
-
-    // a Part reopened after a reload: bring back the answers the learner had already given
-    const earlier = Object.keys(picks).map((n) => ({ n: Number(n), pick: picks[n] }));
-    if (earlier.length && (mode === 'practice' || submitted)) {
-      reveal(earlier).then(() => {
-        items.forEach((q) => paint(q.n));
-        if (submitted) {
-          const right = items.filter((q) => picks[q.n] !== undefined && rev[q.n] && picks[q.n] === rev[q.n].a).length;
-          showSummary(right);
-        }
-        refresh();
-      }).catch(notice);
-    }
+    // a round reopened after a reload: bring back the answers already given (and the reasoning), then carry on
+    const earlier = Object.keys(st.picks).map((n) => ({ n: Number(n), pick: st.picks[n] }));
+    const start = () => (st.index >= st.order.length ? finish() : renderStep());
+    if (earlier.length) reveal(earlier).then(start).catch(() => { for (const k of Object.keys(st.picks)) delete st.picks[k]; start(); });
+    else start();
   }
 
   (tipsView ? tips : part && !set ? partMenu : part ? openPart : home)();

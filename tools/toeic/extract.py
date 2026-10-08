@@ -223,20 +223,28 @@ def big_images(page):
 
 
 def find_sheet(doc, pno):
+    """The answer key of a page. A page can hold SEVERAL pictures (set 1's Listening key page has a second, hidden sheet with other answers
+    underneath the visible one): take the one that is drawn last = the one on top = the one a reader sees."""
     page = doc[pno - 1]
+    order = [im['xref'] for im in page.get_image_info(xrefs=True) if im.get('xref')]      # in drawing order
+    found = []
     last = None
-    for x in page.get_images(full=True):
-        pix = pymupdf.Pixmap(doc, x[0])
+    for xref in order:
+        pix = pymupdf.Pixmap(doc, xref)
         if pix.n >= 4:
             pix = pymupdf.Pixmap(pymupdf.csRGB, pix)
         tmp = Path('build') / '_sheet.png'
         tmp.parent.mkdir(exist_ok=True)
         pix.save(str(tmp))
         try:
-            return read_sheet(str(tmp))[0]
+            found.append(read_sheet(str(tmp))[0])
         except ValueError as e:
             last = e
-    raise SystemExit('answer sheet on page %d unreadable: %s' % (pno, last))
+    if not found:
+        raise SystemExit('answer sheet on page %d unreadable: %s' % (pno, last))
+    if len(found) > 1 and any(f != found[-1] for f in found[:-1]):
+        warn('page %d has %d answer sheets that disagree: using the one on top (drawn last)' % (pno, len(found)))
+    return found[-1]
 
 
 def extract_set(n, pdf, audio_dir, out, dpi):
@@ -244,7 +252,8 @@ def extract_set(n, pdf, audio_dir, out, dpi):
     print('== set %d' % n)
     doc = pymupdf.open(pdf)
     sd = out / ('s%d' % n)
-    shutil.rmtree(sd, ignore_errors=True)
+    for sub in ('img', 'audio'):                                  # transcript/ and passages.json (other tools) are kept
+        shutil.rmtree(sd / sub, ignore_errors=True)
     (sd / 'img').mkdir(parents=True)
     (sd / 'audio').mkdir()
 
@@ -473,7 +482,11 @@ def main():
         audio_dir = next(p for p in folder.iterdir() if p.is_dir())
         d = extract_set(n, pdf, audio_dir, out, a.dpi)
         index.append({'id': n, 'title': d['title']})
-    (out / 'index.json').write_text(json.dumps({'sets': index}, ensure_ascii=False, indent=1), encoding='utf-8')
+    # keep the sets that were not part of this run (extract.py --sets 1 must not drop sets 2 and 3 from the menu)
+    idx_file = out / 'index.json'
+    known = {x['id']: x for x in (json.loads(idx_file.read_text(encoding='utf-8')).get('sets', []) if idx_file.exists() else [])}
+    known.update({x['id']: x for x in index})
+    idx_file.write_text(json.dumps({'sets': [known[k] for k in sorted(known)]}, ensure_ascii=False, indent=1), encoding='utf-8')
     (out / 'report.txt').write_text('\n'.join(report) or 'no warnings', encoding='utf-8')
     print('\n%d warning(s); see %s' % (len(report), out / 'report.txt'))
 

@@ -111,6 +111,19 @@ for (const { id } of index.sets) {
         if (!got || got.a !== t.a) bad(label + ' Q' + t.n + ': server says ' + (got && got.a) + ', key is ' + t.a);
         else row.answers++;
       }
+      // the reasoning (and for Parts 1-4 the script) arrives with the answer; the stretches of audio are in order and inside the recording
+      const noE = tItems.filter((t) => !(c.json.results[t.n] || {}).e).length;
+      if (noE) bad(label + ': ' + noE + ' question(s) come back without reasoning');
+      if (p <= 4) {
+        const noTx = tItems.filter((t) => !(c.json.results[t.n] || {}).tx).length;
+        if (noTx) bad(label + ': ' + noTx + ' question(s) come back without the script');
+        const units = P.groups ? P.groups : P.items;
+        let prevEnd = -1;
+        for (const u of units) {
+          if (!u.at || !(u.at[0] >= 0 && u.at[1] > u.at[0] && u.at[1] <= P.audio.sec + 0.5) || u.at[0] < prevEnd - 0.5) bad(label + ': audio stretch of ' + (u.id || u.n) + ' is missing or out of order');
+          else prevEnd = u.at[1];
+        }
+      }
       // choices must line up with the answer: the answer index points at a real choice
       for (const t of tItems) if (!t.c[t.a] || String(t.c[t.a]).trim() === '') bad(label + ' Q' + t.n + ': the answer points at an empty choice');
     }

@@ -4,6 +4,7 @@
 //   paint(card, q, { pick, a, e, reveal })   colours the choices (selected, or right / wrong once the answer is known)
 //   groupBlock(group, part, makeCard)        a passage (pictures) with its questions
 //   picture(src, cls, alt, onFail)           an <img> that can not be dragged or saved from a menu; onFail(img) when the link expired
+//   clipPlayer({ src, start, end, cue, refresh, autoplay }) → { el, destroy, setSrc, play }   plays one stretch of a Part's recording
 //   PARTS, LETTERS, mmss(sec), scaled(section, raw), cefrOf(total)
 // Nothing here knows an answer: the pages pass it in after the server has said it.
 (function () {
@@ -83,6 +84,73 @@
       g.items.map(makeCard));
   }
 
+  // ---------- one stretch of a Part's recording (practice) ----------
+  // The recording of a Part is one long file; the stretch of this question / conversation is [start, end] seconds. `cue` = the moment the
+  // first question is read out: by default a conversation or talk is played up to there (the questions are printed), and a switch plays on
+  // to the end. refresh() must return a promise of a fresh link when the current one has expired.
+  function clipPlayer(o) {
+    const audio = guard(new Audio());
+    audio.preload = 'auto';
+    audio.src = o.src;
+    const hasCue = o.cue !== undefined && o.cue > o.start + 3;
+    let withQuestions = !hasCue;
+    const stop = () => (withQuestions ? o.end : o.cue);
+    let wantPlay = false;
+
+    const bar = h('div', { class: 'progress-fill' });
+    const time = h('span', { class: 'meta toeic-clip-time' });
+    const playBtn = h('button', { class: 'btn btn-sm', type: 'button', onclick: () => (audio.paused ? play() : audio.pause()) });
+    const speed = h('select', { class: 'toeic-speed', 'aria-label': 'ความเร็วเสียง', onchange: () => { audio.playbackRate = Number(speed.value); } },
+      [['0.75', '0.75×'], ['1', '1×'], ['1.25', '1.25×']].map(([v, t]) => h('option', { value: v, text: t, selected: v === '1' })));
+    const full = hasCue && h('label', { class: 'toeic-clip-opt' },
+      h('input', { type: 'checkbox', onchange: (e) => { withQuestions = e.target.checked; paint(); } }), ' เล่นรวมตอนอ่านคำถาม');
+    const label = () => (audio.paused ? (audio.currentTime > o.start + 0.3 && audio.currentTime < stop() - 0.3 ? '▶ เล่นต่อ' : '▶ ฟัง') : '❚❚ หยุด');
+    function paint() {
+      const len = Math.max(1, stop() - o.start);
+      const t = Math.min(len, Math.max(0, audio.currentTime - o.start));
+      bar.style.width = Math.round((t / len) * 100) + '%';
+      time.textContent = mmss(t) + ' / ' + mmss(len);
+      playBtn.textContent = label();
+    }
+    function play() {
+      if (audio.currentTime < o.start - 0.2 || audio.currentTime >= stop() - 0.2) audio.currentTime = o.start;
+      wantPlay = true;
+      audio.play().catch(() => { wantPlay = false; });
+    }
+    function restart() { audio.currentTime = o.start; play(); }
+    audio.addEventListener('timeupdate', () => {
+      if (audio.currentTime >= stop()) { audio.pause(); audio.currentTime = o.start; wantPlay = false; }
+      paint();
+    });
+    audio.addEventListener('play', paint);
+    audio.addEventListener('pause', paint);
+    audio.addEventListener('loadedmetadata', () => { if (audio.currentTime < o.start) audio.currentTime = o.start; paint(); });
+    let refreshing = false;
+    audio.addEventListener('error', async () => {                // the link lives ~25 minutes
+      if (refreshing || !o.refresh) return;
+      refreshing = true;
+      const was = wantPlay;
+      const t = audio.currentTime;
+      try {
+        audio.src = await o.refresh();
+        audio.addEventListener('loadedmetadata', () => { audio.currentTime = Math.max(o.start, t); if (was) play(); }, { once: true });
+      } catch { /* offline */ }
+      setTimeout(() => { refreshing = false; }, 4000);
+    });
+    const el = h('div', { class: 'toeic-clip' },
+      h('div', { class: 'toeic-clip-row' }, playBtn,
+        h('button', { class: 'btn btn-outline btn-sm', type: 'button', text: '↺ ฟังใหม่', onclick: restart }), speed, time),
+      h('div', { class: 'progress' }, bar), full);
+    paint();
+    if (o.autoplay) setTimeout(play, 250);
+    return {
+      el,
+      play,
+      setSrc: (src) => { audio.src = src; },
+      destroy: () => { audio.onended = null; audio.pause(); audio.removeAttribute('src'); audio.load(); },
+    };
+  }
+
   // ---------- score estimate ----------
   // ETS does not publish its conversion tables and they differ a little from test to test. These are the commonly quoted
   // approximate ones (raw correct out of 100 -> scaled 5-495), joined by straight lines. Good for "about where am I", not an official score.
@@ -110,5 +178,5 @@
     return 'ต่ำกว่า A1';
   }
 
-  window.CEFR.toeicUi = { PARTS, LETTERS, mmss, guard, picture, questionCard, paint, groupBlock, scaled, cefrOf };
+  window.CEFR.toeicUi = { PARTS, LETTERS, mmss, guard, picture, questionCard, paint, groupBlock, clipPlayer, scaled, cefrOf };
 })();
