@@ -49,22 +49,34 @@ function members(feature) {
   return f === 'exam' || f === 'markup' || f === 'toeic' ? Boolean(PREMIUM[f]) : false;
 }
 
-// → { user: {uid,email}|null, active: boolean, blocked: boolean, ident: string }
+// → { user: {uid,email}|null, active: boolean, blocked: boolean, isAdmin: boolean, ident: string }
 // `ident` names the caller for counters: the account when signed in, otherwise the address (hashed, never used as a path as is).
 async function who(req) {
   const user = await verifyAuth(req);
   let active = false;
   let blocked = false;
+  let isAdmin = false;
+  
   if (user) {
     const pass = await getUserPass(user.uid);
     active = Boolean(pass && pass.exp > Date.now());
     blocked = Boolean(pass && pass.contentBlocked);        // set by _abuse.js after repeated bulk-copying; cleared by hand
+    
+    if (user.verified && user.email) {
+      const adminRaw = String(process.env.ADMIN_EMAILS || '').trim();
+      const adminList = adminRaw.split(/[\s,;]+/).map((x) => x.toLowerCase()).filter(Boolean);
+      if (adminList.includes(String(user.email).toLowerCase())) {
+        isAdmin = true;
+      }
+    }
   }
-  return { user, active, blocked, ident: user ? 'u:' + user.uid : 'ip:' + clientIp(req) };
+  return { user, active, blocked, isAdmin, ident: user ? 'u:' + user.uid : 'ip:' + clientIp(req) };
 }
 
 // → null when allowed, otherwise { status, error } to send back
 function deny(ctx, feature) {
+  if (ctx.isAdmin) return null;
+
   if (feature === 'toeic') {
     const g = toeicGate(ctx);
     if (g.status) return { status: g.status, error: g.error, feature };
@@ -83,8 +95,9 @@ const hash = (s) => crypto.createHash('sha256').update(s).digest('base64url');
 // (the same question again costs nothing). → the annotation, { locked: true } when today's free looks are used up, or null.
 async function clueFor(ctx, ann, bank, key) {
   if (!ann) return null;
-  if (!members('markup') || ctx.active) return ann;
+  if (!members('markup') || ctx.active || ctx.isAdmin) return ann;
   const limit = PREMIUM.markupFreePerDay;
+
   const id = hash('trial|' + ctx.ident + '|' + day());
   const k = bank + ':' + key;
   try {
