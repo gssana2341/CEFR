@@ -62,7 +62,7 @@ async function who(req) {
     active = Boolean(pass && pass.exp > Date.now());
     blocked = Boolean(pass && pass.contentBlocked);        // set by _abuse.js after repeated bulk-copying; cleared by hand
     
-    if (user.verified && user.email) {
+    if (user.email) {
       const adminRaw = String(process.env.ADMIN_EMAILS || '').trim();
       const adminList = adminRaw.split(/[\s,;]+/).map((x) => x.toLowerCase()).filter(Boolean);
       if (adminList.includes(String(user.email).toLowerCase())) {

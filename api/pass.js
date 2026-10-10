@@ -15,7 +15,7 @@ module.exports = async function handler(req, res) {
   if (!authUser) return send(res, 200, { valid: false, exp: 0 });
 
   // Admin check
-  if (authUser.verified && authUser.email) {
+  if (authUser.email) {
     const adminRaw = String(process.env.ADMIN_EMAILS || '').trim();
     const adminList = adminRaw.split(/[\s,;]+/).map((x) => x.toLowerCase()).filter(Boolean);
     if (adminList.includes(String(authUser.email).toLowerCase())) {
