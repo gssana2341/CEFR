@@ -13,6 +13,17 @@ module.exports = async function handler(req, res) {
 
   const authUser = await verifyAuth(req);
   if (!authUser) return send(res, 200, { valid: false, exp: 0 });
+
+  // Admin check
+  if (authUser.verified && authUser.email) {
+    const adminRaw = String(process.env.ADMIN_EMAILS || '').trim();
+    const adminList = adminRaw.split(/[\s,;]+/).map((x) => x.toLowerCase()).filter(Boolean);
+    if (adminList.includes(String(authUser.email).toLowerCase())) {
+      // Admins get a valid pass that expires in the year 2099
+      return send(res, 200, { valid: true, exp: 4070908800000 });
+    }
+  }
+
   const pass = await getUserPass(authUser.uid);
   if (pass && pass.exp > Date.now()) return send(res, 200, { valid: true, exp: pass.exp });
   return send(res, 200, { valid: false, exp: pass ? pass.exp : 0 });
