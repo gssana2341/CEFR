@@ -36,7 +36,7 @@ async function test(name, fn) {
 let ip = 0;
 function call({ method = 'GET', body, query, token, headers = {} } = {}) {
   return new Promise((resolve) => {
-    const req = { method, body, query, headers: { 'x-real-ip': '10.1.' + Math.floor(++ip / 250) + '.' + (ip % 250), ...(token ? { authorization: 'Bearer ' + token } : {}), ...headers }, socket: {} };
+    const req = { method, body, query, headers: { ...(method === 'POST' ? { 'content-type': 'application/json' } : {}), 'x-real-ip': '10.1.' + Math.floor(++ip / 250) + '.' + (ip % 250), ...(token ? { authorization: 'Bearer ' + token } : {}), ...headers }, socket: {} };
     const h = {};
     const res = {
       statusCode: 200,

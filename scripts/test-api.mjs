@@ -47,7 +47,7 @@ let ipCounter = 0;
 // one request → { code, body }; every call comes from a fresh address so the limits do not interfere
 function call(handler, { method = 'POST', body, query, token, ip } = {}) {
   return new Promise((resolve) => {
-    const req = { method, body, query, headers: { 'x-real-ip': ip || '10.0.' + Math.floor(++ipCounter / 250) + '.' + (ipCounter % 250), ...(token ? { authorization: 'Bearer ' + token } : {}) }, socket: {} };
+    const req = { method, body, query, headers: { ...(method === 'POST' ? { 'content-type': 'application/json' } : {}), 'x-real-ip': ip || '10.0.' + Math.floor(++ipCounter / 250) + '.' + (ipCounter % 250), ...(token ? { authorization: 'Bearer ' + token } : {}) }, socket: {} };
     const res = { setHeader() {}, status(c) { this.code = c; return this; }, send(b) { resolve({ code: this.code, body: JSON.parse(b) }); } };
     Promise.resolve(handler(req, res)).catch((e) => resolve({ code: 500, body: { error: String(e) } }));
   });
@@ -447,5 +447,22 @@ await test('non-members get 3 free mark-ups a day, members always', async () => 
   }
 });
 
-console.log(failed ? '\n' + failed + ' failed' : '\nall passed');
+console.log('request bodies');
+await test('a body that is not a JSON object is a 400 (never a 500/502); only application/json is accepted on POST', async () => {
+  const toeicApi = require('../api/toeic.js');
+  for (const handler of [quiz, toeicApi]) {
+    for (const body of ['null', '[]', '5', '"x"', '{broken']) {
+      const r = await call(handler, { body });
+      assert.equal(r.code, 400, body + ' -> ' + r.code);
+    }
+    const withType = (type) => new Promise((resolve) => {
+      const req = { method: 'POST', body: '{"op":"check"}', query: {}, headers: { 'x-real-ip': '9.9.9.' + ++ipCounter, ...(type ? { 'content-type': type } : {}) }, socket: {} };
+      const res = { setHeader() {}, status(c) { this.code = c; return this; }, send() { resolve(this.code); } };
+      handler(req, res);
+    });
+    for (const type of ['text/plain', 'application/x-www-form-urlencoded', 'multipart/form-data; boundary=x', undefined]) assert.equal(await withType(type), 415, String(type));
+  }
+});
+
+console.log(failed ?'\n' + failed + ' failed' : '\nall passed');
 process.exit(failed ? 1 : 0);

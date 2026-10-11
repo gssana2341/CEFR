@@ -11,7 +11,7 @@
 // A copy of the whole book in one request is not possible: a part at a time, a few parts per account per day (strikes block
 // the account, see _abuse.js), answers only for what was picked, media in slices of at most 2 MB.
 'use strict';
-const { send, readJson, rateLimited } = require('./_pay');
+const { send, readJson, notJson, rateLimited } = require('./_pay');
 const { limited } = require('./_ratelimit');
 const { who, deny, members, toeicGate } = require('./_entitlements');
 const { seenToday, strike } = require('./_abuse');
@@ -119,6 +119,7 @@ async function getTips(req, res) {
 }
 
 async function check(req, res) {
+  if (notJson(req)) return send(res, 415, { error: 'json_required' });
   const body = await readJson(req);
   const set = body.set;
   const part = String(body.part || '');

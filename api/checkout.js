@@ -2,11 +2,12 @@
 // Requires Firebase Auth: Authorization: Bearer <idToken> - the payment is tied to that account, so a paid session id
 // that leaks is of no use to anybody else.
 'use strict';
-const { PLANS, isMock, send, readJson, stripe, siteUrl, rateLimited } = require('./_pay');
+const { PLANS, isMock, send, readJson, notJson, stripe, siteUrl, rateLimited } = require('./_pay');
 const { verifyAuth, getUserPass } = require('./_firebase');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return send(res, 405, { error: 'method_not_allowed' });
+  if (notJson(req)) return send(res, 415, { error: 'json_required' });
   if (rateLimited(req, 'checkout', 10)) return send(res, 429, { error: 'rate_limited' });
 
   const body = await readJson(req);

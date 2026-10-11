@@ -10,7 +10,7 @@
 // exactly once, so a client can not "try" another pick on the same question to see which one the next question rewards.
 'use strict';
 const crypto = require('node:crypto');
-const { send, readJson, rateLimited } = require('./_pay');
+const { send, readJson, notJson, rateLimited } = require('./_pay');
 const { limited } = require('./_ratelimit');
 const { who, deny, clueFor } = require('./_entitlements');
 const { db } = require('./_firebase');
@@ -188,6 +188,7 @@ async function opPlacement(ctx, body, req) {
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return send(res, 405, { error: 'method_not_allowed' });
+  if (notJson(req)) return send(res, 415, { error: 'json_required' });
   if (rateLimited(req, 'quiz', 240)) return send(res, 429, { error: 'rate_limited' });
 
   const body = await readJson(req);

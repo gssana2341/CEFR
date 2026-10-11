@@ -3,7 +3,7 @@
 //   POST { changes: {…} }     → { applied: [keys], skipped: { key: reason } }
 // Needs Authorization: Bearer <Firebase ID token>.
 'use strict';
-const { send, readJson, rateLimited } = require('./_pay');
+const { send, readJson, notJson, rateLimited } = require('./_pay');
 const { verifyAuth, db, serverStamp } = require('./_firebase');
 const { readAll, writeChanges } = require('./_sync');
 
@@ -31,6 +31,7 @@ module.exports = async function handler(req, res) {
       await touchProfile(user);                                  // so the learner shows up in the database after signing in
       return send(res, 200, { data: await readAll(db, user.uid) });
     }
+    if (notJson(req)) return send(res, 415, { error: 'json_required' });
     const body = await readJson(req);
     return send(res, 200, await writeChanges(db, serverStamp(), user.uid, body.changes));
   } catch (e) {

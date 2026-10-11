@@ -70,10 +70,12 @@ function send(res, status, body) {
   res.status(status).send(JSON.stringify(body));
 }
 
+// the request body as a plain object: anything else ("null", a list, a number, broken JSON, too big) reads as {} so the handlers answer 400
+const plain = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
 async function readJson(req) {
-  if (req.body && typeof req.body === 'object') return req.body;
+  if (req.body && typeof req.body === 'object') return plain(req.body);
   if (typeof req.body === 'string') {
-    try { return JSON.parse(req.body); } catch { return {}; }
+    try { return plain(JSON.parse(req.body)); } catch { return {}; }
   }
   const chunks = [];
   let size = 0;
@@ -82,7 +84,14 @@ async function readJson(req) {
     if (size > 10_000) return {};
     chunks.push(c);
   }
-  try { return JSON.parse(Buffer.concat(chunks).toString() || '{}'); } catch { return {}; }
+  try { return plain(JSON.parse(Buffer.concat(chunks).toString() || '{}')); } catch { return {}; }
+}
+
+// POST bodies must be declared JSON. A cross-site form or a "simple" fetch can only send text/plain, form or multipart, so refusing those
+// means a third-party page cannot make a visitor's browser post to these endpoints. → true when the request should be answered 415.
+function notJson(req) {
+  const type = String((req.headers && (req.headers['content-type'] || req.headers['Content-Type'])) || '').toLowerCase();
+  return !/^application\/json\s*(;|$)/.test(type);
 }
 
 const mac = (body) => crypto.createHmac('sha256', secret()).update(body).digest('base64url');
@@ -129,4 +138,4 @@ function siteUrl(req) {
   return proto + '://' + req.headers.host;
 }
 
-module.exports = { DAY, PLANS, isMock, secret, send, readJson, sign, verify, stripe, siteUrl, rateLimited, clientIp };
+module.exports = { DAY, PLANS, isMock, secret, send, readJson, notJson, sign, verify, stripe, siteUrl, rateLimited, clientIp };

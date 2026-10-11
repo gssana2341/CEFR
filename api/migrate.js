@@ -2,11 +2,12 @@
 // Migrates a legacy signed-token pass into the user's Firestore record.
 // If the legacy pass has a later expiry than the Firestore pass, it wins.
 'use strict';
-const { send, verify, readJson, rateLimited } = require('./_pay');
+const { send, verify, readJson, notJson, rateLimited } = require('./_pay');
 const { verifyAuth, migrateLegacy } = require('./_firebase');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return send(res, 405, { error: 'method_not_allowed' });
+  if (notJson(req)) return send(res, 415, { error: 'json_required' });
   if (rateLimited(req, 'migrate', 10)) return send(res, 429, { error: 'rate_limited' });
 
   // Must be logged in
