@@ -51,7 +51,9 @@ module.exports = async function handler(req, res) {
     }
     // the sentence mark-up of the exercises is part of the members' mark-up feature
     const clues = ctx.active || !members('markup') ? bank.clues('lessons')[lesson.id] : undefined;
-    return send(res, 200, { lesson: uid ? stamp(lesson, uid) : lesson, clues });
+    // the exercises go out as questions only: the answer and the explanation come from /api/quiz (op 'lesson') after the learner picked
+    const shown = { ...lesson, exercises: (lesson.exercises || []).map((x) => ({ q: x.q, c: x.c })) };
+    return send(res, 200, { lesson: uid ? stamp(shown, uid) : shown, clues });
   }
   if (set === 'cloze') {
     return send(res, 200, { set, passages: bank.bank('cloze').map(bank.publicPassage).map((p) => (uid ? { ...p, text: stampText(p.text, uid) } : p)) });

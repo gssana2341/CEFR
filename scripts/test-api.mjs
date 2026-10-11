@@ -340,7 +340,8 @@ await test('signed-in readers get their own invisible tag; anonymous readers non
   assert.notEqual(wm.tagOf('reader-a'), wm.tagOf('reader-b'));
   assert.equal(wm.decode(JSON.stringify(anon.body.lesson)).length, 0);
   // removing the invisible characters gives back exactly the original lesson (nothing visible changed)
-  assert.deepEqual(JSON.parse(text.replace(INVISIBLE, '')), JSON.parse(JSON.stringify(a1)));
+  const asShown = { ...a1, exercises: a1.exercises.map(({ q, c }) => ({ q, c })) };       // the answers and explanations are not part of the lesson
+  assert.deepEqual(JSON.parse(text.replace(INVISIBLE, '')), JSON.parse(JSON.stringify(asShown)));
   assert.equal(mine.body.lesson.id, a1.id);
   assert.equal(JSON.stringify(mine.body.lesson.exercises.map((e) => e.c)), JSON.stringify(a1.exercises.map((e) => e.c)));
 });
@@ -445,6 +446,25 @@ await test('non-members get 3 free mark-ups a day, members always', async () => 
     const m = await call(quiz, { token: MEMBER, body: { op: 'check', set: 'grammar', items: [{ n, pick: 0 }] } });
     assert.ok(m.body.results[n].clue && !m.body.results[n].clue.locked);
   }
+});
+
+console.log('lesson exercises');
+await test('a lesson carries no answer; the answer of an exercise comes from /api/quiz after a pick, under the same membership rule as the lesson', async () => {
+  const a1 = bank.lessons().find((l) => l.level === 'A1');
+  const b1 = bank.lessons().find((l) => l.level === 'B1');
+  const got = await call(content, { method: 'GET', query: { set: 'lesson', id: a1.id } });
+  assert.ok(got.body.lesson.exercises.every((x) => Object.keys(x).sort().join() === 'c,q'), 'only q and c');
+  const ok = await call(quiz, { body: { op: 'lesson', id: a1.id, items: [{ n: 0, pick: 0 }] } });
+  assert.equal(ok.code, 200);
+  assert.equal(ok.body.results[0].a, a1.exercises[0].a);
+  assert.ok(ok.body.results[0].e);
+  assert.equal((await call(quiz, { body: { op: 'lesson', id: b1.id, items: [{ n: 0, pick: 0 }] } })).code, 401);
+  assert.equal((await call(quiz, { token: FREE, body: { op: 'lesson', id: b1.id, items: [{ n: 0, pick: 0 }] } })).code, 402);
+  assert.equal((await call(quiz, { token: MEMBER, body: { op: 'lesson', id: b1.id, items: [{ n: 0, pick: 0 }] } })).code, 200);
+  for (const items of [[], [{ n: 99, pick: 0 }], [{ n: 0, pick: 9 }], [{ n: 0, pick: -1 }], [null], 'x']) {
+    assert.equal((await call(quiz, { body: { op: 'lesson', id: a1.id, items } })).code, 400, JSON.stringify(items));
+  }
+  assert.equal((await call(quiz, { body: { op: 'lesson', id: 'nope', items: [{ n: 0, pick: 0 }] } })).code, 404);
 });
 
 console.log('request bodies');

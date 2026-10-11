@@ -225,10 +225,13 @@
     const fresh = () => api.call('GET', '/api/toeic?set=' + set + '&part=' + part).then((F) => F.audio.src);
     const wantAuto = () => store.get('toeic:autoplay', true) !== false;
 
+    // practice is not the exam: every round comes in a new random order (a conversation / passage stays together), so the position of a
+    // question is never a clue. The exam room keeps the printed order on purpose.
+    const shuffled = () => window.CEFR.shuffle(steps.map((_, i) => i));
     let st = store.get(KEY, null);
-    if (!st || st.v !== 2) st = { v: 2, order: steps.map((_, i) => i), index: 0, picks: {} };
+    if (!st || st.v !== 2) st = { v: 2, order: shuffled(), index: 0, picks: {} };
     for (const n of Object.keys(st.picks)) if (!byN.has(Number(n))) delete st.picks[n];
-    if (!Array.isArray(st.order) || !st.order.length || st.order.some((i) => !steps[i])) st.order = steps.map((_, i) => i);
+    if (!Array.isArray(st.order) || !st.order.length || st.order.some((i) => !steps[i])) st.order = shuffled();
     st.index = Math.min(Math.max(0, st.index || 0), st.order.length);
     const persist = () => store.set(KEY, st);
 
@@ -353,7 +356,7 @@
     }
 
     function restart() {
-      st = { v: 2, order: steps.map((_, i) => i), index: 0, picks: {} };
+      st = { v: 2, order: shuffled(), index: 0, picks: {} };
       for (const k of Object.keys(rev)) delete rev[k];
       persist();
       renderStep();
@@ -362,7 +365,7 @@
     function redoWrong() {
       const wrongN = all.filter((q) => !right(q.n)).map((q) => q.n);
       for (const n of wrongN) { delete st.picks[n]; delete rev[n]; }
-      st.order = [...new Set(wrongN.map((n) => stepOf.get(n)))].sort((x, y) => x - y);
+      st.order = window.CEFR.shuffle([...new Set(wrongN.map((n) => stepOf.get(n)))]);
       st.index = 0;
       persist();
       renderStep();

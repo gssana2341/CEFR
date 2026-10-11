@@ -2,6 +2,7 @@
 // until the learner has committed to a pick (see _bank.js: the question lists sent out by /api/content have none).
 //
 //   op 'check'      { set, items: [{ n, pick }] }                  practice quiz → { results: { n: { a, e, clue? } } }
+//   op 'lesson'     { id, items: [{ n, pick }] }                   one lesson's exercises → { results: { n: { a, e } } }
 //   op 'cloze'      { idx, picks: [optionIndex|null, ...] }        one cloze passage → { blanks: [{ a, e }] }
 //   op 'exam'       { items: [{ src, n, pick }], cloze: [{ idx, picks }] }   mock exam, graded on submit (members)
 //   op 'placement'  { sid?, step?, pick? }                         adaptive placement test (see below)
@@ -58,6 +59,23 @@ async function opCloze(ctx, body) {
   const p = isInt(body.idx, 0, 1000) ? bank.bank('cloze')[body.idx] : null;
   if (!p || !validClozePicks(p, body.picks) || body.picks.some((v) => v === null)) return { status: 400, body: { error: 'bad_items' } };
   return { status: 200, body: { blanks: gradeCloze(p, body.picks).map(({ a, e }) => ({ a, e: tagged(ctx, e) })) }, cost: p.blanks.length };
+}
+
+// ---------- lesson exercises ----------
+async function opLesson(ctx, body) {
+  const lesson = typeof body.id === 'string' ? bank.lessons().find((l) => l.id === body.id) : null;
+  if (!lesson) return { status: 404, body: { error: 'not_found' } };
+  const refused = deny(ctx, 'lesson:' + lesson.level);
+  if (refused) return { status: refused.status, body: { error: refused.error, feature: refused.feature } };
+  const items = body.items;
+  if (!Array.isArray(items) || items.length < 1 || items.length > MAX_CHECK_ITEMS) return { status: 400, body: { error: 'bad_items' } };
+  const results = {};
+  for (const it of items) {
+    const ex = it && isInt(it.n, 0, 100) ? (lesson.exercises || [])[it.n] : null;
+    if (!ex || !isInt(it.pick, 0, ex.c.length - 1)) return { status: 400, body: { error: 'bad_items' } };
+    results[it.n] = { a: ex.a, e: tagged(ctx, ex.e) };
+  }
+  return { status: 200, body: { results }, cost: items.length };
 }
 
 // ---------- mock exam ----------
@@ -193,7 +211,7 @@ module.exports = async function handler(req, res) {
 
   const body = await readJson(req);
   const op = typeof body.op === 'string' ? body.op : '';
-  if (!['check', 'cloze', 'exam', 'placement'].includes(op)) return send(res, 400, { error: 'bad_op' });
+  if (!['check', 'cloze', 'exam', 'placement', 'lesson'].includes(op)) return send(res, 400, { error: 'bad_op' });
 
   const ctx = await who(req);
   const uid = ctx.user && ctx.user.uid;
@@ -202,6 +220,7 @@ module.exports = async function handler(req, res) {
   let r;
   try {
     r = op === 'check' ? await opCheck(ctx, body)
+      : op === 'lesson' ? await opLesson(ctx, body)
       : op === 'cloze' ? await opCloze(ctx, body)
         : op === 'exam' ? await opExam(ctx, body)
           : await opPlacement(ctx, body, req);

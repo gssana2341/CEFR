@@ -57,25 +57,38 @@
     function build() {
       correct = 0;
       answered = 0;
-      box.replaceChildren(...lesson.exercises.map((ex, i) => {
+      // a new random order of the questions every time (the number shown is the place in this round; the key stays the exercise's own)
+      box.replaceChildren(...shuffle(lesson.exercises.map((_, i) => i)).map((i, pos) => {
+        const ex = lesson.exercises[i];
         const order = shuffle(ex.c.map((_, j) => j));
         const fb = h('div', { class: 'feedback', 'aria-live': 'polite', hidden: true });
         const btns = order.map((orig, k) => h('button', {
           class: 'choice',
           type: 'button',
-          onclick: () => {
+          onclick: async () => {
             if (btns[0].disabled) return;
             btns.forEach((b) => { b.disabled = true; });
-            const ok = orig === ex.a;
+            // the answer is not in the page: the server tells it once a pick is made
+            let res;
+            try {
+              res = (await window.CEFR.content.revealLesson(lesson.id, [{ n: i, pick: orig }]))[i];
+            } catch (e) {
+              btns.forEach((b) => { b.disabled = false; });
+              fb.className = 'feedback bad';
+              fb.replaceChildren(h('p', { class: 'feedback-text', text: e.status === 429 ? 'ตอบเร็วหรือบ่อยเกินไป รอสักครู่แล้วลองใหม่' : 'เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้ง' }));
+              fb.hidden = false;
+              return;
+            }
+            const ok = orig === res.a;
             answered++;
             if (ok) correct++;
             btns[k].classList.add(ok ? 'correct' : 'wrong');
-            if (!ok) btns[order.indexOf(ex.a)].classList.add('correct');
+            if (!ok) btns[order.indexOf(res.a)].classList.add('correct');
             fb.className = 'feedback ' + (ok ? 'ok' : 'bad');
             fb.replaceChildren(...[
               h('strong', { class: 'feedback-title', text: ok ? 'ถูกต้อง' : 'ผิด' }),
-              h('p', { class: 'feedback-text', 'data-tr': true }, rich(ex.e)),
-              window.CEFR.markup && window.CEFR.markup.block({ bank: 'lessons', key: lesson.id + '#' + i, q: ex.q, answer: ex.c[ex.a] }),
+              h('p', { class: 'feedback-text', 'data-tr': true }, rich(res.e)),
+              window.CEFR.markup && window.CEFR.markup.block({ bank: 'lessons', key: lesson.id + '#' + i, q: ex.q, answer: ex.c[res.a] }),
             ].filter(Boolean));
             fb.hidden = false;
             if (answered === lesson.exercises.length) finish();
@@ -84,7 +97,7 @@
         h('span', { class: 'choice-key', 'aria-hidden': 'true', text: KEYS[k] }),
         h('span', { text: ex.c[orig] })));
         return h('div', { class: 'exercise' },
-          h('p', { class: 'ex-no', text: 'ข้อ ' + (i + 1) }),
+          h('p', { class: 'ex-no', text: 'ข้อ ' + (pos + 1) }),
           h('p', { class: 'question', 'data-tr': true, text: ex.q }),
           h('div', { class: 'choices' }, btns),
           fb);

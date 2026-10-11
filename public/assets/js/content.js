@@ -101,6 +101,12 @@
     }
   }
 
+  // the answers of a lesson's exercises (they are not in the lesson itself): items [{ n: exercise index, pick }]
+  async function revealLesson(id, items) {
+    const d = await post({ op: 'lesson', id, items });
+    return d.results;
+  }
+
   // a Thai message for the errors that need more than "try again" (null for any other error)
   function special(e) {
     if (e && e.code === 'account_blocked') return 'บัญชีนี้ถูกระงับการเข้าถึงเนื้อหาสำหรับสมาชิกชั่วคราว เพราะมีการดึงเนื้อหาผิดปกติ หากเข้าใจผิด กรุณาติดต่อผู้ดูแล';
@@ -108,5 +114,5 @@
     return null;
   }
 
-  window.CEFR.content = { load, lesson, reveal, post, call, setClue, special, ApiError };
+  window.CEFR.content = { load, lesson, reveal, revealLesson, post, call, setClue, special, ApiError };
 })();
