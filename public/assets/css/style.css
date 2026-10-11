@@ -1784,3 +1784,4 @@ body.toeic-page #app > section.panel.resume { padding: 20px 24px; border: 1px so
 .tx-card.c4 { background: linear-gradient(135deg, #059669, #65a30d); --glow: rgba(16, 185, 129, 0.5); }
 .tx-card.c4 .tx-card-cta { color: #14532d; }
 body.toeic-page #app > .toeic-nav { margin-top: 26px; }
+.tx-card-no { top: 26px; }
