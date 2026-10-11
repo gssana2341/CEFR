@@ -1764,3 +1764,6 @@ body.toeic-page .toeic-directions { margin-bottom: 20px; }
 .toeic-modes li:nth-child(1) .list-row { background: color-mix(in srgb, var(--acc-toeic) 10%, var(--bg)); }
 .toeic-modes li:nth-child(2) .list-row { background: color-mix(in srgb, var(--acc-toeic) 8%, var(--bg)); }
 .toeic-modes li:nth-child(3) .list-row { background: color-mix(in srgb, var(--acc-toeic) 8%, var(--bg)); }
+
+/* the big number behind a set card sits in the upper right, clear of the state and the button */
+.tx-card-no { top: 4px; right: 22px; bottom: auto; font-size: 6.2rem; line-height: 1; color: rgba(255, 255, 255, 0.14); z-index: 0; }
