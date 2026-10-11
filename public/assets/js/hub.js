@@ -111,11 +111,11 @@
       if (info.resume) items.push({ title: p.title + ' ' + p.thai, meta: info.resume, href: p.href });
     });
     if (!items.length) return null;
-    return h('section', { class: 'continue' },
+    return h('section', { class: 'continue mini', 'aria-label': 'ทำต่อจากที่ค้างไว้' },
       h('h2', { text: 'ทำต่อจากที่ค้างไว้' }),
       items.slice(0, 3).map((it) => h('div', { class: 'continue-item' },
-        h('div', {}, h('p', { class: 'continue-title', text: it.title }), h('p', { class: 'continue-meta', text: it.meta })),
-        btn('ทำต่อ', it.href, true))));
+        h('div', { class: 'continue-text' }, h('p', { class: 'continue-title', text: it.title }), h('p', { class: 'continue-meta', text: it.meta })),
+        h('a', { class: 'btn btn-sm', href: it.href, text: 'ทำต่อ' }))));
   }
 
   // one dismissible line instead of a boxed banner (the choice is remembered on this device)
@@ -196,14 +196,18 @@
         h('span', { class: 'step-row-title', text: st.title }),
         h('span', { class: 'step-row-status', text: st.status })))));
 
+    const resume = continueCard();
     return h('div', {},
-      h('h1', { class: 'page-title', text: 'เรียน ฝึก และวัดระดับ CEFR' }),
-      h('p', { class: 'lead', text: 'ภาษาอังกฤษระดับ A1–B2 อธิบายเป็นภาษาไทย ตอบแล้วเห็นเฉลยทันที คลิกคำเพื่อดูคำแปลได้ทุกหน้า' }),
+      // the title on the left, what is still open on the right (small, with its own button)
+      h('div', { class: 'home-head' + (resume ? ' has-resume' : '') },
+        h('div', {},
+          h('h1', { class: 'page-title', text: 'เรียน ฝึก และวัดระดับ CEFR' }),
+          h('p', { class: 'lead', text: 'ภาษาอังกฤษระดับ A1–B2 อธิบายเป็นภาษาไทย ตอบแล้วเห็นเฉลยทันที คลิกคำเพื่อดูคำแปลได้ทุกหน้า' })),
+        resume),
       noticeLine(),
       levelLadder(done),
       h('div', { class: 'home-grid' },
         h('div', {},
-          continueCard(),
           next && h('section', { class: 'next-card acc-' + next.acc },
             h('p', { class: 'next-label', text: 'ขั้นต่อไป · ขั้นที่ ' + rec + ' จาก 4' }),
             h('h2', { class: 'next-title', text: next.title }),
