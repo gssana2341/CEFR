@@ -118,7 +118,7 @@
         h('div', { class: 'btn-row' },
           h('button', { class: 'btn', type: 'button', text: 'ทำต่อ', onclick: mount }),
           h('button', { class: 'btn btn-outline', type: 'button', text: 'ทิ้งแล้วเริ่มใหม่', onclick: async () => { if (await confirmDialog('ทิ้งการสอบที่ค้างอยู่?', { okText: 'ทิ้ง', danger: true })) { run = null; store.remove(KEY); intro(); } } }))),
-      !resume && h('ul', { class: 'list-rows tiles' },
+      !resume && h('ul', { class: 'list-rows tiles toeic-modes' },
         startCard('full', 'สอบเต็มชุด', 'Listening แล้วต่อด้วย Reading ทันที เหมือนวันสอบ', '2 ชั่วโมง'),
         startCard('listening', 'เฉพาะ Listening', 'Part 1–4 · 100 ข้อ', '45 นาที'),
         startCard('reading', 'เฉพาะ Reading', 'Part 5–7 · 100 ข้อ', '75 นาที')),

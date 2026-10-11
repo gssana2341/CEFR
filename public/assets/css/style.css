@@ -1060,7 +1060,7 @@ body[data-view="intro"] .tr-toggle { display: none; }
   --acc-placement: #be185d;
   --acc-exam: #c2410c;
   --acc-learn: #0369a1;
-  --acc-toeic: #b45309;
+  --acc-toeic: #4f46e5;
   --acc-advanced: #be123c;
   --acc-ink: #ffffff;
 }
@@ -1072,7 +1072,7 @@ body[data-view="intro"] .tr-toggle { display: none; }
   --acc-placement: #f472b6;
   --acc-exam: #fb923c;
   --acc-learn: #38bdf8;
-  --acc-toeic: #fbbf24;
+  --acc-toeic: #818cf8;
   --acc-advanced: #fb7185;
   --acc-ink: #0a0a0a;
 }
@@ -1085,7 +1085,7 @@ body[data-view="intro"] .tr-toggle { display: none; }
     --acc-placement: #f472b6;
     --acc-exam: #fb923c;
     --acc-learn: #38bdf8;
-    --acc-toeic: #fbbf24;
+    --acc-toeic: #818cf8;
     --acc-advanced: #fb7185;
     --acc-ink: #0a0a0a;
   }
@@ -1563,3 +1563,98 @@ body[class*="acc-"] .choice.selected .choice-key { color: var(--info); font-weig
 .tx-tag, .free-tag { color: var(--warn); }
 .free-tag { background: var(--ok-bg); color: var(--ok); }
 .done-tag { color: var(--ok); }
+
+/* ---------- TOEIC look ----------
+   Area colour: indigo (was amber). Wider pages: the practice step and the exam room use the screen instead of a narrow column in the
+   middle. States keep their own colours (see Signal colours): blue = chosen, green = right, red = wrong, amber = marked. */
+:root { --info: #0369a1; --info-bg: #f0f9ff; --toeic-glow: rgba(79, 70, 229, 0.16); --toeic-grad: linear-gradient(135deg, #4f46e5, #7c3aed); }
+:root[data-theme="dark"] { --info: #38bdf8; --info-bg: #0a2230; --toeic-glow: rgba(129, 140, 248, 0.2); --toeic-grad: linear-gradient(135deg, #6366f1, #8b5cf6); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --info: #38bdf8; --info-bg: #0a2230; --toeic-glow: rgba(129, 140, 248, 0.2); --toeic-grad: linear-gradient(135deg, #6366f1, #8b5cf6); }
+}
+
+body.toeic-page .container { max-width: 1180px; }
+body.toeic-page .page-title, body.toeic-page .lead { max-width: 760px; }
+
+/* hub: the first card */
+.tx-hero { position: relative; overflow: hidden; border: 0; border-radius: 18px; padding: 30px 32px; color: #fff; background: var(--toeic-grad); box-shadow: 0 18px 40px -18px var(--toeic-glow); }
+.tx-hero::after { content: ""; position: absolute; right: -60px; top: -60px; width: 240px; height: 240px; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,0.28), transparent 70%); pointer-events: none; }
+.tx-hero .tx-eyebrow { color: rgba(255, 255, 255, 0.85); }
+.tx-hero .tx-hero-sub, .tx-hero .tx-last, .tx-hero .tx-others { color: rgba(255, 255, 255, 0.82); }
+.tx-hero .tx-others a { color: #fff; }
+.tx-hero .btn-acc { background: #fff; border-color: #fff; color: #3730a3; font-weight: 600; padding: 12px 26px; }
+.tx-hero .btn-acc:hover:not(:disabled) { opacity: 1; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25); }
+.tx-row { border-radius: 10px; border-bottom-color: transparent; margin-bottom: 4px; transition: background-color 0.15s, transform 0.15s; }
+.tx-row:hover { background: color-mix(in srgb, var(--acc-toeic) 10%, transparent); transform: translateX(3px); }
+.tx-chip { background: color-mix(in srgb, var(--acc-toeic) 8%, transparent); border-color: color-mix(in srgb, var(--acc-toeic) 35%, var(--border)); }
+.tx-tag { color: var(--acc-toeic); }
+
+/* the number badges (Part / set): a filled circle in the area colour */
+.part-no { background: var(--toeic-grad); color: #fff; border-radius: 50%; width: 2.1rem; height: 2.1rem; }
+
+/* practice: the question beside a card with the state of the round */
+.toeic-practice { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: start; }
+.toeic-practice .toeic-step { margin: 0; padding: 28px 32px; border: 1px solid var(--border); border-radius: 18px; background: var(--bg); box-shadow: 0 10px 34px -22px var(--toeic-glow); }
+.toeic-practice .toeic-step .question { font-size: 1.25rem; line-height: 1.6; }
+.toeic-practice .choice { padding: 14px 16px; border-radius: 12px; transition: border-color 0.15s, background-color 0.15s, transform 0.15s; }
+.toeic-practice .choice:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--acc-toeic); background: color-mix(in srgb, var(--acc-toeic) 7%, transparent); }
+.toeic-practice .choice-key { display: inline-grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 50%; background: color-mix(in srgb, var(--acc-toeic) 14%, transparent); color: var(--acc-toeic); font-weight: 700; }
+.toeic-practice .choice.selected .choice-key { background: var(--info); color: var(--bg); }
+.toeic-practice .choice.correct .choice-key { background: var(--ok); color: var(--bg); }
+.toeic-practice .choice.wrong .choice-key { background: var(--bad); color: var(--bg); }
+.toeic-practice .toeic-step .progress-fill { background: var(--toeic-grad); }
+.toeic-practice .toeic-clip-box { border-radius: 14px; background: color-mix(in srgb, var(--acc-toeic) 6%, var(--bg)); border-color: color-mix(in srgb, var(--acc-toeic) 25%, var(--border)); }
+.toeic-practice .toeic-clip-box .btn:not(.btn-outline) { background: var(--toeic-grad); border-color: transparent; color: #fff; }
+.toeic-step-nav { grid-template-columns: 1fr; }
+.toeic-practice .toeic-step-nav .btn:not(.btn-outline) { background: var(--toeic-grad); border-color: transparent; color: #fff; padding: 13px; font-weight: 600; }
+
+.toeic-side-card { position: sticky; top: 16px; padding: 20px; border: 1px solid var(--border); border-radius: 18px; background: color-mix(in srgb, var(--acc-toeic) 4%, var(--bg)); }
+.tside-score { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 18px; }
+.tside-stat { text-align: center; padding: 10px 4px; border-radius: 12px; background: var(--subtle); }
+.tside-stat strong { display: block; font-size: 1.5rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.tside-stat span { font-size: 0.8rem; color: var(--muted); }
+.tside-stat.ok { background: var(--ok-bg); } .tside-stat.ok strong { color: var(--ok); }
+.tside-stat.bad { background: var(--bad-bg); } .tside-stat.bad strong { color: var(--bad); }
+.tside-title { margin: 0 0 10px; font-size: 0.85rem; font-weight: 600; color: var(--muted); }
+.tdots { display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); gap: 6px; max-height: 46vh; overflow: auto; padding: 2px; }
+.tdot { font: inherit; font-size: 0.78rem; min-height: 34px; padding: 0; border: 1px solid var(--border); border-radius: 9px; background: var(--bg); color: var(--muted); cursor: pointer; font-variant-numeric: tabular-nums; transition: transform 0.12s; }
+.tdot:hover { transform: translateY(-1px); border-color: var(--acc-toeic); }
+.tdot.ans { background: var(--info-bg); border-color: var(--info); color: var(--info); font-weight: 600; }
+.tdot.ok { background: var(--ok); border-color: var(--ok); color: var(--bg); font-weight: 600; }
+.tdot.bad { background: var(--bad); border-color: var(--bad); color: var(--bg); font-weight: 600; }
+.tdot.cur { outline: 2px solid var(--acc-toeic); outline-offset: 2px; }
+.tside-keys { margin: 16px 0 0; font-size: 0.82rem; color: var(--muted); }
+.tside-keys kbd { padding: 1px 7px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 6px; font: inherit; font-size: 0.78rem; background: var(--bg); }
+@media (max-width: 960px) {
+  .toeic-practice { grid-template-columns: minmax(0, 1fr); }
+  .toeic-side-card { position: static; order: -1; padding: 14px; }
+  .tdots { max-height: 120px; grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); }
+  .toeic-practice .toeic-step { padding: 20px 18px; }
+}
+
+/* exam room: intro as a hero with the three ways to sit it; the room itself on the wide column */
+.toeic-intro { padding: 28px 30px; border: 0; border-radius: 18px; color: #fff; background: var(--toeic-grad); box-shadow: 0 18px 40px -18px var(--toeic-glow); }
+.toeic-intro .lead, .toeic-intro .toeic-rules { color: rgba(255, 255, 255, 0.9); max-width: none; }
+.toeic-intro .toeic-rules li::marker { color: #fff; }
+.toeic-modes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.toeic-modes .list-row { flex-direction: column; align-items: flex-start; gap: 6px; padding: 22px; border-left-width: 1px; border-top: 4px solid var(--acc-toeic); border-radius: 14px; }
+.toeic-modes li:first-child .list-row { background: color-mix(in srgb, var(--acc-toeic) 9%, var(--bg)); }
+.toeic-modes .list-row-side { margin-left: 0; color: var(--acc-toeic); font-weight: 700; font-size: 1.15rem; }
+.toeic-modes .list-row-title { font-size: 1.1rem; }
+@media (max-width: 760px) { .toeic-modes { grid-template-columns: minmax(0, 1fr); } }
+
+.toeic-exam-layout { grid-template-columns: minmax(0, 1fr) 320px; gap: 32px; }
+.toeic-exam-main .toeic-q, .toeic-exam-main .toeic-group { padding: 22px 26px; margin-bottom: 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--bg); box-shadow: 0 10px 30px -24px var(--toeic-glow); }
+.toeic-exam-main .toeic-q + .toeic-q { border-top: 1px solid var(--border); }
+.toeic-exam-main .question { font-size: 1.15rem; line-height: 1.6; }
+.toeic-exam-main .choice { padding: 12px 16px; border-radius: 12px; }
+.toeic-exam-main .choice:hover:not(:disabled) { border-color: var(--acc-toeic); background: color-mix(in srgb, var(--acc-toeic) 7%, transparent); }
+.toeic-exam-main .choice-key { display: inline-grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 50%; background: color-mix(in srgb, var(--acc-toeic) 14%, transparent); color: var(--acc-toeic); font-weight: 700; }
+.toeic-exam-main .choice.selected .choice-key { background: var(--info); color: var(--bg); }
+.toeic-exam-bar { padding: 12px 16px; border: 1px solid var(--border); border-radius: 14px; background: color-mix(in srgb, var(--acc-toeic) 5%, var(--bg)); margin-bottom: 18px; }
+.toeic-exam-bar .progress-fill { background: var(--toeic-grad); }
+.toeic-side-box { border-radius: 16px; padding: 14px 16px; background: color-mix(in srgb, var(--acc-toeic) 4%, var(--bg)); }
+.pal-grid { grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 6px; }
+.pal { min-height: 34px; border-radius: 9px; }
+@media (max-width: 900px) { .toeic-exam-layout { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .tx-row, .tdot, .toeic-practice .choice { transition: none; } .tx-row:hover, .tdot:hover { transform: none; } }

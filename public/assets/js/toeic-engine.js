@@ -262,7 +262,37 @@
       const nextBtn = h('button', { class: 'btn btn-block', type: 'button', text: st.index === total - 1 ? 'ดูผลคะแนน' : 'ถัดไป', hidden: true, onclick: next });
       const prevBtn = st.index > 0 && h('button', { class: 'btn btn-outline btn-block', type: 'button', text: '← ก่อนหน้า', onclick: () => { st.index--; persist(); renderStep(); window.scrollTo(0, 0); } });
       const script = h('details', { class: 'toeic-script', hidden: true });
+
+      // the card beside the question: how the round stands, and a map to jump around (green right · red wrong · blue answered · ring = here)
+      const side = h('aside', { class: 'toeic-side-card', 'aria-label': 'ความคืบหน้าของรอบนี้' });
+      const drawSide = () => {
+        let good = 0;
+        let bad = 0;
+        const dots = st.order.map((si, pos) => {
+          const sp = steps[si];
+          const graded = sp.items.every((q) => rev[q.n]);
+          const picked = sp.items.every((q) => st.picks[q.n] !== undefined);
+          const allRight = graded && sp.items.every((q) => right(q.n));
+          if (graded) sp.items.forEach((q) => { if (right(q.n)) good++; else bad++; });
+          const state = graded ? (allRight ? 'ok' : 'bad') : picked ? 'ans' : '';
+          return h('button', {
+            class: 'tdot' + (state ? ' ' + state : '') + (pos === st.index ? ' cur' : ''), type: 'button', text: String(pos + 1),
+            'aria-label': 'ไปที่ข้อ ' + (pos + 1), 'aria-current': pos === st.index ? 'step' : null,
+            onclick: () => { leave(); st.index = pos; persist(); renderStep(); window.scrollTo(0, 0); },
+          });
+        });
+        const done = good + bad;
+        side.replaceChildren(
+          h('div', { class: 'tside-score' },
+            h('div', { class: 'tside-stat ok' }, h('strong', { text: String(good) }), h('span', { text: 'ถูก' })),
+            h('div', { class: 'tside-stat bad' }, h('strong', { text: String(bad) }), h('span', { text: 'ผิด' })),
+            h('div', { class: 'tside-stat' }, h('strong', { text: String(Math.max(0, all.length - done)) }), h('span', { text: 'เหลือ' }))),
+          h('p', { class: 'tside-title', text: 'แผนที่ของรอบนี้' }),
+          h('div', { class: 'tdots' }, dots),
+          h('p', { class: 'tside-keys' }, h('kbd', { text: '1–4' }), ' เลือกคำตอบ · ', h('kbd', { text: 'Enter' }), ' ข้อถัดไป'));
+      };
       const syncStep = () => {
+        drawSide();
         const done = step.items.every((q) => rev[q.n]);
         nextBtn.hidden = !done;
         const tx = step.items.map((q) => rev[q.n] && rev[q.n].tx).find(Boolean);
@@ -301,14 +331,14 @@
       const body = step.g ? ui.groupBlock(step.g, part, make) : make(step.items[0]);
 
       window.CEFR.setView('quiz');
-      root.replaceChildren(h('section', { class: 'panel toeic-step' },
+      root.replaceChildren(h('div', { class: 'toeic-practice' }, h('section', { class: 'panel toeic-step' },
         h('div', { class: 'focus-bar' },
           h('button', { class: 'focus-exit', type: 'button', 'aria-label': 'พักไว้ก่อน (บันทึกอัตโนมัติ)', title: 'พักไว้ก่อน (บันทึกอัตโนมัติ)', text: '←', onclick: () => { leave(); location.href = 'toeic-test.html?part=' + part; } }),
           h('div', { class: 'progress' }, bar),
           h('span', { class: 'focus-count', text: (st.index + 1) + ' / ' + total })),
         h('p', { class: 'q-tag', text: 'ชุดที่ ' + set + ' · Part ' + part + ' ' + ui.PARTS[part].en }),
         clip, body, script,
-        h('div', { class: 'toeic-step-nav' }, nextBtn, prevBtn)));
+        h('div', { class: 'toeic-step-nav' }, nextBtn, prevBtn)), side));
       syncStep();
     }
 
