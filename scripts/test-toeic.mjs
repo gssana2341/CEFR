@@ -422,6 +422,34 @@ await test('closed beta: nobody when the list is empty; only the invited, verifi
   }
 });
 
+await test('the owner (ADMIN_EMAILS) can open the sets while the beta list is empty or does not name them, and the menu agrees', async () => {
+  const fake = await fakeSupabase(true);
+  delete process.env.TOEIC_DIR;
+  process.env.SUPABASE_URL = fake.url;
+  process.env.SUPABASE_SERVICE_KEY = 'svc-key';
+  store.clearCache();
+  const OWNER = 'mock-owner1.Boss@Example.com';
+  try {
+    process.env.ADMIN_EMAILS = 'boss@example.com';
+    for (const list of [undefined, 'someone.else@example.com']) {
+      if (list === undefined) delete process.env.TOEIC_ALLOWED_EMAILS; else process.env.TOEIC_ALLOWED_EMAILS = list;
+      assert.equal((await call({ query: { set: '1', part: '5' }, token: OWNER })).code, 200, 'the owner opens a part (list: ' + list + ')');
+      const menu = await call({ token: OWNER });
+      assert.equal(menu.json.available, true, 'the menu shows the sets to the owner');
+      assert.equal(menu.json.beta, true);
+      assert.equal((await call({ query: { set: '1', part: '5' }, token: 'mock-member-user' })).code, 403, 'a member that is not the owner is still refused');
+    }
+  } finally {
+    delete process.env.ADMIN_EMAILS;
+    delete process.env.TOEIC_ALLOWED_EMAILS;
+    fake.server.close();
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_KEY;
+    process.env.TOEIC_DIR = dir;
+    store.clearCache();
+  }
+});
+
 await test('the invite check itself: needs a verified address, a blocked account stays out, the match is not a substring', () => {
   const { toeicGate } = require('../api/_entitlements.js');
   const saved = process.env.TOEIC_DIR;

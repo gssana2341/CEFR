@@ -29,6 +29,9 @@ const PREMIUM = {
 // → { rule: 'members' } | { rule: 'invited' } | { status, error }
 function toeicGate(ctx) {
   if (process.env.TOEIC_DIR && !process.env.VERCEL && !process.env.VERCEL_ENV) return { rule: 'members' };
+  // the site owner (ADMIN_EMAILS, see who()) can always open the sets - also while the beta list is empty or does not name them -
+  // and the menu must agree with deny(), which already lets admins through
+  if (ctx.isAdmin) return ctx.blocked ? { status: 403, error: 'account_blocked' } : { rule: 'invited' };
   const raw = String(process.env.TOEIC_ALLOWED_EMAILS || '').trim();
   if (raw === '*') return { rule: 'members' };
   const list = raw.split(/[\s,;]+/).map((x) => x.toLowerCase()).filter(Boolean);
