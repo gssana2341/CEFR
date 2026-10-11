@@ -29,6 +29,9 @@ const PREMIUM = {
 // → { rule: 'members' } | { rule: 'invited' } | { status, error }
 function toeicGate(ctx) {
   if (process.env.TOEIC_DIR && !process.env.VERCEL && !process.env.VERCEL_ENV) return { rule: 'members' };
+  // the site owner (ADMIN_EMAILS, see who()) can always open the sets - also while the beta list is empty or does not name them -
+  // and the menu must agree with deny(), which already lets admins through
+  if (ctx.isAdmin) return ctx.blocked ? { status: 403, error: 'account_blocked' } : { rule: 'invited' };
   const raw = String(process.env.TOEIC_ALLOWED_EMAILS || '').trim();
   if (raw === '*') return { rule: 'members' };
   const list = raw.split(/[\s,;]+/).map((x) => x.toLowerCase()).filter(Boolean);
@@ -49,22 +52,35 @@ function members(feature) {
   return f === 'exam' || f === 'markup' || f === 'toeic' ? Boolean(PREMIUM[f]) : false;
 }
 
-// → { user: {uid,email}|null, active: boolean, blocked: boolean, ident: string }
+// The site owner's accounts: ADMIN_EMAILS (server environment variable, comma separated). They count as members for everything and are not
+// held back by the daily caps. The address must be a VERIFIED one (Google sign-in, or an e-mail the owner confirmed): without that,
+// anybody could create an e-mail/password account with the owner's address and be the administrator.
+function isAdminUser(user) {
+  if (!user || !user.email || !user.verified) return false;
+  const list = String(process.env.ADMIN_EMAILS || '').split(/[\s,;]+/).map((x) => x.toLowerCase()).filter(Boolean);
+  return list.includes(String(user.email).toLowerCase());
+}
+
+// → { user: {uid,email}|null, active: boolean, blocked: boolean, isAdmin: boolean, ident: string }
 // `ident` names the caller for counters: the account when signed in, otherwise the address (hashed, never used as a path as is).
+// `active` = holds a membership; the owner's accounts (isAdminUser) always do, so every place that asks `ctx.active` agrees with deny().
 async function who(req) {
   const user = await verifyAuth(req);
   let active = false;
   let blocked = false;
+  const isAdmin = isAdminUser(user);
   if (user) {
     const pass = await getUserPass(user.uid);
-    active = Boolean(pass && pass.exp > Date.now());
+    active = isAdmin || Boolean(pass && pass.exp > Date.now());
     blocked = Boolean(pass && pass.contentBlocked);        // set by _abuse.js after repeated bulk-copying; cleared by hand
   }
-  return { user, active, blocked, ident: user ? 'u:' + user.uid : 'ip:' + clientIp(req) };
+  return { user, active, blocked, isAdmin, ident: user ? 'u:' + user.uid : 'ip:' + clientIp(req) };
 }
 
 // → null when allowed, otherwise { status, error } to send back
 function deny(ctx, feature) {
+  if (ctx.isAdmin) return null;
+
   if (feature === 'toeic') {
     const g = toeicGate(ctx);
     if (g.status) return { status: g.status, error: g.error, feature };
@@ -83,8 +99,9 @@ const hash = (s) => crypto.createHash('sha256').update(s).digest('base64url');
 // (the same question again costs nothing). → the annotation, { locked: true } when today's free looks are used up, or null.
 async function clueFor(ctx, ann, bank, key) {
   if (!ann) return null;
-  if (!members('markup') || ctx.active) return ann;
+  if (!members('markup') || ctx.active || ctx.isAdmin) return ann;
   const limit = PREMIUM.markupFreePerDay;
+
   const id = hash('trial|' + ctx.ident + '|' + day());
   const k = bank + ':' + key;
   try {
@@ -105,4 +122,4 @@ async function clueFor(ctx, ann, bank, key) {
   }
 }
 
-module.exports = { BILLING_ENABLED, PREMIUM, members, who, deny, clueFor, toeicGate };
+module.exports = { BILLING_ENABLED, PREMIUM, members, who, deny, clueFor, toeicGate, isAdminUser };

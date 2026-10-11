@@ -91,7 +91,7 @@ async function getPart(req, res, q) {
   if (refused) return send(res, refused.status, { error: refused.error, feature: 'toeic' });
   const uid = ctx.user && ctx.user.uid;
   if (await limited(req, 'toeic-part-day', PART_LOADS_PER_DAY, { uid, windowMs: DAY })) return send(res, 429, { error: 'rate_limited' });
-  const seen = await seenToday(ctx.ident, 'toeic', set + ':' + part, DISTINCT_PARTS_PER_DAY);
+  const seen = ctx.isAdmin ? { ok: true } : await seenToday(ctx.ident, 'toeic', set + ':' + part, DISTINCT_PARTS_PER_DAY);     // the owner is not held to the daily cap
   if (!seen.ok) {
     if (members('toeic')) await strike(uid);
     return send(res, 429, { error: 'daily_limit' });

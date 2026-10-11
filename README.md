@@ -316,6 +316,7 @@ push เข้า `main` = deploy production อัตโนมัติ · bran
   3. Authentication → Sign-in method: ปิด Email/Password ถ้าไม่ได้ใช้ (หน้าเว็บมีแค่ Google แต่ API key เป็นสาธารณะ ใครก็เรียกสมัครผ่าน REST ได้) · เปิด email enumeration protection · เหลือโดเมนจริงใน Authorized domains
   4. Google Cloud → Credentials: จำกัด API key ของเว็บด้วย HTTP referrer และ API restrictions · ตั้ง budget alert ที่ Billing
   5. ตรวจว่า Vercel ไม่ได้ตั้ง `PAY_MODE=mock`
+  7. **บัญชีเจ้าของเว็บ (ใช้เหมือนสมาชิกโปรฟรี)**: Vercel → Environment Variables เพิ่ม `ADMIN_EMAILS` = อีเมลของเจ้าของ คั่นด้วยจุลภาคได้หลายอัน (ไม่ใส่ในโค้ดเพราะ repo เป็น public) แล้ว Redeploy · บัญชีเหล่านี้ผ่านทุกการเช็กสมาชิกที่ฝั่งเซิร์ฟเวอร์ (บทเรียน ชุดฝึก สอบจำลอง mark-up TOEIC) และเข้า TOEIC ได้เสมอแม้อยู่ในช่วงเปิดเฉพาะผู้ทดสอบ · ต้องล็อกอินด้วยอีเมลนั้นจริง (ถ้าเปิดด้วยอีเมลอื่นจะไม่ได้สิทธิ์)
   6. Vercel → Environment Variables: เพิ่ม `WATERMARK_SECRET` (ข้อความสุ่มยาวๆ) แล้ว Redeploy (โค้ดไม่ยอมเปิดโหมดจำลองบน Vercel อยู่แล้ว)
 
 ## หมายเหตุ

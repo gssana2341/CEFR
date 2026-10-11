@@ -6,6 +6,7 @@
 'use strict';
 const { send, rateLimited } = require('./_pay');
 const { verifyAuth, getUserPass } = require('./_firebase');
+const { isAdminUser } = require('./_entitlements');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') return send(res, 405, { error: 'method_not_allowed' });
@@ -13,6 +14,10 @@ module.exports = async function handler(req, res) {
 
   const authUser = await verifyAuth(req);
   if (!authUser) return send(res, 200, { valid: false, exp: 0 });
+
+  // the owner's accounts (ADMIN_EMAILS, verified address) are members: valid until the year 2099
+  if (isAdminUser(authUser)) return send(res, 200, { valid: true, exp: 4070908800000 });
+
   const pass = await getUserPass(authUser.uid);
   if (pass && pass.exp > Date.now()) return send(res, 200, { valid: true, exp: pass.exp });
   return send(res, 200, { valid: false, exp: pass ? pass.exp : 0 });
