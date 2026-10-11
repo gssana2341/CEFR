@@ -471,6 +471,25 @@ await test('the invite check itself: needs a verified address, a blocked account
   }
 });
 
+await test('the owner account: a verified ADMIN_EMAILS address is an active member and gets no daily cap; an unverified one is nobody special', async () => {
+  const { isAdminUser, who } = require('../api/_entitlements.js');
+  process.env.ADMIN_EMAILS = 'boss@example.com';
+  try {
+    assert.equal(isAdminUser({ uid: 'u', email: 'Boss@Example.com', verified: true }), true);
+    assert.equal(isAdminUser({ uid: 'u', email: 'boss@example.com', verified: false }), false, 'anybody can register an unconfirmed e-mail/password account with that address');
+    assert.equal(isAdminUser({ uid: 'u', email: 'xboss@example.com', verified: true }), false);
+    assert.equal(isAdminUser(null), false);
+    const ctx = await who({ headers: { authorization: 'Bearer mock-owner2.boss@example.com' } });
+    assert.equal(ctx.isAdmin, true);
+    assert.equal(ctx.active, true, 'ctx.active agrees with deny(): lesson mark-up etc. are not withheld from the owner');
+    const other = await who({ headers: { authorization: 'Bearer mock-someone.other@example.com' } });
+    assert.equal(other.isAdmin, false);
+    assert.equal(other.active, false);
+  } finally {
+    delete process.env.ADMIN_EMAILS;
+  }
+});
+
 rmSync(dir, { recursive: true, force: true });
 console.log(failed ? '\n' + failed + ' failed' : '\nall passed');
 process.exit(failed ? 1 : 0);

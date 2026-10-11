@@ -52,26 +52,27 @@ function members(feature) {
   return f === 'exam' || f === 'markup' || f === 'toeic' ? Boolean(PREMIUM[f]) : false;
 }
 
+// The site owner's accounts: ADMIN_EMAILS (server environment variable, comma separated). They count as members for everything and are not
+// held back by the daily caps. The address must be a VERIFIED one (Google sign-in, or an e-mail the owner confirmed): without that,
+// anybody could create an e-mail/password account with the owner's address and be the administrator.
+function isAdminUser(user) {
+  if (!user || !user.email || !user.verified) return false;
+  const list = String(process.env.ADMIN_EMAILS || '').split(/[\s,;]+/).map((x) => x.toLowerCase()).filter(Boolean);
+  return list.includes(String(user.email).toLowerCase());
+}
+
 // → { user: {uid,email}|null, active: boolean, blocked: boolean, isAdmin: boolean, ident: string }
 // `ident` names the caller for counters: the account when signed in, otherwise the address (hashed, never used as a path as is).
+// `active` = holds a membership; the owner's accounts (isAdminUser) always do, so every place that asks `ctx.active` agrees with deny().
 async function who(req) {
   const user = await verifyAuth(req);
   let active = false;
   let blocked = false;
-  let isAdmin = false;
-  
+  const isAdmin = isAdminUser(user);
   if (user) {
     const pass = await getUserPass(user.uid);
-    active = Boolean(pass && pass.exp > Date.now());
+    active = isAdmin || Boolean(pass && pass.exp > Date.now());
     blocked = Boolean(pass && pass.contentBlocked);        // set by _abuse.js after repeated bulk-copying; cleared by hand
-    
-    if (user.email) {
-      const adminRaw = String(process.env.ADMIN_EMAILS || '').trim();
-      const adminList = adminRaw.split(/[\s,;]+/).map((x) => x.toLowerCase()).filter(Boolean);
-      if (adminList.includes(String(user.email).toLowerCase())) {
-        isAdmin = true;
-      }
-    }
   }
   return { user, active, blocked, isAdmin, ident: user ? 'u:' + user.uid : 'ip:' + clientIp(req) };
 }
@@ -121,4 +122,4 @@ async function clueFor(ctx, ann, bank, key) {
   }
 }
 
-module.exports = { BILLING_ENABLED, PREMIUM, members, who, deny, clueFor, toeicGate };
+module.exports = { BILLING_ENABLED, PREMIUM, members, who, deny, clueFor, toeicGate, isAdminUser };

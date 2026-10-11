@@ -44,7 +44,7 @@ module.exports = async function handler(req, res) {
   // signed-in readers get text carrying their invisible tag (see _watermark.js)
   const uid = ctx.user && ctx.user.uid;
   if (set === 'lesson') {
-    const seen = await seenToday(ctx.ident, 'lesson', lesson.id, LESSONS_PER_DAY);
+    const seen = ctx.isAdmin ? { ok: true } : await seenToday(ctx.ident, 'lesson', lesson.id, LESSONS_PER_DAY);     // the owner is not held to the daily cap
     if (!seen.ok) {
       if (members(feature)) await strike(uid);
       return send(res, 429, { error: 'daily_limit' });
