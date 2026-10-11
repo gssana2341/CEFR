@@ -335,59 +335,82 @@
   const bookOn = () => book.sets.length > 0;
   const bookLocked = () => { const pass = window.CEFR.pass; return !book.beta && Boolean(pass && pass.members('toeic') && !pass.active()); };
 
-  // where a set stands for this learner: a run still open, the last result
+  // where an exam stands for this learner: a run still open, the last result (id: a set number, or 'mix')
   function setState(id) {
-    const hist = store.get('toeic:exam:s' + id + ':history', []);
-    const run = store.get('toeic:exam:s' + id, null);
+    const key = id === 'mix' ? 'toeic:exam:mix' : 'toeic:exam:s' + id;
+    const hist = store.get(key + ':history', []);
+    const run = store.get(key, null);
     const open = Boolean(run && run.v === 1 && run.phase !== 'done' && run.phase !== 'grading');
     const last = hist[0];
     const score = last && last.total ? '~' + last.total : last && (last.L || last.R) ? (last.L || last.R).right + '/100' : null;
     return { id, open, score, at: last && last.at, tried: hist.length > 0 };
   }
 
-  // One thing to do first (the exam room), then the practice by Part, then the tips. Nothing else on the page.
+  // one colour per part of the test (also on the practice pages)
+  const PART_COLOR = { 1: '#3b82f6', 2: '#06b6d4', 3: '#10b981', 4: '#84cc16', 5: '#f59e0b', 6: '#ec4899', 7: '#8b5cf6' };
+
+  // The exam room first - each set as a card in its own colour, and the mixed exam drawn from all of them - then the practice by Part, then the tips.
   function toeicPanel() {
     const locked = bookLocked();
     const states = book.sets.map(setState);
-    const next = states.find((x) => x.open) || states.find((x) => !x.tried) || states[0];
-    const others = states.filter((x) => next && x.id !== next.id);
+    const state = (st) => (st.open ? 'ทำค้างอยู่' : st.score ? 'ล่าสุด ' + st.score + (st.at ? ' · ' + dateTh(st.at) : '') : 'ยังไม่เคยทำ');
+    const cta = (st) => (locked ? 'ปลดล็อก' : st.open ? 'ทำต่อ' : 'เริ่มสอบ');
 
-    const hero = h('section', { class: 'tx-hero' },
-      h('p', { class: 'tx-eyebrow', text: 'ซ้อมสอบจริง' }),
-      next
-        ? [
-          h('h2', { class: 'tx-hero-title', text: (next.open ? 'ทำต่อ ' : '') + 'ชุดที่ ' + next.id }),
-          h('p', { class: 'tx-hero-sub', text: '200 ข้อ · 2 ชั่วโมง · เสียงเล่นครั้งเดียว · ได้เฉลยเมื่อส่งข้อสอบ' }),
-          h('div', { class: 'tx-hero-actions' },
-            accBtn(locked ? 'ปลดล็อกด้วยสมาชิก' : next.open ? 'ทำต่อ' : 'เริ่มสอบ', 'toeic-exam.html?set=' + next.id),
-            next.score && h('span', { class: 'tx-last', text: 'ล่าสุด ' + next.score + (next.at ? ' · ' + dateTh(next.at) : '') })),
-          others.length > 0 && h('p', { class: 'tx-others' }, 'ชุดอื่น ',
-            others.map((x, i) => [i ? ' · ' : '', h('a', { href: 'toeic-exam.html?set=' + x.id, text: 'ชุดที่ ' + x.id + (x.open ? ' (ค้างอยู่)' : x.score ? ' (' + x.score + ')' : '') })]))]
-        : [h('h2', { class: 'tx-hero-title', text: 'เร็วๆ นี้' }), h('p', { class: 'tx-hero-sub', text: 'ห้องสอบจำลองเต็มชุด Listening + Reading พร้อมจับเวลา' })]);
+    const setCard = (st) => h('a', { class: 'tx-card tx-set c' + (((st.id - 1) % 3) + 1) + (st.open ? ' open' : ''), href: 'toeic-exam.html?set=' + st.id },
+      h('span', { class: 'tx-card-no', 'aria-hidden': 'true', text: String(st.id) }),
+      h('div', { class: 'tx-card-body' },
+        h('p', { class: 'tx-card-eyebrow', text: 'ซ้อมสอบจริง' }),
+        h('h3', { class: 'tx-card-title', text: 'ชุดที่ ' + st.id }),
+        h('p', { class: 'tx-card-sub', text: '200 ข้อ · 2 ชั่วโมง' })),
+      h('div', { class: 'tx-card-foot' },
+        h('span', { class: 'tx-card-state', text: state(st) }),
+        h('span', { class: 'tx-card-cta', text: cta(st) })));
+
+    // the mixed exam: only when there are at least two sets to draw from
+    const mixSt = setState('mix');
+    const mixCard = book.sets.length >= 2 && h('a', { class: 'tx-card tx-mix' + (mixSt.open ? ' open' : ''), href: 'toeic-exam.html?mix=1' },
+      h('div', { class: 'tx-mix-main' },
+        h('p', { class: 'tx-card-eyebrow', text: 'สอบสุ่มรวม · สมจริงที่สุด' }),
+        h('h3', { class: 'tx-card-title', text: 'สุ่ม 200 ข้อจากทั้ง ' + book.sets.length + ' ชุด' }),
+        h('p', { class: 'tx-card-sub', text: 'โครงสร้างเหมือนข้อสอบจริง Part 1–7 ไม่ซ้ำกันทุกครั้ง · เสียงฟังครั้งเดียว · ย้อนกลับไม่ได้ · ไม่เห็นเฉลยจนกว่าจะส่ง' }),
+        h('div', { class: 'tx-mix-parts', 'aria-hidden': 'true' }, [1, 2, 3, 4, 5, 6, 7].map((n) => h('span', { style: { background: PART_COLOR[n] }, text: String(n) })))),
+      h('div', { class: 'tx-card-foot' },
+        h('span', { class: 'tx-card-state', text: state(mixSt) }),
+        h('span', { class: 'tx-card-cta', text: cta(mixSt) })));
+
+    const exams = book.sets.length
+      ? h('div', { class: 'tx-exams' }, states.map(setCard), mixCard)
+      : h('div', { class: 'tx-exams' }, h('div', { class: 'tx-card tx-set c1 soon' },
+        h('div', { class: 'tx-card-body' }, h('p', { class: 'tx-card-eyebrow', text: 'ซ้อมสอบจริง' }), h('h3', { class: 'tx-card-title', text: 'เร็วๆ นี้' }),
+          h('p', { class: 'tx-card-sub', text: 'ห้องสอบจำลองเต็มชุด Listening + Reading พร้อมจับเวลา' }))));
 
     const partRow = (p) => {
       const lead = h('span', { class: 'part-no', text: String(p.part) });
+      lead.style.setProperty('--pc', PART_COLOR[p.part]);       // a custom property: style.assign() would not set it
       const name = h('span', { class: 'tx-name' }, p.title, ' ', h('span', { class: 'light', text: p.thai }));
       const tag = bookOn() && locked && p.part !== 5 ? h('span', { class: 'tx-tag', text: 'สมาชิก' }) : h('span', { class: 'tx-count', text: p.q + ' ข้อ' });
       if (bookOn()) return h('li', null, h('a', { class: 'tx-row', href: 'toeic-test.html?part=' + p.part }, lead, name, tag));
       if (p.set) return h('li', null, h('a', { class: 'tx-row', href: p.href }, lead, name, h('span', { class: 'tx-count', text: p.q + ' ข้อ' })));
       return h('li', null, h('div', { class: 'tx-row soon' }, lead, name, h('span', { class: 'tx-tag', text: 'เร็วๆ นี้' })));
     };
-    const partCol = (group) => h('div', null, h('h3', { class: 'tx-col-title', text: group }),
+    const partCol = (group) => h('div', { class: 'tx-col ' + group.toLowerCase() }, h('h3', { class: 'tx-col-title', text: group }),
       h('ul', { class: 'tx-list' }, TOEIC_PARTS.filter((p) => p.group === group).map(partRow)));
 
-    const tips = [['grammar', 'แกรมมาร์ 5 เรื่อง'], ['vocab', 'ศัพท์ 200 คำ'], ['phrases', '120 วลี']].filter(([id]) => bookOn() && book.tips.some((t) => t.id === id));
+    const tips = [['grammar', 'แกรมมาร์ 5 เรื่อง', '#3b82f6'], ['vocab', 'ศัพท์ 200 คำ', '#10b981'], ['phrases', '120 วลี', '#f59e0b']].filter(([id]) => bookOn() && book.tips.some((t) => t.id === id));
 
     return h('div', { class: 'acc-toeic' },
       h('h1', { class: 'page-title', text: 'TOEIC' }),
-      hero,
+      h('section', { class: 'tx-section' },
+        h('h2', { class: 'tx-h', text: 'ซ้อมสอบจริง' }),
+        h('p', { class: 'tx-note', text: 'ห้องสอบจำลอง จับเวลา เสียงเล่นครั้งเดียว ย้อนกลับไม่ได้ ได้เฉลยเมื่อส่ง' }),
+        exams),
       h('section', { class: 'tx-section' },
         h('h2', { class: 'tx-h', text: 'ฝึกทีละ Part' }),
         h('p', { class: 'tx-note', text: 'ตอบแล้วเห็นเฉลยและวิธีคิดทันที ไม่จับเวลา' }),
         h('div', { class: 'tx-cols' }, partCol('Listening'), partCol('Reading'))),
       tips.length > 0 && h('section', { class: 'tx-section' },
         h('h2', { class: 'tx-h', text: 'ทริกและเทคนิค' }),
-        h('div', { class: 'tx-chips' }, tips.map(([id, label]) => h('a', { class: 'tx-chip', href: 'toeic-test.html?tips=' + id, text: label })))));
+        h('div', { class: 'tx-chips' }, tips.map(([id, label, color]) => { const a = h('a', { class: 'tx-chip', href: 'toeic-test.html?tips=' + id, text: label }); a.style.setProperty('--pc', color); return a; }))));
   }
 
   // ---------- Tabs ----------

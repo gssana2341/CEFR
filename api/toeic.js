@@ -18,10 +18,12 @@ const { seenToday, strike } = require('./_abuse');
 const { stampText } = require('./_watermark');
 const store = require('./_toeic_store');
 const toeic = require('./_toeic');
+const mix = require('./_toeic_mix');
 
 const DAY = 86_400_000;
 const PART_LOADS_PER_DAY = 60;         // loads of a part page per account / address per day
 const DISTINCT_PARTS_PER_DAY = 14;     // different (set, part) pairs - two whole 200-question tests
+const MIXES_PER_DAY = 2;               // different mixed exams (each shows a whole test's worth of questions) - the same budget as two single sets
 const MEDIA_PER_DAY = 800;             // pictures + audio slices
 const ANSWERS_PER_DAY = 1000;
 const MAX_CHECK_ITEMS = 60;
@@ -107,6 +109,29 @@ async function getPart(req, res, q) {
   return send(res, 200, out);
 }
 
+// the mixed exam: one Part of a 200-question test drawn from all the sets (see _toeic_mix.js)
+async function getMixPart(req, res, q) {
+  const part = String(q.part || '');
+  if (!mix.seedOk(q.mix) || !toeic.validPart(part)) return send(res, 400, { error: 'bad_part' });
+  if (!store.configured()) return notConfigured(res);
+  const ctx = await who(req);
+  const refused = deny(ctx, 'toeic');
+  if (refused) return send(res, refused.status, { error: refused.error, feature: 'toeic' });
+  const uid = ctx.user && ctx.user.uid;
+  if (await limited(req, 'toeic-part-day', PART_LOADS_PER_DAY, { uid, windowMs: DAY })) return send(res, 429, { error: 'rate_limited' });
+  const seen = ctx.isAdmin ? { ok: true } : await seenToday(ctx.ident, 'toeic-mix', q.mix, MIXES_PER_DAY);
+  if (!seen.ok) {
+    if (members('toeic')) await strike(uid);
+    return send(res, 429, { error: 'daily_limit' });
+  }
+  let r;
+  try { r = await mix.publicMixPart(q.mix, part, uid || ''); } catch (e) {
+    console.error('[toeic] mix failed:', e.message);
+    return send(res, 502, { error: 'server_error' });
+  }
+  return r.status === 200 ? send(res, 200, r.body) : send(res, r.status, { error: r.status === 503 ? 'not_available' : 'not_found' });
+}
+
 async function getTips(req, res) {
   if (!store.configured()) return notConfigured(res);
   const ctx = await who(req);
@@ -121,10 +146,11 @@ async function getTips(req, res) {
 async function check(req, res) {
   if (notJson(req)) return send(res, 415, { error: 'json_required' });
   const body = await readJson(req);
+  const isMix = body.mix !== undefined;
   const set = body.set;
   const part = String(body.part || '');
   const items = body.items;
-  if (!toeic.validSet(set) || !toeic.validPart(part) || !Array.isArray(items) || items.length < 1 || items.length > MAX_CHECK_ITEMS) {
+  if ((isMix ? !mix.seedOk(body.mix) : !toeic.validSet(set)) || !toeic.validPart(part) || !Array.isArray(items) || items.length < 1 || items.length > MAX_CHECK_ITEMS) {
     return send(res, 400, { error: 'bad_items' });
   }
   if (!store.configured()) return notConfigured(res);
@@ -133,13 +159,19 @@ async function check(req, res) {
   if (refused) return send(res, refused.status, { error: refused.error, feature: 'toeic' });
   const uid = ctx.user && ctx.user.uid;
 
-  let data;
-  try { data = await toeic.loadSet(set); } catch (e) {
+  let byN;
+  try {
+    if (isMix) {
+      byN = await mix.mixItemMap(body.mix, part, uid || '');
+    } else {
+      const data = await toeic.loadSet(set);
+      byN = data && data.parts[part] ? toeic.itemMap(data, part) : null;
+    }
+  } catch (e) {
     console.error('[toeic] load failed:', e.message);
     return send(res, 502, { error: 'server_error' });
   }
-  if (!data || !data.parts[part]) return send(res, 404, { error: 'not_found' });
-  const byN = toeic.itemMap(data, part);
+  if (!byN) return send(res, 404, { error: 'not_found' });
   const results = {};
   for (const it of items) {
     const q = it && byN.get(it.n);
@@ -162,6 +194,7 @@ module.exports = async function handler(req, res) {
     const q = req.query || {};
     if (q.op === 'media') return await media(req, res, q);
     if (q.op === 'tips') return await getTips(req, res);
+    if (q.mix !== undefined) return await getMixPart(req, res, q);
     if (q.set !== undefined || q.part !== undefined) return await getPart(req, res, q);
     // the menu is only shown to those who may open the sets (others see "coming soon")
     const ctx = await who(req);

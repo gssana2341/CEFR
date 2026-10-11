@@ -1696,3 +1696,71 @@ body.toeic-page .toeic-directions { margin-bottom: 20px; }
   body.toeic-page .toeic-exam-bar .btn { padding: 6px 10px; font-size: 0.8rem; margin-left: 0; }
   body.toeic-page .toeic-vol { width: 64px; }
 }
+
+/* ---------- TOEIC: colourful exam cards, a colour for every Part ---------- */
+.tx-exams { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.tx-card { position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; gap: 22px; min-height: 196px; padding: 22px 24px; border-radius: 22px; color: #fff; text-decoration: none; box-shadow: 0 16px 34px -18px var(--glow, rgba(79, 70, 229, 0.55)); transition: transform 0.2s, box-shadow 0.2s; }
+.tx-card:hover { transform: translateY(-4px); box-shadow: 0 24px 40px -16px var(--glow, rgba(79, 70, 229, 0.6)); }
+.tx-card::after { content: ""; position: absolute; right: -50px; top: -50px; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, 0.3), transparent 70%); pointer-events: none; }
+.tx-card.c1 { background: linear-gradient(135deg, #4f46e5, #7c3aed); --glow: rgba(99, 102, 241, 0.6); }
+.tx-card.c2 { background: linear-gradient(135deg, #0891b2, #2563eb); --glow: rgba(14, 165, 233, 0.55); }
+.tx-card.c3 { background: linear-gradient(135deg, #db2777, #ea580c); --glow: rgba(236, 72, 153, 0.55); }
+.tx-card.soon { opacity: 0.7; pointer-events: none; }
+.tx-card-no { position: absolute; right: 18px; bottom: -22px; font-size: 8rem; font-weight: 700; line-height: 1; color: rgba(255, 255, 255, 0.16); pointer-events: none; font-variant-numeric: tabular-nums; }
+.tx-card-body { position: relative; z-index: 1; }
+.tx-card-eyebrow { margin: 0 0 6px; font-size: 0.82rem; font-weight: 600; color: rgba(255, 255, 255, 0.85); }
+.tx-card-title { margin: 0; font-size: 1.6rem; font-weight: 600; line-height: 1.25; color: #fff; }
+.tx-card-sub { margin: 6px 0 0; color: rgba(255, 255, 255, 0.85); font-size: 0.92rem; }
+.tx-card-foot { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; }
+.tx-card-state { padding: 4px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.2); font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+.tx-card.open .tx-card-state { background: #fff; color: #7c2d12; font-weight: 600; }
+.tx-card-cta { padding: 8px 20px; border-radius: 999px; background: #fff; color: #1e1b4b; font-weight: 600; box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18); }
+.tx-card.c2 .tx-card-cta { color: #0c4a6e; }
+.tx-card.c3 .tx-card-cta { color: #9d174d; }
+
+.tx-mix { grid-column: 1 / -1; flex-direction: row; align-items: flex-end; flex-wrap: wrap; min-height: 0; background: linear-gradient(110deg, #4f46e5, #0891b2, #059669, #d97706, #db2777, #4f46e5); background-size: 200% 100%; --glow: rgba(124, 58, 237, 0.5); animation: tx-sheen 14s linear infinite; }
+.tx-mix .tx-mix-main { flex: 1 1 360px; position: relative; z-index: 1; }
+.tx-mix .tx-card-foot { flex-direction: column; align-items: flex-end; }
+.tx-mix .tx-card-title { font-size: 1.8rem; }
+.tx-mix-parts { display: flex; gap: 6px; margin-top: 14px; }
+.tx-mix-parts span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: #fff; font-size: 0.8rem; font-weight: 700; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85); }
+@keyframes tx-sheen { to { background-position: 200% 0; } }
+@media (prefers-reduced-motion: reduce) { .tx-mix { animation: none; } .tx-card { transition: none; } .tx-card:hover { transform: none; } }
+@media (max-width: 860px) { .tx-exams { grid-template-columns: minmax(0, 1fr); } .tx-card { min-height: 0; } .tx-mix .tx-card-foot { flex-direction: row; align-items: center; width: 100%; } }
+
+/* parts: each has its own colour */
+.part-no { background: var(--pc, var(--acc-toeic)); color: #fff; }
+.tx-col-title { display: flex; align-items: center; gap: 8px; }
+.tx-col-title::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--cc, var(--acc-toeic)); }
+.tx-col.listening { --cc: #06b6d4; }
+.tx-col.reading { --cc: #ec4899; }
+.tx-row:hover { background: color-mix(in srgb, var(--cc, var(--acc-toeic)) 10%, transparent); }
+.tx-chip { border-color: color-mix(in srgb, var(--pc, var(--acc-toeic)) 55%, var(--border)); background: color-mix(in srgb, var(--pc, var(--acc-toeic)) 10%, transparent); font-weight: 600; }
+.tx-chip:hover { background: var(--pc, var(--acc-toeic)); border-color: var(--pc, var(--acc-toeic)); color: #fff; }
+
+.toeic-practice[data-part="1"] { --pc: #3b82f6; }
+.toeic-practice[data-part="2"] { --pc: #06b6d4; }
+.toeic-practice[data-part="3"] { --pc: #10b981; }
+.toeic-practice[data-part="4"] { --pc: #84cc16; }
+.toeic-practice[data-part="5"] { --pc: #f59e0b; }
+.toeic-practice[data-part="6"] { --pc: #ec4899; }
+.toeic-practice[data-part="7"] { --pc: #8b5cf6; }
+.toeic-practice[data-part] .toeic-step .progress-fill,
+.toeic-practice[data-part] .toeic-step-nav .btn:not(.btn-outline),
+.toeic-practice[data-part] .toeic-clip-box .btn:not(.btn-outline) { background: linear-gradient(135deg, var(--pc), color-mix(in srgb, var(--pc) 55%, #7c3aed)); border-color: transparent; color: #fff; }
+.toeic-practice[data-part] .choice-key { background: color-mix(in srgb, var(--pc) 18%, transparent); color: color-mix(in srgb, var(--pc) 75%, var(--fg)); }
+.toeic-practice[data-part] .choice:hover:not(:disabled) { border-color: var(--pc); background: color-mix(in srgb, var(--pc) 8%, transparent); }
+.toeic-practice[data-part] .tdot.cur { outline-color: var(--pc); }
+.toeic-practice[data-part] .toeic-side-card { border-top: 4px solid var(--pc); }
+.toeic-practice[data-part] .toeic-step { border-top: 4px solid var(--pc); }
+.toeic-practice[data-part] .choice.selected .choice-key { background: var(--info); color: var(--bg); }
+.toeic-practice[data-part] .choice.correct .choice-key { background: var(--ok); color: var(--bg); }
+.toeic-practice[data-part] .choice.wrong .choice-key { background: var(--bad); color: var(--bg); }
+
+/* exam intro: each way of sitting the test has its colour */
+.toeic-modes li:nth-child(1) { --acc-toeic: #6366f1; }
+.toeic-modes li:nth-child(2) { --acc-toeic: #0891b2; }
+.toeic-modes li:nth-child(3) { --acc-toeic: #db2777; }
+.toeic-modes li:nth-child(1) .list-row { background: color-mix(in srgb, var(--acc-toeic) 10%, var(--bg)); }
+.toeic-modes li:nth-child(2) .list-row { background: color-mix(in srgb, var(--acc-toeic) 8%, var(--bg)); }
+.toeic-modes li:nth-child(3) .list-row { background: color-mix(in srgb, var(--acc-toeic) 8%, var(--bg)); }

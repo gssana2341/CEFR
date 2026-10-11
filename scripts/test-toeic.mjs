@@ -490,6 +490,100 @@ await test('the owner account: a verified ADMIN_EMAILS address is an active memb
   }
 });
 
+console.log('mixed exam');
+
+await test('mixed exam: a Part drawn from all the sets, real question numbers, no answers, one audio link per step, the same draw every time', async () => {
+  process.env.TOEIC_DIR = dir;
+  const seed = 'seedAAAAAAAAAAAA1';
+  const get = (part, token = MEMBER, sd = seed) => call({ query: { mix: sd, part: String(part) }, token });
+  const p5 = await get(5);
+  assert.equal(p5.code, 200);
+  assert.deepEqual(p5.json.items.map((i) => i.n), [101, 102, 103], 'one question from each of the three sets, numbered from the Part\'s own slot');
+  assert.deepEqual(leaks(p5.json), [], 'no answer in a mixed Part');
+  assert.deepEqual((await get(5)).json, p5.json, 'the same seed gives the same draw');
+  const p3 = await get(3);
+  assert.equal(p3.code, 200);
+  assert.ok(p3.json.groups.length >= 1 && p3.json.groups.every((g) => /^[\w-]+\.[\w-]+\.[\w-]+$/.test((new URL(g.audio, 'http://x').searchParams.get('t')) || '')), 'every conversation carries its own audio link');
+  assert.ok(p3.json.groups.every((g) => Array.isArray(g.at)), 'and its window in that recording');
+  const p1 = await get(1);
+  assert.ok(p1.json.items.every((i) => i.audio && i.img), 'Part 1: audio and picture per question');
+  assert.deepEqual(leaks(p3.json).concat(leaks(p1.json)), []);
+  // media links of a mixed draw work like the others
+  const url = new URL(p1.json.items[0].img, 'http://x');
+  const pic = await call({ query: Object.fromEntries(url.searchParams), headers: { 'sec-fetch-site': 'same-origin' } });
+  assert.equal(pic.code, 200);
+});
+
+await test('mixed exam: answers come from the same draw, after the picks; bad seeds, bad parts and foreign numbers are refused', async () => {
+  const seed = 'seedBBBBBBBBBBBB2';
+  const ok = await call({ method: 'POST', token: MEMBER, body: { op: 'check', mix: seed, part: 5, items: [{ n: 101, pick: 0 }, { n: 102, pick: 1 }] } });
+  assert.equal(ok.code, 200);
+  assert.equal(ok.json.results[101].a, 0);
+  assert.ok(ok.json.results[102]);
+  assert.equal((await call({ method: 'POST', token: MEMBER, body: { op: 'check', mix: seed, part: 5, items: [{ n: 150, pick: 0 }] } })).code, 400, 'a number that is not in this draw');
+  for (const mix of ['short', 'has space in it ok', '../../etc/passwd', 123, null]) {
+    assert.equal((await call({ method: 'POST', token: MEMBER, body: { op: 'check', mix, part: 5, items: [{ n: 101, pick: 0 }] } })).code, 400, String(mix));
+    assert.equal((await call({ query: { mix, part: '5' }, token: MEMBER })).code, 400, String(mix));
+  }
+  assert.equal((await call({ query: { mix: seed, part: '9' }, token: MEMBER })).code, 400);
+  assert.equal((await call({ query: { mix: seed, part: '5' } })).code, 401, 'not signed in');
+  assert.equal((await call({ query: { mix: seed, part: '5' }, token: FREE })).code, 402, 'not a member');
+});
+
+await test('mixed exam: only 2 different mixed exams per day per account', async () => {
+  const who = 'mock-mix-limit-user';
+  await setUserPass('mix-limit-user', { exp: Date.now() + 86_400_000, plan: 'd1', sid: 'mx' });
+  const get = (sd) => call({ query: { mix: sd, part: '5' }, token: who });
+  assert.equal((await get('limitseed00000001')).code, 200);
+  assert.equal((await get('limitseed00000002')).code, 200);
+  assert.equal((await get('limitseed00000001')).code, 200, 'the same one again is free');
+  assert.equal((await get('limitseed00000003')).code, 429, 'a third different one is refused');
+});
+
+await test('mixed exam: the draw has the shape of a real test (6/25/39/30/30/16/54), unique numbers, exact Part 7', () => {
+  const mix = require('../api/_toeic_mix.js');
+  const sizesP7 = [2, 2, 3, 2, 3, 2, 4, 4, 3, 4, 5, 5, 5, 5, 5];
+  const q = (n) => ({ n, c: ['a', 'b', 'c', 'd'], a: 0 });
+  const mkSet = (id) => {
+    let n = 1;
+    const items = (count, extra) => Array.from({ length: count }, () => ({ ...q(n++), ...(extra ? extra(n) : {}) }));
+    const groups = (count, size, withAudio) => Array.from({ length: count }, (_, i) => ({ id: 'g' + i, ...(withAudio ? { at: [i * 10, i * 10 + 10] } : {}), items: items(size) }));
+    return {
+      id,
+      parts: {
+        1: { audio: { file: 'audio/part1.mp3' }, items: items(6).map((it, i) => ({ ...it, at: [i * 10, i * 10 + 10] })) },
+        2: { audio: { file: 'audio/part2.mp3' }, items: items(25).map((it, i) => ({ ...it, at: [i * 10, i * 10 + 10] })) },
+        3: { audio: { file: 'audio/part3.mp3' }, groups: groups(13, 3, true) },
+        4: { audio: { file: 'audio/part4.mp3' }, groups: groups(10, 3, true) },
+        5: { items: items(30) },
+        6: { groups: groups(4, 4, false).map((g) => ({ ...g, imgs: ['a.webp'] })) },
+        7: { groups: sizesP7.map((size, i) => ({ id: 'p' + i, imgs: Array.from({ length: i > 9 ? 2 : 1 }, () => 'x.webp'), items: items(size) })) },
+      },
+    };
+  };
+  const sets = [mkSet(1), mkSet(2), mkSet(3)];
+  const want = { 1: 6, 2: 25, 3: 39, 4: 30, 5: 30, 6: 16, 7: 54 };
+  for (let k = 0; k < 40; k++) {
+    for (const part of Object.keys(want)) {
+      const sel = mix.select(sets, part, 'secret', 'user', 'seed' + k);
+      const ns = sel.flatMap((c) => c.items.map((it) => it.n));
+      assert.equal(ns.length, want[part], 'Part ' + part + ' seed ' + k);
+      assert.deepEqual(ns, ns.map((_, i) => mix.SLOTS[part].start + i), 'numbers run from the Part\'s slot with no gap');
+    }
+  }
+  // another seed or another account gives another draw
+  const a = mix.select(sets, '5', 'secret', 'user', 'seedX').map((c) => c.items[0].src.n + '@' + c.set).join();
+  assert.notEqual(a, mix.select(sets, '5', 'secret', 'user', 'seedY').map((c) => c.items[0].src.n + '@' + c.set).join());
+  assert.notEqual(a, mix.select(sets, '5', 'secret', 'other', 'seedX').map((c) => c.items[0].src.n + '@' + c.set).join());
+  // the first question of a recording (it holds the spoken directions) is not drawn while there are enough others
+  for (let k = 0; k < 40; k++) {
+    for (const part of ['1', '2', '3', '4']) {
+      const first = new Set(sets.map((d) => (d.parts[part].groups ? d.parts[part].groups[0].items[0] : d.parts[part].items[0])));
+      assert.ok(mix.select(sets, part, 'secret', 'user', 'd' + k).every((c) => !first.has(c.items[0].src)), 'Part ' + part + ' seed ' + k);
+    }
+  }
+});
+
 rmSync(dir, { recursive: true, force: true });
 console.log(failed ? '\n' + failed + ' failed' : '\nall passed');
 process.exit(failed ? 1 : 0);

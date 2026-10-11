@@ -18,9 +18,13 @@
   // closing the tab or going back in the middle of a sitting asks first (the answers are kept, but a Listening recording cannot be rewound)
   window.addEventListener('beforeunload', (e) => { if (typeof run !== 'undefined' && run && ['listening', 'reading', 'between'].includes(run.phase)) { e.preventDefault(); e.returnValue = ''; } });
   { const swap = root.replaceChildren.bind(root); root.replaceChildren = (...nodes) => swap(...nodes.filter((n) => n !== null && n !== undefined && n !== false)); }
-  const set = Number(new URLSearchParams(location.search).get('set'));
+  // toeic-exam.html?set=1  one set as printed          toeic-exam.html?mix=1  a test drawn at random from all the sets (see api/_toeic_mix.js)
+  const params = new URLSearchParams(location.search);
+  const MIX = params.has('mix');
+  const set = MIX ? 0 : Number(params.get('set'));
+  const NAME = MIX ? 'สอบสุ่มรวม' : 'ชุดที่ ' + set;
 
-  const KEY = 'toeic:exam:s' + set;
+  const KEY = MIX ? 'toeic:exam:mix' : 'toeic:exam:s' + set;
   const HIST = KEY + ':history';
   const SECTION = {
     listening: { title: 'Listening', parts: [1, 2, 3, 4], total: 100, minutes: 45 },
@@ -51,7 +55,7 @@
   function loadPart(p, force) {
     if (force) delete partLoads[p];
     if (!partLoads[p]) {
-      partLoads[p] = api.call('GET', '/api/toeic?set=' + set + '&part=' + p)
+      partLoads[p] = api.call('GET', MIX ? '/api/toeic?mix=' + encodeURIComponent(run.seed) + '&part=' + p : '/api/toeic?set=' + set + '&part=' + p)
         .then((P) => { parts[p] = P; return P; })
         .catch((e) => { delete partLoads[p]; throw e; });
     }
@@ -108,7 +112,9 @@
     const hasHistory = history.length > 0;
     root.replaceChildren(
       h('section', { class: 'panel toeic-intro' },
-        h('p', { class: 'lead', text: 'จำลองห้องสอบจริง: เสียง Listening เล่นครั้งเดียวต่อเนื่อง ไม่มีปุ่มหยุดหรือย้อน · Reading จับเวลาถอยหลัง · ไม่เห็นเฉลยจนกว่าจะส่ง · คะแนนที่ได้เป็นค่าประมาณ' }),
+        h('p', { class: 'lead', text: MIX
+          ? 'สอบสุ่มรวม: ระบบสุ่มข้อจากทุกชุดมาประกอบเป็นข้อสอบ 200 ข้อ โครงสร้างเหมือนข้อสอบจริง (Part 1–7) ทุกครั้งที่สอบจะได้ข้อไม่ซ้ำกัน · เสียงเล่นครั้งเดียว ไม่มีปุ่มหยุดหรือย้อน · Reading จับเวลาถอยหลัง · ไม่เห็นเฉลยจนกว่าจะส่ง'
+          : 'จำลองห้องสอบจริง: เสียง Listening เล่นครั้งเดียวต่อเนื่อง ไม่มีปุ่มหยุดหรือย้อน · Reading จับเวลาถอยหลัง · ไม่เห็นเฉลยจนกว่าจะส่ง · คะแนนที่ได้เป็นค่าประมาณ' }),
         h('ul', { class: 'toeic-rules' },
           h('li', { text: 'Listening 100 ข้อ · 45 นาที · Part 1–4 (ฟังได้ครั้งเดียว และย้อนกลับไป Part ก่อนหน้าไม่ได้)' }),
           h('li', { text: 'Reading 100 ข้อ · 75 นาที · Part 5–7 (ข้ามไปมาได้ มีปุ่มทำเครื่องหมายไว้ทบทวน)' }),
@@ -130,8 +136,16 @@
   const modeName = (m) => (m === 'listening' ? 'Listening' : m === 'reading' ? 'Reading' : 'เต็มชุด');
   const scoreLine = (r) => [r.L && 'L ' + r.L.right + '/' + r.L.total + ' (~' + r.L.scaled + ')', r.R && 'R ' + r.R.right + '/' + r.R.total + ' (~' + r.R.scaled + ')', r.total && 'รวม ~' + r.total].filter(Boolean).join(' · ');
 
+  // the draw of a mixed exam is a function of this seed (made here, kept in the run so a refresh sees the same questions)
+  function newSeed() {
+    const b = new Uint8Array(18);
+    crypto.getRandomValues(b);
+    return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
   function start(mode) {
     run = { v: 1, set, mode, phase: mode === 'reading' ? 'reading' : 'listening', lPart: 1, picks: {}, flags: {}, startedAt: Date.now() };
+    if (MIX) run.seed = newSeed();
     if (mode === 'reading') run.readingEndsAt = Date.now() + SECTION.reading.minutes * 60_000;
     persist();
     mount();
@@ -170,6 +184,13 @@
     vol.addEventListener('input', () => { audio.volume = Number(vol.value); });
     let p = run.lPart || 1;
     let P = null;
+    let kick = null;                                             // what starts the sound of the Part once the count-down is over
+    // mixed exam: every question / conversation has its own recording and window; they are played one after the other
+    let clips = [];
+    let ci = 0;
+    let clipEnd = 0;
+    let switching = false;
+    const clipsOf = (payload) => (payload.groups || payload.items).map((x) => ({ src: x.audio, at: x.at }));
 
     const renderPart = () => {
       const cards = new Map();
@@ -193,7 +214,13 @@
       refreshing = true;
       try {
         const fresh = await loadPart(part, true);
-        if (part === p && P) {
+        if (MIX && part === p && P && clips[ci]) {
+          const t = audio.currentTime;
+          clips = clipsOf(fresh);
+          switching = true;
+          audio.src = clips[ci].src;
+          audio.addEventListener('loadedmetadata', () => { audio.currentTime = Math.max(clips[ci].at[0], t); switching = false; play(); }, { once: true });
+        } else if (part === p && P) {
           const t = audio.currentTime;
           audio.src = fresh.audio.src;
           audio.addEventListener('loadedmetadata', () => { audio.currentTime = t; play(); }, { once: true });
@@ -209,24 +236,58 @@
       label.textContent = 'Part ' + n + ' · กำลังโหลด…';
       try { P = await loadPart(n, true); } catch (e) { return showError(e, () => { setView('exam'); listening(); }); }
       renderPart();
-      audio.src = P.audio.src;
       audio.volume = Number(vol.value);
-      audio.onended = () => { if (p < 4) playPart(p + 1); else partsDone(); };
       audio.onerror = () => refreshLinks(p);
-      audio.onpause = () => { if (!audio.ended && run && run.phase === 'listening') play(); };           // the recording can not be paused
+      audio.onpause = () => { if (!audio.ended && !switching && run && run.phase === 'listening') play(); };           // the recording can not be paused
+      if (MIX) {
+        clips = clipsOf(P);
+        ci = 0;
+        audio.removeAttribute('src');
+        audio.dataset.cur = '';
+        audio.onended = () => { if (!switching) playClip(ci + 1); };
+        audio.ontimeupdate = () => {
+          if (switching || !clips[ci]) return;
+          const [a, b] = clips[ci].at;
+          if (audio.currentTime >= b) return playClip(ci + 1);
+          bar.style.width = Math.min(100, ((ci + Math.max(0, audio.currentTime - a) / (b - a)) / clips.length) * 100) + '%';
+          label.textContent = 'Part ' + p + ' · ' + (ci + 1) + ' / ' + clips.length;
+        };
+        kick = () => playClip(0);
+        return getReady(n);
+      }
+      audio.src = P.audio.src;
+      audio.onended = () => { if (p < 4) playPart(p + 1); else partsDone(); };
       audio.ontimeupdate = () => {
         const d = audio.duration || P.audio.sec;
         bar.style.width = Math.min(100, (audio.currentTime / d) * 100) + '%';
         label.textContent = 'Part ' + p + ' · ' + ui.mmss(audio.currentTime) + ' / ' + ui.mmss(d);
       };
+      kick = play;
       getReady(n);
+    }
+
+    // the next window of a mixed exam: another file is loaded when needed, then the recording jumps to its start
+    async function playClip(i) {
+      if (!run || run.phase !== 'listening') return;
+      if (i >= clips.length) { if (p < 4) return playPart(p + 1); return partsDone(); }
+      ci = i;
+      const c = clips[i];
+      switching = true;
+      if (audio.dataset.cur !== c.src) {
+        audio.dataset.cur = c.src;
+        audio.src = c.src;
+        await new Promise((res) => { audio.addEventListener('loadedmetadata', res, { once: true }); setTimeout(res, 8000); });
+      }
+      audio.currentTime = c.at[0];
+      switching = false;
+      await play();
     }
 
     // 10 seconds before every Part so the learner can settle, read the directions and check the headphones; the Part's clock is the recording itself
     function getReady(n) {
       let left = 10;
       const text = h('p', { class: 'toeic-prep-text' });
-      const go = () => { clearInterval(prepId); prepId = 0; prep.hidden = true; if (audio && run && run.phase === 'listening') play(); };
+      const go = () => { clearInterval(prepId); prepId = 0; prep.hidden = true; if (audio && run && run.phase === 'listening' && kick) kick(); };
       const draw = () => { text.textContent = 'Part ' + n + ' จะเริ่มใน ' + left + ' วินาที · เตรียมหูฟังและอ่านคำสั่งด้านล่าง'; };
       prep.replaceChildren(text, h('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'เริ่มเลย', onclick: go }));
       draw();
@@ -354,7 +415,7 @@
       for (const p of modeParts()) {
         const P = parts[p] || await loadPart(p);
         const items = questionsOf(P).map((q) => ({ n: q.n, pick: run.picks[q.n] === undefined ? 0 : run.picks[q.n] }));
-        const d = await api.call('POST', '/api/toeic', { op: 'check', set, part: p, items });
+        const d = await api.call('POST', '/api/toeic', MIX ? { op: 'check', mix: run.seed, part: p, items } : { op: 'check', set, part: p, items });
         for (const it of items) { key[it.n] = d.results[it.n].a; if (d.results[it.n].e) (run.expl = run.expl || {})[it.n] = d.results[it.n].e; }
       }
     } catch (e) {
@@ -394,7 +455,7 @@
     const rows = Object.keys(r.parts).map((p) => h('tr', {}, h('td', { text: 'Part ' + p + ' ' + ui.PARTS[p].en }), h('td', { text: r.parts[p].right + ' / ' + r.parts[p].total }), h('td', { text: pct(r.parts[p].right, r.parts[p].total) + '%' })));
     root.replaceChildren(
       h('section', { class: 'panel summary toeic-result' },
-        h('h2', { text: 'ผลการสอบ · ชุดที่ ' + set + ' · ' + modeName(r.mode) }),
+        h('h2', { text: 'ผลการสอบ · ' + NAME + ' · ' + modeName(r.mode) }),
         r.timeUp && h('p', { class: 'meta', text: 'หมดเวลา ระบบส่งคำตอบให้อัตโนมัติ' }),
         h('div', { class: 'stat-tiles' },
           r.L && tile(r.L.right + ' / ' + r.L.total, 'Listening · ประมาณ ' + r.L.scaled + ' / 495'),
@@ -431,7 +492,7 @@
       if (P.groups) for (const g of P.groups) { if (g.items.some(keep)) body.push(ui.groupBlock({ ...g, items: g.items.filter(keep) }, p, make)); }
       else { const its = P.items.filter(keep); if (its.length) body.push(h('div', { class: 'toeic-list' }, its.map(make))); }
       if (body.length) blocks.push(h('section', { class: 'toeic-part' }, h('h2', { class: 'toeic-part-title' }, 'Part ' + p + ' ', h('span', { class: 'light', text: ui.PARTS[p].en })),
-        p <= 4 && h('p', { class: 'meta', text: 'ฟังเสียงของ Part นี้ซ้ำได้ที่ ' }, h('a', { href: 'toeic-test.html?set=' + set + '&part=' + p, text: 'โหมดฝึก' })), ...body));
+        p <= 4 && !MIX && h('p', { class: 'meta', text: 'ฟังเสียงของ Part นี้ซ้ำได้ที่ ' }, h('a', { href: 'toeic-test.html?set=' + set + '&part=' + p, text: 'โหมดฝึก' })), ...body));
     }
     root.replaceChildren(
       h('div', { class: 'btn-row' }, h('button', { class: 'btn btn-outline btn-sm', type: 'button', text: '← สรุปผล', onclick: result })), chips,
@@ -439,15 +500,15 @@
   }
 
   // ---------- go ----------
-  if (!(set >= 1 && set <= 99)) {
+  if (!MIX && !(set >= 1 && set <= 99)) {
     root.replaceChildren(h('section', { class: 'panel' }, h('p', { class: 'lead', text: 'ไม่พบชุดข้อสอบ' }), h('a', { class: 'btn btn-outline', href: 'index.html#toeic', text: 'กลับหน้า TOEIC' })));
     return;
   }
   const title = document.getElementById('toeic-title');
-  if (title) title.replaceChildren('ซ้อมสอบจริง ', h('span', { class: 'light', text: 'ชุดที่ ' + set }));
-  document.title = 'ซ้อมสอบ TOEIC ชุดที่ ' + set + ' — CEFR Quiz';
+  if (title) title.replaceChildren(MIX ? 'สอบสุ่มรวม ' : 'ซ้อมสอบจริง ', h('span', { class: 'light', text: MIX ? 'จากทั้ง 3 ชุด' : 'ชุดที่ ' + set }));
+  document.title = 'ซ้อมสอบ TOEIC ' + NAME + ' — CEFR Quiz';
   // a test still open in this browser is offered for resuming; a run that was being graded when the page closed goes back to its last section
-  if (run && run.v === 1 && run.set === set) {
+  if (run && run.v === 1 && run.set === set && (!MIX || run.seed)) {
     if (run.phase === 'grading') { run.phase = run.mode === 'listening' ? 'listening' : 'reading'; persist(); }
   } else run = null;
   intro();

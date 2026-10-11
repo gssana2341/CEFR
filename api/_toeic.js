@@ -151,4 +151,4 @@ function itemMap(data, partNo) {
   return new Map(itemsOf(data.parts[partNo]).map((it) => [it.n, it]));
 }
 
-module.exports = { validSet, validPart, signMedia, verifyMedia, mediaUrl, loadSet, listSets, publicPart, publicTips, itemMap, itemsOf, MEDIA_TTL, PARTS };
+module.exports = { mediaSecret, validSet, validPart, signMedia, verifyMedia, mediaUrl, loadSet, listSets, publicPart, publicTips, itemMap, itemsOf, MEDIA_TTL, PARTS };

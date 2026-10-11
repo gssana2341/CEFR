@@ -331,7 +331,7 @@
       const body = step.g ? ui.groupBlock(step.g, part, make) : make(step.items[0]);
 
       window.CEFR.setView('quiz');
-      root.replaceChildren(h('div', { class: 'toeic-practice' }, h('section', { class: 'panel toeic-step' },
+      root.replaceChildren(h('div', { class: 'toeic-practice', 'data-part': String(part) }, h('section', { class: 'panel toeic-step' },
         h('div', { class: 'focus-bar' },
           h('button', { class: 'focus-exit', type: 'button', 'aria-label': 'พักไว้ก่อน (บันทึกอัตโนมัติ)', title: 'พักไว้ก่อน (บันทึกอัตโนมัติ)', text: '←', onclick: () => { leave(); location.href = 'toeic-test.html?part=' + part; } }),
           h('div', { class: 'progress' }, bar),
