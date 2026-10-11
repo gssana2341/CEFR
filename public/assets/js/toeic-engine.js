@@ -137,26 +137,36 @@
     let d;
     try { d = await api.call('GET', '/api/toeic'); } catch (e) { return showError(e, partMenu); }
     const locked = () => !d.beta && pass && pass.members('toeic') && !pass.active();       // invited testers need no membership
+    // one coloured card per set (the same cards as the TOEIC tab), then the practice set the site wrote itself for Part 5
     const rows = (d.sets || []).filter((s) => s.parts[part]).map((s) => {
       const i = s.parts[part];
       const last = store.get(lastKey(s.id, part), null);
-      const sub = [i.q + ' ข้อ', i.audio ? 'เสียง ' + mmss(i.audio) + ' นาที' : null, last ? 'ล่าสุด ' + last.right + '/' + last.total + ' (' + pct(last.right, last.total) + '%)' : null].filter(Boolean).join(' · ');
-      return h('li', { class: 'acc-toeic' },
-        h('a', { class: 'list-row', href: 'toeic-test.html?set=' + s.id + '&part=' + part },
-          h('span', { class: 'part-no', text: String(s.id) }),
-          h('span', { class: 'list-row-main' }, h('span', { class: 'list-row-title', text: s.title }), h('span', { class: 'list-row-sub', text: sub })),
-          h('span', { class: 'list-row-side', text: locked() ? 'สมาชิก' : 'ฝึกได้' })));
+      const sub = [i.q + ' ข้อ', i.audio ? 'เสียง ' + mmss(i.audio) + ' นาที' : null].filter(Boolean).join(' · ');
+      return h('a', { class: 'tx-card tx-set c' + (((s.id - 1) % 3) + 1), href: 'toeic-test.html?set=' + s.id + '&part=' + part },
+        h('span', { class: 'tx-card-no', 'aria-hidden': 'true', text: String(s.id) }),
+        h('div', { class: 'tx-card-body' },
+          h('p', { class: 'tx-card-eyebrow', text: 'Part ' + part + ' · ' + info.en }),
+          h('h3', { class: 'tx-card-title', text: s.title }),
+          h('p', { class: 'tx-card-sub', text: sub })),
+        h('div', { class: 'tx-card-foot' },
+          h('span', { class: 'tx-card-state', text: last ? 'ล่าสุด ' + last.right + '/' + last.total + ' (' + pct(last.right, last.total) + '%)' : 'ยังไม่เคยทำ' }),
+          h('span', { class: 'tx-card-cta', text: locked() ? 'สมาชิก' : 'ฝึกเลย' })));
     });
     if (part === 5) {
-      rows.push(h('li', { class: 'acc-toeic' }, h('a', { class: 'list-row', href: 'toeic5.html' },
-        h('span', { class: 'part-no', text: '+' }),
-        h('span', { class: 'list-row-main' }, h('span', { class: 'list-row-title', text: 'ข้อสอบเขียนใหม่ของเว็บ' }), h('span', { class: 'list-row-sub', text: '30 ข้อ · มีคำอธิบายภาษาไทย' })),
-        h('span', { class: 'list-row-side', text: 'ฟรี' }))));
+      rows.push(h('a', { class: 'tx-card tx-set c4', href: 'toeic5.html' },
+        h('span', { class: 'tx-card-no', 'aria-hidden': 'true', text: '+' }),
+        h('div', { class: 'tx-card-body' },
+          h('p', { class: 'tx-card-eyebrow', text: 'Part 5 · เขียนใหม่โดยเว็บ' }),
+          h('h3', { class: 'tx-card-title', text: 'ข้อสอบเสริม' }),
+          h('p', { class: 'tx-card-sub', text: '30 ข้อ · มีคำอธิบายภาษาไทย' })),
+        h('div', { class: 'tx-card-foot' },
+          h('span', { class: 'tx-card-state', text: 'ฟรี' }),
+          h('span', { class: 'tx-card-cta', text: 'ฝึกเลย' }))));
     }
     root.replaceChildren(
-      h('div', { class: 'toeic-nav' }, h('a', { class: 'btn btn-outline btn-sm', href: 'index.html#toeic', text: '← หน้า TOEIC' })),
-      h('p', { class: 'lead', text: 'เลือกชุดที่จะฝึก Part นี้ ทำทีละข้อ ตอบแล้วเห็นเฉลย' }),
-      h('ul', { class: 'list-rows tiles' }, rows));
+      h('p', { class: 'lead', text: 'เลือกชุดที่จะฝึก Part นี้ ทำทีละข้อ ตอบแล้วเห็นเฉลยและวิธีคิดทันที' }),
+      h('div', { class: 'tx-exams' }, rows),
+      h('div', { class: 'toeic-nav' }, h('a', { class: 'btn btn-outline btn-sm', href: 'index.html#toeic', text: '← หน้า TOEIC' })));
   }
 
   // ---------- tips: the Ebook pages, shown as printed ----------

@@ -1767,3 +1767,20 @@ body.toeic-page .toeic-directions { margin-bottom: 20px; }
 
 /* the big number behind a set card sits in the upper right, clear of the state and the button */
 .tx-card-no { top: 4px; right: 22px; bottom: auto; font-size: 6.2rem; line-height: 1; color: rgba(255, 255, 255, 0.14); z-index: 0; }
+
+/* exam room intro: the blocks are stacked with air between them, and the cards read from the left */
+body.toeic-page #app > * + * { margin-top: 22px; }
+body.toeic-page #app > .toeic-modes { gap: 16px; margin-top: 22px; }
+body.toeic-page #app > .toeic-modes + .btn-row,
+body.toeic-page #app > .btn-row:last-child { margin-top: 26px; }
+.toeic-modes .list-row { width: 100%; text-align: left; align-items: flex-start; }
+.toeic-modes .list-row-main { display: block; text-align: left; }
+.toeic-modes .list-row-title, .toeic-modes .list-row-sub { display: block; text-align: left; }
+.toeic-modes .list-row-sub { margin-top: 4px; }
+.toeic-intro { padding: 30px 34px; }
+.toeic-intro .lead { margin: 0 0 16px; line-height: 1.7; }
+.toeic-intro .toeic-rules { margin-top: 0; }
+body.toeic-page #app > section.panel.resume { padding: 20px 24px; border: 1px solid var(--border); border-radius: 16px; }
+.tx-card.c4 { background: linear-gradient(135deg, #059669, #65a30d); --glow: rgba(16, 185, 129, 0.5); }
+.tx-card.c4 .tx-card-cta { color: #14532d; }
+body.toeic-page #app > .toeic-nav { margin-top: 26px; }
