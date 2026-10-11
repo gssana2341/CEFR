@@ -14,6 +14,10 @@
   const api = window.CEFR.content;
   const pass = window.CEFR.pass;
   const root = document.getElementById('app');
+  // `cond && node` leaves null / undefined / false in the list, and replaceChildren would print them as text
+  // closing the tab or going back in the middle of a sitting asks first (the answers are kept, but a Listening recording cannot be rewound)
+  window.addEventListener('beforeunload', (e) => { if (typeof run !== 'undefined' && run && ['listening', 'reading', 'between'].includes(run.phase)) { e.preventDefault(); e.returnValue = ''; } });
+  { const swap = root.replaceChildren.bind(root); root.replaceChildren = (...nodes) => swap(...nodes.filter((n) => n !== null && n !== undefined && n !== false)); }
   const set = Number(new URLSearchParams(location.search).get('set'));
 
   const KEY = 'toeic:exam:s' + set;
@@ -91,14 +95,14 @@
     stopAll();
     setView('intro');
     const history = store.get(HIST, []);
-    const resume = run && run.phase !== 'done' && run.phase !== 'grading';
+    const resume = Boolean(run && run.phase !== 'done' && run.phase !== 'grading');
     const startCard = (mode, title, sub, minutes) => h('li', { class: 'acc-toeic' },
       h('button', { class: 'list-row', type: 'button', onclick: () => start(mode) },
         h('span', { class: 'list-row-main' },
           h('span', { class: 'list-row-title', text: title }),
           h('span', { class: 'list-row-sub', text: sub })),
         h('span', { class: 'list-row-side', text: minutes })));
-    const last = history[0];
+    const hasHistory = history.length > 0;
     root.replaceChildren(
       h('section', { class: 'panel toeic-intro' },
         h('p', { class: 'lead', text: 'จำลองห้องสอบจริง: เสียง Listening เล่นครั้งเดียวต่อเนื่อง ไม่มีปุ่มหยุดหรือย้อน · Reading จับเวลาถอยหลัง · ไม่เห็นเฉลยจนกว่าจะส่ง · คะแนนที่ได้เป็นค่าประมาณ' }),
@@ -115,7 +119,7 @@
         startCard('full', 'สอบเต็มชุด', 'Listening แล้วต่อด้วย Reading ทันที เหมือนวันสอบ', '2 ชั่วโมง'),
         startCard('listening', 'เฉพาะ Listening', 'Part 1–4 · 100 ข้อ', '45 นาที'),
         startCard('reading', 'เฉพาะ Reading', 'Part 5–7 · 100 ข้อ', '75 นาที')),
-      last && h('section', { class: 'panel' },
+      hasHistory && h('section', { class: 'panel' },
         h('h3', { text: 'ผลที่ผ่านมา' }),
         history.slice(0, 5).map((r) => h('p', { class: 'meta', text: new Date(r.at).toLocaleDateString('th-TH') + ' · ' + modeName(r.mode) + ' · ' + scoreLine(r) }))),
       h('div', { class: 'btn-row' }, h('a', { class: 'btn btn-outline', href: 'index.html#toeic', text: '← กลับหน้า TOEIC' })));

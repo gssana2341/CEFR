@@ -10,6 +10,8 @@
 
   const { h, store, pct } = window.CEFR;
   const root = document.getElementById('app');
+  // `cond && node` leaves null / undefined / false in the list, and replaceChildren would print them as text
+  { const swap = root.replaceChildren.bind(root); root.replaceChildren = (...nodes) => swap(...nodes.filter((n) => n !== null && n !== undefined && n !== false)); }
   const api = window.CEFR.content;
   const pass = window.CEFR.pass;
 
