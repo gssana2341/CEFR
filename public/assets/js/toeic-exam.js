@@ -84,9 +84,12 @@
   }
 
   const setView = (name) => { window.CEFR.setView(name); };
+  let prepId = 0;
   const stopAll = () => {
     clearInterval(timerId);
     timerId = 0;
+    clearInterval(prepId);
+    prepId = 0;
     if (audio) { audio.onended = null; audio.onerror = null; audio.onpause = null; audio.pause(); audio.removeAttribute('src'); audio.load(); audio.remove(); audio = null; }
   };
 
@@ -152,10 +155,11 @@
     const vol = h('input', { type: 'range', min: '0', max: '1', step: '0.05', value: '1', 'aria-label': 'ระดับเสียง', class: 'toeic-vol' });
     const area = h('div', { class: 'toeic-exam-body' });
     const tap = h('button', { class: 'btn toeic-tap', type: 'button', hidden: true, text: 'แตะเพื่อเล่นเสียงต่อ' });
+    const prep = h('div', { class: 'toeic-prep toeic-prep-exam', hidden: true, role: 'status' });
     const head = h('div', { class: 'toeic-exam-bar' },
       h('span', { class: 'toeic-bar-title', text: 'Listening' }), label,
       h('div', { class: 'progress' }, bar), vol);
-    root.replaceChildren(head, tap, area);
+    root.replaceChildren(head, prep, tap, area);
 
     audio = new Audio();
     audio.preload = 'auto';
@@ -215,7 +219,20 @@
         bar.style.width = Math.min(100, (audio.currentTime / d) * 100) + '%';
         label.textContent = 'Part ' + p + ' · ' + ui.mmss(audio.currentTime) + ' / ' + ui.mmss(d);
       };
-      play();
+      getReady(n);
+    }
+
+    // 10 seconds before every Part so the learner can settle, read the directions and check the headphones; the Part's clock is the recording itself
+    function getReady(n) {
+      let left = 10;
+      const text = h('p', { class: 'toeic-prep-text' });
+      const go = () => { clearInterval(prepId); prepId = 0; prep.hidden = true; if (audio && run && run.phase === 'listening') play(); };
+      const draw = () => { text.textContent = 'Part ' + n + ' จะเริ่มใน ' + left + ' วินาที · เตรียมหูฟังและอ่านคำสั่งด้านล่าง'; };
+      prep.replaceChildren(text, h('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'เริ่มเลย', onclick: go }));
+      draw();
+      prep.hidden = false;
+      clearInterval(prepId);
+      prepId = setInterval(() => { left--; if (left <= 0) go(); else draw(); }, 1000);
     }
 
     function partsDone() {

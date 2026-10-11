@@ -4,7 +4,7 @@
 //   paint(card, q, { pick, a, e, reveal })   colours the choices (selected, or right / wrong once the answer is known)
 //   groupBlock(group, part, makeCard)        a passage (pictures) with its questions
 //   picture(src, cls, alt, onFail)           an <img> that can not be dragged or saved from a menu; onFail(img) when the link expired
-//   clipPlayer({ src, start, end, cue, refresh, autoplay }) → { el, destroy, setSrc, play }   plays one stretch of a Part's recording
+//   clipPlayer({ src, start, end, cue, refresh, autoplay, delay }) → { el, destroy, setSrc, play }   plays one stretch of a Part's recording
 //   PARTS, LETTERS, mmss(sec), scaled(section, raw), cefrOf(total)
 // Nothing here knows an answer: the pages pass it in after the server has said it.
 (function () {
@@ -113,6 +113,7 @@
       playBtn.textContent = label();
     }
     function play() {
+      cancelPrep();
       if (audio.currentTime < o.start - 0.2 || audio.currentTime >= stop() - 0.2) audio.currentTime = o.start;
       wantPlay = true;
       audio.play().catch(() => { wantPlay = false; });
@@ -137,17 +138,30 @@
       } catch { /* offline */ }
       setTimeout(() => { refreshing = false; }, 4000);
     });
-    const el = h('div', { class: 'toeic-clip' },
+    // get ready: the recording starts after `delay` seconds (shown), or at once with "เริ่มเลย"
+    let prepId = 0;
+    const prepText = h('span', { class: 'toeic-prep-text' });
+    const prep = h('div', { class: 'toeic-prep', hidden: true, role: 'status' }, prepText,
+      h('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'เริ่มเลย', onclick: () => play() }));
+    function cancelPrep() { clearInterval(prepId); prepId = 0; prep.hidden = true; }
+    function startPrep(sec) {
+      let left = sec;
+      const draw = () => { prepText.textContent = 'เสียงจะเริ่มใน ' + left + ' วินาที · เตรียมตัวให้พร้อม'; };
+      draw();
+      prep.hidden = false;
+      prepId = setInterval(() => { left--; if (left <= 0) play(); else draw(); }, 1000);
+    }
+    const el = h('div', { class: 'toeic-clip' }, prep,
       h('div', { class: 'toeic-clip-row' }, playBtn,
         h('button', { class: 'btn btn-outline btn-sm', type: 'button', text: '↺ ฟังใหม่', onclick: restart }), speed, time),
       h('div', { class: 'progress' }, bar), full);
     paint();
-    if (o.autoplay) setTimeout(play, 250);
+    if (o.autoplay) { if (o.delay > 0) startPrep(o.delay); else setTimeout(play, 250); }
     return {
       el,
       play,
       setSrc: (src) => { audio.src = src; },
-      destroy: () => { audio.onended = null; audio.pause(); audio.removeAttribute('src'); audio.load(); },
+      destroy: () => { cancelPrep(); audio.onended = null; audio.pause(); audio.removeAttribute('src'); audio.load(); },
     };
   }
 

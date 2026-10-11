@@ -224,6 +224,7 @@
     const rev = {};                                              // n -> { a, e, tx } once the server told us
     const fresh = () => api.call('GET', '/api/toeic?set=' + set + '&part=' + part).then((F) => F.audio.src);
     const wantAuto = () => store.get('toeic:autoplay', true) !== false;
+    let readied = false;                                         // the first recording of a visit waits 10 s so the learner can get ready; the next ones 3 s
 
     // practice is not the exam: every round comes in a new random order (a conversation / passage stays together), so the position of a
     // question is never a clue. The exam room keeps the printed order on purpose.
@@ -289,7 +290,8 @@
       // the recording of this step
       let clip = null;
       if (P.audio && step.at) {
-        player = ui.clipPlayer({ src: P.audio.src, start: step.at[0], end: step.at[1], cue: step.items[0].cue, refresh: fresh, autoplay: wantAuto() });
+        player = ui.clipPlayer({ src: P.audio.src, start: step.at[0], end: step.at[1], cue: step.items[0].cue, refresh: fresh, autoplay: wantAuto(), delay: readied ? 3 : 10 });
+        readied = true;
         const auto = h('label', { class: 'toeic-clip-opt' }, h('input', { type: 'checkbox', checked: wantAuto(), onchange: (e) => store.set('toeic:autoplay', e.target.checked) }), ' เล่นเสียงอัตโนมัติเมื่อเปิดข้อ');
         clip = h('div', { class: 'toeic-clip-box' }, player.el, auto);
       } else if (P.audio) {

@@ -1492,6 +1492,10 @@ dialog.toeic-zoom { width: min(96vw, 1100px); max-width: none; max-height: 94vh;
 
 /* TOEIC practice: one step at a time */
 .toeic-clip-box { margin: 0 0 18px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--subtle); }
+.toeic-prep { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin: 0 0 10px; padding: 8px 14px; border: 1px solid var(--warn); border-radius: var(--radius); background: var(--warn-bg); color: var(--fg); }
+.toeic-prep[hidden] { display: none; }
+.toeic-prep-text { margin: 0; font-variant-numeric: tabular-nums; font-weight: 600; }
+.toeic-prep-exam { margin: 12px 0; padding: 14px 18px; }
 .toeic-clip-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
 .toeic-clip-time { margin-left: auto; font-variant-numeric: tabular-nums; }
 .toeic-clip .progress { margin: 4px 0 6px; }
