@@ -1627,7 +1627,7 @@ body.toeic-page .page-title, body.toeic-page .lead { max-width: 760px; }
 .tside-keys kbd { padding: 1px 7px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 6px; font: inherit; font-size: 0.78rem; background: var(--bg); }
 @media (max-width: 960px) {
   .toeic-practice { grid-template-columns: minmax(0, 1fr); }
-  .toeic-side-card { position: static; order: -1; padding: 14px; }
+  .toeic-side-card { position: static; order: 1; padding: 14px; }
   .tdots { max-height: 120px; grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); }
   .toeic-practice .toeic-step { padding: 20px 18px; }
 }
@@ -1658,3 +1658,31 @@ body.toeic-page .page-title, body.toeic-page .lead { max-width: 760px; }
 .pal { min-height: 34px; border-radius: 9px; }
 @media (max-width: 900px) { .toeic-exam-layout { grid-template-columns: minmax(0, 1fr); } }
 @media (prefers-reduced-motion: reduce) { .tx-row, .tdot, .toeic-practice .choice { transition: none; } .tx-row:hover, .tdot:hover { transform: none; } }
+
+/* spacing and specificity fixes for the TOEIC look */
+body.toeic-page.focus .container { padding-top: 24px; }
+body.toeic-page .toeic-practice .choice.selected .choice-key,
+body.toeic-page .toeic-exam-main .choice.selected .choice-key { background: var(--info); color: var(--bg); }
+body.toeic-page .toeic-exam-bar { gap: 10px 18px; padding: 12px 18px; }
+body.toeic-page .toeic-bar-label { white-space: nowrap; }
+body.toeic-page .toeic-exam-bar .btn { margin-left: 4px; white-space: nowrap; }
+body.toeic-page .toeic-exam-main .toeic-q, body.toeic-page .toeic-exam-main .toeic-group { padding: 24px 28px 22px; margin-bottom: 20px; }
+body.toeic-page .toeic-q .question { margin-bottom: 18px; }
+body.toeic-page .choices { gap: 10px; }
+body.toeic-page .toeic-flag { margin-top: 14px; }
+body.toeic-page .toeic-part-title { margin: 30px 0 14px; }
+body.toeic-page .toeic-directions { margin-bottom: 20px; }
+@media (max-width: 960px) {
+  body.toeic-page.focus .container { padding-top: 14px; }
+  body.toeic-page .toeic-exam-main .toeic-q, body.toeic-page .toeic-exam-main .toeic-group { padding: 18px 16px; }
+}
+
+/* phones: the sticky bar of the exam room is one slim row */
+@media (max-width: 600px) {
+  body.toeic-page .toeic-exam-bar { flex-wrap: nowrap; gap: 8px; padding: 8px 12px; margin-bottom: 12px; border-radius: 12px; }
+  body.toeic-page .toeic-bar-title { font-size: 0.9rem; }
+  body.toeic-page .toeic-bar-label { font-size: 0.72rem; white-space: normal; line-height: 1.25; }
+  body.toeic-page .toeic-timer { font-size: 1rem; padding: 1px 9px; margin-left: auto; }
+  body.toeic-page .toeic-exam-bar .btn { padding: 6px 10px; font-size: 0.8rem; margin-left: 0; }
+  body.toeic-page .toeic-vol { width: 64px; }
+}
