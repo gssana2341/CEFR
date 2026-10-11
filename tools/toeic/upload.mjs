@@ -20,7 +20,7 @@ if (existsSync('.env')) {
     if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1');
   }
 }
-const base = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+const base = (process.env.SUPABASE_URL || '').trim().replace(/^(https?:\/\/[^/]+).*$/, '$1');     // host only: a pasted ".../rest/v1" would hit PostgREST
 const key = process.env.SUPABASE_SERVICE_KEY || '';
 const bucket = process.env.TOEIC_BUCKET || 'toeic';
 if (!flag('--dry-run') && (!base || !key)) {

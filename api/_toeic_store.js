@@ -58,7 +58,7 @@ function readDir(p, range) {
 
 // ---------- Supabase Storage ----------
 async function readSupabase(p, range) {
-  const base = process.env.SUPABASE_URL.replace(/\/+$/, '');
+  const base = process.env.SUPABASE_URL.trim().replace(/^(https?:\/\/[^/]+).*$/, '$1');     // host only: a pasted ".../rest/v1" would hit PostgREST
   const bucket = process.env.TOEIC_BUCKET || 'toeic';
   const key = process.env.SUPABASE_SERVICE_KEY;
   const url = base + '/storage/v1/object/authenticated/' + encodeURIComponent(bucket) + '/' + p.split('/').map(encodeURIComponent).join('/');
