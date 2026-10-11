@@ -331,55 +331,59 @@
   const bookOn = () => book.sets.length > 0;
   const bookLocked = () => { const pass = window.CEFR.pass; return !book.beta && Boolean(pass && pass.members('toeic') && !pass.active()); };
 
-  const tipRow = (id, title, sub) => (bookOn() && book.tips.some((t) => t.id === id)
-    ? listRow('toeic-test.html?tips=' + id, title, null, sub, bookLocked() ? 'สมาชิก' : 'เปิดแล้ว', 'toeic', !bookLocked())
-    : listRow(null, title, null, sub, 'เร็วๆ นี้', 'toeic'));
-
-  // the exam room of one set: last score, or "continue" when a run is still open
-  function examRow(id) {
+  // where a set stands for this learner: a run still open, the last result
+  function setState(id) {
     const hist = store.get('toeic:exam:s' + id + ':history', []);
     const run = store.get('toeic:exam:s' + id, null);
-    const open = run && run.v === 1 && run.phase !== 'done' && run.phase !== 'grading';
+    const open = Boolean(run && run.v === 1 && run.phase !== 'done' && run.phase !== 'grading');
     const last = hist[0];
-    const sub = ['Listening 45 + Reading 75 นาที · 200 ข้อ', last && last.total ? 'ล่าสุด ~' + last.total + ' (' + dateTh(last.at) + ')' : last && (last.L || last.R) ? 'ล่าสุด ' + ((last.L || last.R).right) + '/100' : null, open && 'ทำค้างอยู่'].filter(Boolean).join(' · ');
-    return listRow('toeic-exam.html?set=' + id, 'ซ้อมสอบจริง ชุดที่ ' + id, null, sub, bookLocked() ? 'สมาชิก' : open ? 'ทำต่อ' : 'เริ่มสอบ', 'exam', !bookLocked(),
-      h('span', { class: 'part-no', text: String(id) }));
+    const score = last && last.total ? '~' + last.total : last && (last.L || last.R) ? (last.L || last.R).right + '/100' : null;
+    return { id, open, score, at: last && last.at, tried: hist.length > 0 };
   }
 
+  // One thing to do first (the exam room), then the practice by Part, then the tips. Nothing else on the page.
   function toeicPanel() {
-    const tile = (big, small) => h('div', { class: 'stat-tile' }, h('strong', { text: big }), h('span', { text: small }));
+    const locked = bookLocked();
+    const states = book.sets.map(setState);
+    const next = states.find((x) => x.open) || states.find((x) => !x.tried) || states[0];
+    const others = states.filter((x) => next && x.id !== next.id);
+
+    const hero = h('section', { class: 'tx-hero' },
+      h('p', { class: 'tx-eyebrow', text: 'ซ้อมสอบจริง' }),
+      next
+        ? [
+          h('h2', { class: 'tx-hero-title', text: (next.open ? 'ทำต่อ ' : '') + 'ชุดที่ ' + next.id }),
+          h('p', { class: 'tx-hero-sub', text: '200 ข้อ · 2 ชั่วโมง · เสียงเล่นครั้งเดียว · ได้เฉลยเมื่อส่งข้อสอบ' }),
+          h('div', { class: 'tx-hero-actions' },
+            accBtn(locked ? 'ปลดล็อกด้วยสมาชิก' : next.open ? 'ทำต่อ' : 'เริ่มสอบ', 'toeic-exam.html?set=' + next.id),
+            next.score && h('span', { class: 'tx-last', text: 'ล่าสุด ' + next.score + (next.at ? ' · ' + dateTh(next.at) : '') })),
+          others.length > 0 && h('p', { class: 'tx-others' }, 'ชุดอื่น ',
+            others.map((x, i) => [i ? ' · ' : '', h('a', { href: 'toeic-exam.html?set=' + x.id, text: 'ชุดที่ ' + x.id + (x.open ? ' (ค้างอยู่)' : x.score ? ' (' + x.score + ')' : '') })]))]
+        : [h('h2', { class: 'tx-hero-title', text: 'เร็วๆ นี้' }), h('p', { class: 'tx-hero-sub', text: 'ห้องสอบจำลองเต็มชุด Listening + Reading พร้อมจับเวลา' })]);
+
     const partRow = (p) => {
       const lead = h('span', { class: 'part-no', text: String(p.part) });
-      if (bookOn()) {
-        const sub = [p.group, p.q + ' ข้อต่อชุด', book.sets.length + ' ชุด' + (p.part === 5 ? ' + ข้อสอบเขียนใหม่ของเว็บ 30 ข้อ (ฟรี)' : '')].join(' · ');
-        return listRow('toeic-test.html?part=' + p.part, p.title, p.thai, sub, bookLocked() && p.part !== 5 ? 'สมาชิก' : 'ฝึกได้', 'toeic', !(bookLocked() && p.part !== 5), lead);
-      }
-      if (!p.set) return listRow(null, p.title, p.thai, p.group + ' · ข้อสอบจริง ' + p.q + ' ข้อ', 'เร็วๆ นี้', 'toeic', false, lead);
-      const info = practiceInfo(p.set);
-      return listRow(p.href, p.title, p.thai, [...info.meta, info.resume && 'ค้างอยู่: ' + info.resume].filter(Boolean).join(' · '),
-        info.resume ? 'ทำต่อ' : 'เริ่มทำ', 'toeic', true, lead);
+      const name = h('span', { class: 'tx-name' }, p.title, ' ', h('span', { class: 'light', text: p.thai }));
+      const tag = bookOn() && locked && p.part !== 5 ? h('span', { class: 'tx-tag', text: 'สมาชิก' }) : h('span', { class: 'tx-count', text: p.q + ' ข้อ' });
+      if (bookOn()) return h('li', null, h('a', { class: 'tx-row', href: 'toeic-test.html?part=' + p.part }, lead, name, tag));
+      if (p.set) return h('li', null, h('a', { class: 'tx-row', href: p.href }, lead, name, h('span', { class: 'tx-count', text: p.q + ' ข้อ' })));
+      return h('li', null, h('div', { class: 'tx-row soon' }, lead, name, h('span', { class: 'tx-tag', text: 'เร็วๆ นี้' })));
     };
-    const group = (title, meta, rows) => [
-      h('div', { class: 'part-group' }, h('h2', { text: title }), meta && h('p', { class: 'meta', text: meta })),
-      h('ul', { class: 'list-rows tiles' }, rows)];
+    const partCol = (group) => h('div', null, h('h3', { class: 'tx-col-title', text: group }),
+      h('ul', { class: 'tx-list' }, TOEIC_PARTS.filter((p) => p.group === group).map(partRow)));
+
+    const tips = [['grammar', 'แกรมมาร์ 5 เรื่อง'], ['vocab', 'ศัพท์ 200 คำ'], ['phrases', '120 วลี']].filter(([id]) => bookOn() && book.tips.some((t) => t.id === id));
+
     return h('div', { class: 'acc-toeic' },
-      h('h1', { class: 'page-title' }, 'TOEIC ', h('span', { class: 'light', text: 'ซ้อมสอบ · ฝึก · ทริก' })),
-      h('p', { class: 'tab-intro', text: 'แยกเป็น 3 อย่าง: ซ้อมสอบจริงในห้องสอบจำลอง · ฝึกตาม Part ทีละข้อพร้อมเฉลยและวิธีคิด · ทริกและเทคนิคสรุปเป็นหน้าๆ' }),
-      h('div', { class: 'stat-tiles' },
-        tile('200 ข้อ', 'ข้อสอบจริง 2 ชั่วโมง'),
-        tile('Listening', '100 ข้อ · 45 นาที · Part 1–4'),
-        tile('Reading', '100 ข้อ · 75 นาที · Part 5–7'),
-        tile('10–990', 'ช่วงคะแนนรวม')),
-      ...group('ซ้อมสอบจริง', 'ห้องสอบจำลอง: เสียง Listening เล่นครั้งเดียว · Reading จับเวลา 75 นาที · ไม่เห็นเฉลยจนกว่าจะส่ง · ได้คะแนนโดยประมาณ',
-        bookOn() ? book.sets.map(examRow) : [listRow(null, 'ซ้อมสอบเต็มชุด', null, 'Listening + Reading 200 ข้อ จับเวลาเหมือนจริง', 'เร็วๆ นี้', 'exam')]),
-      ...group('ฝึกตาม Part', 'ทำทีละข้อ ตอบแล้วเห็นเฉลยพร้อมวิธีคิด · ไม่จับเวลา', TOEIC_PARTS.map(partRow)),
-      ...group('ทริกและเทคนิค', 'สรุปจาก Ebook เสริมคะแนน',
-        [tipRow('grammar', 'แกรมมาร์ 5 เรื่องที่ออกบ่อย', 'สูตร วิธีดู และตัวอย่างข้อสอบ'),
-          tipRow('vocab', 'ศัพท์ TOEIC 200 คำ 20 หมวด', 'จัดตามหัวข้อ: อาหาร โรงพยาบาล สนามบิน การประชุม'),
-          tipRow('phrases', '120 วลีที่ออกสอบและใช้ทำงานจริง', 'ประโยคพร้อมคำแปล 6 หมวดงานออฟฟิศ'),
-          listRow('index.html#learn', 'ไวยากรณ์ที่ออกบ่อย', null, 'tense, preposition, word form — บทเรียนในแท็บเรียน', 'ไปที่บทเรียน', 'toeic', true)]),
-      ...group('ข้อสอบเก่า', null,
-        [listRow(null, 'คลังข้อสอบเก่า', null, 'รวบรวมชุดที่ใช้ได้อย่างถูกลิขสิทธิ์ แสดงที่มาของทุกชุด', 'เร็วๆ นี้', 'toeic')]));
+      h('h1', { class: 'page-title', text: 'TOEIC' }),
+      hero,
+      h('section', { class: 'tx-section' },
+        h('h2', { class: 'tx-h', text: 'ฝึกทีละ Part' }),
+        h('p', { class: 'tx-note', text: 'ตอบแล้วเห็นเฉลยและวิธีคิดทันที ไม่จับเวลา' }),
+        h('div', { class: 'tx-cols' }, partCol('Listening'), partCol('Reading'))),
+      tips.length > 0 && h('section', { class: 'tx-section' },
+        h('h2', { class: 'tx-h', text: 'ทริกและเทคนิค' }),
+        h('div', { class: 'tx-chips' }, tips.map(([id, label]) => h('a', { class: 'tx-chip', href: 'toeic-test.html?tips=' + id, text: label })))));
   }
 
   // ---------- Tabs ----------
